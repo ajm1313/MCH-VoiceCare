@@ -1,5 +1,9 @@
 """Core API URLs — sync, worklist, config, rule package, clinical override, package management, OCR, and dashboard endpoints."""
 from django.urls import path
+from django.http import JsonResponse
+from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
+
 from apps.core.api.sync_views import SyncViewSet
 from apps.core.api.worklist_views import WorklistViewSet
 from apps.core.api.config_views import ConfigBootstrapView, ConfigUpdateView
@@ -22,7 +26,17 @@ from apps.core.api.telephony_views import (
 from apps.core.api.ml_views import MLPredictView, MLMetadataView
 from apps.core.api.ml_monitoring_views import MLMonitoringView
 
+
+class HealthCheckView(APIView):
+    """Public health check endpoint for load balancers and Railway."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return JsonResponse({"status": "ok", "service": "mch-voicecare"})
+
+
 urlpatterns = [
+    path("health/", HealthCheckView.as_view(), name="health-check"),
     path("sync/", SyncViewSet.as_view({"post": "push", "get": "pull"})),
     path("sync/batch", SyncViewSet.as_view({"post": "batch"})),
     path("worklists/my", WorklistViewSet.as_view({"get": "my"})),
