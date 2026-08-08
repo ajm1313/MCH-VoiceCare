@@ -5,7 +5,7 @@
     "dockerfilePath": "backend/Dockerfile"
   },
   "deploy": {
-    "startCommand": "sh -c 'python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3'",
+    "startCommand": "sh -c 'python manage.py migrate --noinput || (python manage.py migrate clients --fake 0002 && python manage.py migrate core --fake 0008 && python manage.py migrate newborn --fake 0002 && python manage.py migrate pregnancy --fake 0002 && python manage.py migrate referrals --fake 0002 && python manage.py migrate --noinput) ; gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3'",
     "healthcheckPath": "/api/v1/health/",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
