@@ -157,6 +157,41 @@ class Command(BaseCommand):
             )
         )
 
+        # Fix empty-string values in UUID FK columns (sync_schema may have
+        # added them without proper NULL defaults)
+        self._fix_empty_uuid_fks(cursor)
+
+    def _fix_empty_uuid_fks(self, cursor):
+        """Set empty string values in UUID columns to NULL."""
+        fixed = 0
+        cursor.execute(
+            "SELECT table_name, column_name FROM information_schema.columns "
+            "WHERE data_type = 'uuid' AND table_schema = 'public'"
+        )
+        uuid_cols = cursor.fetchall()
+
+        for table_name, col_name in uuid_cols:
+            try:
+                cursor.execute(
+                    f'UPDATE {table_name} SET {col_name} = NULL '
+                    f"WHERE {col_name} = ''"
+                )
+                if cursor.rowcount > 0:
+                    fixed += cursor.rowcount
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"  FIXED {table_name}.{col_name}: "
+                            f"{cursor.rowcount} empty values -> NULL"
+                        )
+                    )
+            except Exception:
+                pass
+
+        if fixed:
+            self.stdout.write(
+                self.style.SUCCESS(f"Fixed {fixed} empty UUID values total")
+            )
+
     def _get_column_type(self, field):
         """Map a Django field to a PostgreSQL column type string."""
         for field_class, pg_type in FIELD_TYPE_MAP.items():
