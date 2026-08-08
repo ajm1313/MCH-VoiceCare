@@ -162,6 +162,116 @@ class Command(BaseCommand):
         # because schema_editor may have closed the previous one.
         self._fix_empty_uuid_fks()
 
+        # Fix columns that have the wrong type in the database (e.g. a
+        # varchar column created as uuid by a bad migration).
+        self._fix_column_types()
+
+    def _fix_column_types(self):
+        """Fix columns where the DB type doesn't match the model field type."""
+        if connection.vendor != "postgresql":
+            return
+
+        fixed = 0
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT table_name, column_name, data_type, character_maximum_length "
+                "FROM information_schema.columns "
+                "WHERE table_schema = 'public'"
+            )
+            db_cols = {}
+            for table_name, col_name, data_type, max_len in cursor.fetchall():
+                db_cols[(table_name, col_name)] = (data_type, max_len)
+
+        for model in apps.get_models():
+            if not model._meta.managed:
+                continue
+            table_name = model._meta.db_table
+            for field in model._meta.get_fields():
+                if not hasattr(field, "column") or not field.column:
+                    continue
+                if field.many_to_many:
+                    continue
+
+                col_name = field.column
+                key = (table_name, col_name)
+                if key not in db_cols:
+                    continue
+
+                db_type, db_max_len = db_cols[key]
+                expected_type = self._get_column_type(field)
+                if expected_type is None:
+                    continue
+
+                # Normalize expected type for comparison
+                expected_db_type = expected_type.split("(")[0].strip()
+                if expected_db_type == "varchar":
+                    expected_db_type = "character varying"
+                elif expected_db_type == "timestamp with time zone":
+                    expected_db_type = "timestamp with time zone"
+                elif expected_db_type == "double precision":
+                    expected_db_type = "double precision"
+                elif expected_db_type == "bigint":
+                    expected_db_type = "bigint"
+                elif expected_db_type == "smallint":
+                    expected_db_type = "smallint"
+                elif expected_db_type == "integer":
+                    expected_db_type = "integer"
+                elif expected_db_type == "text":
+                    expected_db_type = "text"
+                elif expected_db_type == "boolean":
+                    expected_db_type = "boolean"
+                elif expected_db_type == "uuid":
+                    expected_db_type = "uuid"
+                elif expected_db_type == "jsonb":
+                    expected_db_type = "jsonb"
+                elif expected_db_type == "date":
+                    expected_db_type = "date"
+                elif expected_db_type == "numeric":
+                    expected_db_type = "numeric"
+
+                if db_type != expected_db_type:
+                    # Fix the column type
+                    try:
+                        with connection.cursor() as cursor:
+                            cast = ""
+                            if expected_db_type == "character varying":
+                                cast = f" USING {col_name}::text"
+                            elif expected_db_type == "text":
+                                cast = f" USING {col_name}::text"
+                            elif expected_db_type == "uuid":
+                                cast = f" USING {col_name}::uuid"
+                            elif expected_db_type == "integer":
+                                cast = f" USING {col_name}::integer"
+                            elif expected_db_type == "boolean":
+                                cast = f" USING {col_name}::boolean"
+                            elif expected_db_type == "timestamp with time zone":
+                                cast = f" USING {col_name}::timestamp with time zone"
+
+                            sql = (
+                                f"ALTER TABLE {table_name} "
+                                f"ALTER COLUMN {col_name} TYPE {expected_type}"
+                                f"{cast}"
+                            )
+                            cursor.execute(sql)
+                            fixed += 1
+                            self.stdout.write(
+                                self.style.SUCCESS(
+                                    f"  FIXED TYPE {table_name}.{col_name}: "
+                                    f"{db_type} -> {expected_type}"
+                                )
+                            )
+                    except Exception as e:
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"  FAIL  FIX TYPE {table_name}.{col_name}: {e}"
+                            )
+                        )
+
+        if fixed:
+            self.stdout.write(
+                self.style.SUCCESS(f"Fixed {fixed} column types total")
+            )
+
     def _fix_empty_uuid_fks(self):
         """Set empty string values in UUID columns to NULL."""
         # Only applies to PostgreSQL
