@@ -158,32 +158,39 @@ class Command(BaseCommand):
         )
 
         # Fix empty-string values in UUID FK columns (sync_schema may have
-        # added them without proper NULL defaults)
-        self._fix_empty_uuid_fks(cursor)
+        # added them without proper NULL defaults). Use a fresh cursor
+        # because schema_editor may have closed the previous one.
+        self._fix_empty_uuid_fks()
 
-    def _fix_empty_uuid_fks(self, cursor):
+    def _fix_empty_uuid_fks(self):
         """Set empty string values in UUID columns to NULL."""
+        # Only applies to PostgreSQL
+        if connection.vendor != "postgresql":
+            return
+
         fixed = 0
-        cursor.execute(
-            "SELECT table_name, column_name FROM information_schema.columns "
-            "WHERE data_type = 'uuid' AND table_schema = 'public'"
-        )
-        uuid_cols = cursor.fetchall()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT table_name, column_name FROM information_schema.columns "
+                "WHERE data_type = 'uuid' AND table_schema = 'public'"
+            )
+            uuid_cols = cursor.fetchall()
 
         for table_name, col_name in uuid_cols:
             try:
-                cursor.execute(
-                    f'UPDATE {table_name} SET {col_name} = NULL '
-                    f"WHERE {col_name} = ''"
-                )
-                if cursor.rowcount > 0:
-                    fixed += cursor.rowcount
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f"  FIXED {table_name}.{col_name}: "
-                            f"{cursor.rowcount} empty values -> NULL"
-                        )
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f'UPDATE {table_name} SET {col_name} = NULL '
+                        f"WHERE {col_name}::text = ''"
                     )
+                    if cursor.rowcount > 0:
+                        fixed += cursor.rowcount
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f"  FIXED {table_name}.{col_name}: "
+                                f"{cursor.rowcount} empty values -> NULL"
+                            )
+                        )
             except Exception:
                 pass
 
