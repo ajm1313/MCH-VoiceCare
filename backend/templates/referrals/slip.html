@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Referral Slip — {{ referral.patient.full_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="card-section print-area" id="slip">
+    <div class="card-body">
+      {# ── Header ── #}
+      <div class="text-center border-b border-base-300 pb-4 mb-4">
+        <h1 class="text-2xl font-bold">REFERRAL SLIP</h1>
+        <p class="text-sm text-base-content/60">MCH VoiceCare — Maternal & Child Health</p>
+        {% if referral.urgency == 'EMERGENCY' %}
+        <div class="badge badge-error mt-2 text-lg px-4 py-3">⚠ EMERGENCY</div>
+        {% elif referral.urgency == 'PRIORITY' %}
+        <div class="badge badge-warning mt-2 text-lg px-4 py-3">PRIORITY</div>
+        {% else %}
+        <div class="badge badge-ghost mt-2 text-lg px-4 py-3">ROUTINE</div>
+        {% endif %}
+      </div>
+
+      {# ── QR / Short code ── #}
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <p class="text-xs text-base-content/50">Referral Code</p>
+          <p class="text-xl font-mono font-bold">{{ referral.short_code|default:"—" }}</p>
+          {% if referral.qr_token %}
+          <p class="text-xs text-base-content/40 mt-1">QR: {{ referral.qr_token|truncatechars:30 }}</p>
+          {% endif %}
+        </div>
+        <div class="text-right">
+          <p class="text-xs text-base-content/50">Date / Time</p>
+          <p class="font-semibold">{{ referral.created_at|date:"M d, Y H:i" }}</p>
+        </div>
+      </div>
+
+      {# ── Patient info ── #}
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <p class="text-xs text-base-content/50">Patient Name</p>
+          <p class="font-semibold">{{ referral.patient.full_name }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-base-content/50">Patient ID</p>
+          <p class="font-mono text-sm">{{ referral.patient.id }}</p>
+        </div>
+        {% if referral.pregnancy_episode %}
+        <div>
+          <p class="text-xs text-base-content/50">Pregnancy Episode</p>
+          <p class="font-mono text-sm">{{ referral.pregnancy_episode.id }}</p>
+        </div>
+        {% endif %}
+        {% if referral.newborn_episode %}
+        <div>
+          <p class="text-xs text-base-content/50">Newborn Episode</p>
+          <p class="font-mono text-sm">{{ referral.newborn_episode.id }}</p>
+        </div>
+        {% endif %}
+      </div>
+
+      {# ── Referral details ── #}
+      <div class="space-y-3 mb-4">
+        <div>
+          <p class="text-xs text-base-content/50">Referral Reason</p>
+          <p class="text-sm">{{ referral.referral_reason|default:"—" }}</p>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-xs text-base-content/50">From (Referring Facility)</p>
+            <p class="font-semibold">{{ referral.referring_facility.name|default:"—" }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-base-content/50">To (Destination)</p>
+            <p class="font-semibold">{{ referral.destination_facility.name|default:"—" }}</p>
+          </div>
+        </div>
+        {% if referral.pre_referral_care %}
+        <div>
+          <p class="text-xs text-base-content/50">Pre-referral Care Given</p>
+          <p class="text-sm">{{ referral.pre_referral_care }}</p>
+        </div>
+        {% endif %}
+      </div>
+
+      {# ── Status ── #}
+      <div class="border-t border-base-300 pt-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-xs text-base-content/50">Status</p>
+            <p class="font-semibold">{{ referral.status }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-base-content/50">Created By</p>
+            <p class="font-semibold">{{ referral.created_by|default:"—" }}</p>
+          </div>
+        </div>
+      </div>
+
+      {# ── Signature lines ── #}
+      <div class="grid grid-cols-2 gap-8 mt-8 pt-4">
+        <div>
+          <div class="border-t border-base-400 mt-12"></div>
+          <p class="text-xs text-center text-base-content/50">Referring Clinician Signature</p>
+        </div>
+        <div>
+          <div class="border-t border-base-400 mt-12"></div>
+          <p class="text-xs text-center text-base-content/50">Receiving Facility Stamp</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Actions ── #}
+  <div class="flex justify-end gap-2 mt-4 no-print">
+    <a href="{% url 'referral_detail' referral.pk %}" class="btn btn-ghost btn-sm">Back to Detail</a>
+    <button onclick="window.print()" class="btn btn-primary btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .66-1.035a3 3 0 0 0-1.66-4.592V9m0 0V6m0 0H9m6 0H6m6 0v3m0 0v.382c0 .355-.19.685-.5.866L9 12m6-2.618V9"/></svg>
+      Print Slip
+    </button>
+  </div>
+</div>
+
+<style>
+@media print {
+  .no-print { display: none !important; }
+  .print-area { box-shadow: none !important; border: none !important; }
+  body { background: white !important; }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load mch_tags %}
+{% block title %}Referral — {{ referral.patient.full_name }}{% endblock %}
+{% block navbar_title %}Referral Detail{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'referral_list' %}" class="btn btn-ghost btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <h1 class="text-2xl font-bold">{{ referral.patient.full_name }}</h1>
+    <span class="badge badge-lg {{ referral.urgency|urgency_badge }}">{{ referral.urgency }}</span>
+    <span class="badge badge-lg {{ referral.status|status_badge }}">{{ referral.status }}</span>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Referral Info</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-base-content/50">From</span><span>{{ referral.referring_facility.name|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">To</span><span>{{ referral.destination_facility.name|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Created</span><span>{{ referral.created_at|date:"M d, Y H:i" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Short code</span><span>{{ referral.short_code|default:"—" }}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Reason & Care</h2>
+        <p class="text-sm"><span class="text-base-content/50">Reason:</span> {{ referral.referral_reason|default:"—" }}</p>
+        <p class="text-sm mt-2"><span class="text-base-content/50">Pre-referral care:</span> {{ referral.pre_referral_care|default:"—" }}</p>
+        {% if referral.disposition %}
+        <p class="text-sm mt-2"><span class="text-base-content/50">Disposition:</span> {{ referral.disposition }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

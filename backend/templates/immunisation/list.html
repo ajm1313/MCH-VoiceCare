@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load mch_tags %}
+{% block title %}Immunisation — MCH VoiceCare{% endblock %}
+{% block navbar_title %}Immunisation{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold">Immunisation Records</h1>
+      <p class="text-sm text-base-content/50">Children enrolled in immunisation programme</p>
+    </div>
+    <a href="{% url 'unified_register' %}" class="btn btn-primary btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      Register Client
+    </a>
+  </div>
+
+  <div class="flex gap-2">
+    <a href="{% url 'immunisation_list' %}" class="btn btn-sm btn-primary">Children</a>
+    <a href="{% url 'cwc_session_list' %}" class="btn btn-sm btn-outline">CWC Sessions</a>
+    <a href="{% url 'defaulter_list' %}" class="btn btn-sm btn-outline">Defaulters</a>
+  </div>
+
+  <form method="get" class="flex gap-2">
+    <input type="text" name="q" value="{{ q }}" class="input input-bordered flex-1" placeholder="Search by child name...">
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+  </form>
+
+  <div class="overflow-x-auto card-section">
+    <table class="table table-zebra">
+      <thead>
+        <tr>
+          <th>Child</th>
+          <th>DOB</th>
+          <th>CWC Card</th>
+          <th>CHPS</th>
+          <th>Defaulter</th>
+          <th>Overdue</th>
+          <th class="text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in records %}
+        <tr>
+          <td class="font-medium">{{ rec.child.full_name }}</td>
+          <td>{{ rec.date_of_birth|default:"—" }}</td>
+          <td>{{ rec.cwc_card_number|default:"—" }}</td>
+          <td>{{ rec.current_chps|default:"—" }}</td>
+          <td><span class="badge badge-sm {{ rec.defaulter_status|status_badge }}">{{ rec.defaulter_status }}</span></td>
+          <td>{{ rec.overdue_count }}</td>
+          <td class="text-right">
+            <a href="{% url 'immunisation_child_detail' rec.pk %}" class="btn btn-ghost btn-xs">View</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-base-content/50 py-8">No children found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+  <div class="flex justify-center">
+    <div class="join">
+      {% if page_obj.has_previous %}
+        <a href="?q={{ q }}&page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>
+      {% endif %}
+      <span class="join-item btn btn-sm btn-active">Page {{ page_obj.number }}</span>
+      {% if page_obj.has_next %}
+        <a href="?q={{ q }}&page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

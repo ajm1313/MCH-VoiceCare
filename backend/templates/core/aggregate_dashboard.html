@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Aggregate Dashboard{% endblock %}
+{% block navbar_title %}Aggregate Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'dashboard' %}" class="btn btn-ghost btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <h1 class="text-2xl font-bold">Aggregate Dashboard</h1>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Pregnancy</h2>
+        <div class="stats stats-vertical shadow">
+          <div class="stat"><div class="stat-title">Active</div><div class="stat-value text-2xl">{{ preg_active }}</div></div>
+          <div class="stat"><div class="stat-title">Emergency</div><div class="stat-value text-error text-2xl">{{ preg_emergency }}</div></div>
+          <div class="stat"><div class="stat-title">Priority</div><div class="stat-value text-warning text-2xl">{{ preg_priority }}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Newborn</h2>
+        <div class="stats stats-vertical shadow">
+          <div class="stat"><div class="stat-title">Active</div><div class="stat-value text-2xl">{{ nb_active }}</div></div>
+          <div class="stat"><div class="stat-title">Emergency</div><div class="stat-value text-error text-2xl">{{ nb_emergency }}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Immunisation</h2>
+        <div class="stats stats-vertical shadow">
+          <div class="stat"><div class="stat-title">Enrolled</div><div class="stat-value text-2xl">{{ imm_enrolled }}</div></div>
+          <div class="stat"><div class="stat-title">Defaulters</div><div class="stat-value text-error text-2xl">{{ imm_defaulters }}</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Referrals</h2>
+        <div class="stats stats-vertical shadow">
+          <div class="stat"><div class="stat-title">Open</div><div class="stat-value text-2xl">{{ ref_open }}</div></div>
+          <div class="stat"><div class="stat-title">Emergency</div><div class="stat-value text-error text-2xl">{{ ref_emergency }}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Notifications</h2>
+        <div class="stats stats-vertical shadow">
+          <div class="stat"><div class="stat-title">Open</div><div class="stat-value text-2xl">{{ notif_open }}</div></div>
+          <div class="stat"><div class="stat-title">Emergency</div><div class="stat-value text-error text-2xl">{{ notif_emergency }}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Organisations</h2>
+        <div class="stats stats-vertical shadow">
+          <div class="stat"><div class="stat-title">Regions</div><div class="stat-value text-2xl">{{ org_regions }}</div></div>
+          <div class="stat"><div class="stat-title">Districts</div><div class="stat-value text-2xl">{{ org_districts }}</div></div>
+          <div class="stat"><div class="stat-title">Subdistricts</div><div class="stat-value text-2xl">{{ org_subdistricts }}</div></div>
+          <div class="stat"><div class="stat-title">Facilities</div><div class="stat-value text-2xl">{{ org_facilities }}</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

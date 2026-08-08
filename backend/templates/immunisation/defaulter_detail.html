@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load mch_tags %}
+{% block title %}Defaulter Detail{% endblock %}
+{% block navbar_title %}Defaulter Detail{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'defaulter_list' %}" class="btn btn-ghost btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <h1 class="text-2xl font-bold">{{ defaulter.child_record.child.full_name|default:defaulter.child_name }}</h1>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Episode Info</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-base-content/50">Status</span><span class="badge badge-sm {{ defaulter.defaulter_status|status_badge }}">{{ defaulter.defaulter_status }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Days overdue</span><span>{{ defaulter.days_overdue }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Last visit</span><span>{{ defaulter.last_visit_date|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Next due</span><span>{{ defaulter.next_due_date|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Reason</span><span>{{ defaulter.reason|default:"—" }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Update Trace</h2>
+        <form method="post" action="{% url 'defaulter_trace' defaulter.pk %}" class="space-y-3">
+          {% csrf_token %}
+          {% for field in trace_form %}
+          <div class="form-field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary btn-sm">Update Trace</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ person.full_name }} — MCH VoiceCare{% endblock %}
+{% block navbar_title %}Client Details{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'person_list' %}" class="btn btn-ghost btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <h1 class="text-2xl font-bold">{{ person.full_name }}</h1>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Demographics</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-base-content/50">Date of Birth</span><span>{{ person.date_of_birth|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Age</span><span>{{ person.age_years|default:"—" }} years</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Sex</span><span>{{ person.get_sex_display }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">National ID</span><span>{{ person.national_id|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Phone</span><span>{{ person.phone|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Alt Phone</span><span>{{ person.alternate_phone|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Language</span><span>{{ person.get_preferred_language_display }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Address & Consent</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-base-content/50">Community</span><span>{{ person.community|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Address</span><span>{{ person.address|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Household</span><span>{{ person.household|default:"—" }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Consent</span><span>{% if person.sensitive_content_consent %}Yes{% else %}No{% endif %}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Opt-out</span><span>{% if person.communication_opt_out %}Yes{% else %}No{% endif %}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Deceased</span><span>{% if person.deceased %}Yes{% else %}No{% endif %}</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex gap-2">
+    <a href="{% url 'person_edit' person.pk %}" class="btn btn-primary btn-sm">Edit</a>
+    <a href="{% url 'unified_register' %}" class="btn btn-outline btn-sm">Register in Pathway</a>
+  </div>
+</div>
+{% endblock %}

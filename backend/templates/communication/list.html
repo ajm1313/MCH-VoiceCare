@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load mch_tags %}
+{% block title %}Communication — MCH VoiceCare{% endblock %}
+{% block navbar_title %}Communication{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold">Communication Campaigns</h1>
+      <p class="text-sm text-base-content/50">SMS, USSD, and IVR campaigns</p>
+    </div>
+    <a href="{% url 'campaign_create' %}" class="btn btn-primary btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      New Campaign
+    </a>
+  </div>
+
+  <div class="overflow-x-auto card-section">
+    <table class="table table-zebra">
+      <thead><tr><th>Title</th><th>Channel</th><th>Status</th><th>Audience</th><th>Scheduled</th><th class="text-right">Actions</th></tr></thead>
+      <tbody>
+        {% for c in campaigns %}
+        <tr>
+          <td class="font-medium">{{ c.title }}</td>
+          <td><span class="badge badge-sm">{{ c.channel }}</span></td>
+          <td><span class="badge badge-sm {{ c.status|status_badge }}">{{ c.status }}</span></td>
+          <td>{{ c.audience_count }}</td>
+          <td>{{ c.scheduled_at|default:"—" }}</td>
+          <td class="text-right"><a href="{% url 'campaign_detail' c.pk %}" class="btn btn-ghost btn-xs">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-base-content/50 py-8">No campaigns found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+  <div class="flex justify-center">
+    <div class="join">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>{% endif %}
+      <span class="join-item btn btn-sm btn-active">Page {{ page_obj.number }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

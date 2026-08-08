@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Package Management{% endblock %}
+{% block navbar_title %}Package Management{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'dashboard' %}" class="btn btn-ghost btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <h1 class="text-2xl font-bold">Package Management</h1>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% if active_rule %}
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Active Rule Package</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-base-content/50">Version</span><span>{{ active_rule.version }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Status</span><span class="badge badge-sm badge-success">{{ active_rule.status }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Created</span><span>{{ active_rule.created_at|date:"M d, Y" }}</span></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if active_model %}
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Active Model Package</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-base-content/50">Version</span><span>{{ active_model.version }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Status</span><span class="badge badge-sm badge-success">{{ active_model.status }}</span></div>
+          <div class="flex justify-between"><span class="text-base-content/50">Created</span><span>{{ active_model.created_at|date:"M d, Y" }}</span></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card-section">
+    <div class="card-body">
+      <h2 class="card-title">All Packages</h2>
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+            <tr><th>Type</th><th>Version</th><th>Status</th><th>Created</th><th>Checksum</th>{% if can_manage %}<th>Actions</th>{% endif %}</tr>
+          </thead>
+          <tbody>
+            {% for pkg in packages %}
+            <tr>
+              <td><span class="badge badge-sm">{{ pkg.package_type }}</span></td>
+              <td>{{ pkg.version }}</td>
+              <td>
+                {% if pkg.status == 'ACTIVE' %}<span class="badge badge-sm badge-success">{{ pkg.status }}</span>
+                {% elif pkg.status == 'STAGED' %}<span class="badge badge-sm badge-warning">{{ pkg.status }}</span>
+                {% elif pkg.status == 'REVOKED' %}<span class="badge badge-sm badge-error">{{ pkg.status }}</span>
+                {% else %}<span class="badge badge-sm">{{ pkg.status }}</span>{% endif %}
+              </td>
+              <td>{{ pkg.created_at|date:"M d, Y H:i" }}</td>
+              <td class="text-xs font-mono">{{ pkg.checksum|default:"—"|truncatechars:16 }}</td>
+              {% if can_manage %}
+              <td>
+                {% if pkg.status != 'ACTIVE' %}
+                <form method="post" action="{% url 'package_activate_web' %}" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="package_id" value="{{ pkg.id }}">
+                  <button type="submit" class="btn btn-primary btn-xs">Activate</button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'package_rollback_web' %}" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="package_id" value="{{ pkg.id }}">
+                  <button type="submit" class="btn btn-ghost btn-xs">Rollback To</button>
+                </form>
+                {% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="{{ can_manage|yesno:'6,5' }}" class="text-center text-base-content/50 py-4">No packages found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

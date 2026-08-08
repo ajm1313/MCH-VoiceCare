@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}System Monitoring{% endblock %}
+{% block navbar_title %}System Monitoring{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'dashboard' %}" class="btn btn-ghost btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <h1 class="text-2xl font-bold">System Monitoring</h1>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Technical -->
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Technical (24h)</h2>
+        <div class="grid grid-cols-2 gap-3 mt-2">
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Sync Success</div>
+            <div class="stat-value text-success text-2xl">{{ sync_success_24h }}</div>
+          </div>
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Sync Failure</div>
+            <div class="stat-value text-error text-2xl">{{ sync_failure_24h }}</div>
+          </div>
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Telephony Errors</div>
+            <div class="stat-value text-warning text-2xl">{{ telephony_failures_24h }}</div>
+          </div>
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Expired Caps</div>
+            <div class="stat-value text-error text-2xl">{{ expired_caps }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Packages -->
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Packages</h2>
+        <div class="grid grid-cols-3 gap-3 mt-2">
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Active</div>
+            <div class="stat-value text-success text-2xl">{{ active_packages }}</div>
+          </div>
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Staged</div>
+            <div class="stat-value text-warning text-2xl">{{ staged_packages }}</div>
+          </div>
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Revoked</div>
+            <div class="stat-value text-error text-2xl">{{ revoked_packages }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clinical Safety -->
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Clinical Safety</h2>
+        <div class="grid grid-cols-2 gap-3 mt-2">
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Emergency Alerts (24h)</div>
+            <div class="stat-value text-error text-2xl">{{ emergency_alerts_24h }}</div>
+          </div>
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Open Alerts</div>
+            <div class="stat-value text-warning text-2xl">{{ open_alerts }}</div>
+          </div>
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Overrides (7d)</div>
+            <div class="stat-value text-info text-2xl">{{ overrides_7d }}</div>
+          </div>
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Avg Ack Delay (min)</div>
+            <div class="stat-value text-2xl">{{ avg_ack_delay_minutes|default:"—" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Referrals -->
+    <div class="card-section">
+      <div class="card-body">
+        <h2 class="card-title">Referrals</h2>
+        <div class="grid grid-cols-2 gap-3 mt-2">
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Open</div>
+            <div class="stat-value text-2xl">{{ open_referrals }}</div>
+          </div>
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs">Emergency</div>
+            <div class="stat-value text-error text-2xl">{{ emergency_referrals }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-section">
+    <div class="card-body">
+      <h2 class="card-title">System Info</h2>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-base-content/50">ML Mode</span><span class="badge badge-sm">{{ ml_mode }}</span></div>
+        <div class="flex justify-between"><span class="text-base-content/50">Rule Bundle</span><span>{{ rule_bundle_version }}</span></div>
+        <div class="flex justify-between"><span class="text-base-content/50">Total Org Units</span><span>{{ total_org_units }}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

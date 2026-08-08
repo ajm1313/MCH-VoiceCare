@@ -1,0 +1,53 @@
+{% load static %}
+{% load mch_tags %}
+<!DOCTYPE html>
+<html lang="en" data-theme="mchvoicecare">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}MCH VoiceCare{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Inter', sans-serif; }</style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-base-200 min-h-screen">
+  <div class="flex min-h-screen">
+    {% if user.is_authenticated %}
+      {% include "partials/sidebar.html" %}
+    {% endif %}
+    <div class="flex-1 flex flex-col">
+      {% if user.is_authenticated %}
+        {% include "partials/navbar.html" %}
+      {% endif %}
+      <main class="flex-1 p-6">
+        {% if messages %}
+          <div class="toast toast-top toast-center z-50">
+            {% for message in messages %}
+              <div class="alert {% if message.tags == 'error' %}alert-error{% elif message.tags == 'success' %}alert-success{% elif message.tags == 'warning' %}alert-warning{% else %}alert-info{% endif %}">
+                <span>{{ message }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  {% block extra_scripts %}{% endblock %}
+  <script>
+  (function() {
+    function updateLogos() {
+      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.querySelectorAll('.logo-light').forEach(function(el) { el.classList.toggle('hidden', isDark); });
+      document.querySelectorAll('.logo-dark').forEach(function(el) { el.classList.toggle('hidden', !isDark); });
+    }
+    try {
+      var saved = localStorage.getItem('theme');
+      if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    } catch(e) {}
+    updateLogos();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load mch_tags %}
+{% block title %}{{ report.title }}{% endblock %}
+{% block navbar_title %}Report Detail{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'report_list' %}" class="btn btn-ghost btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <h1 class="text-2xl font-bold">{{ report.title }}</h1>
+  </div>
+
+  <div class="card-section">
+    <div class="card-body">
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-base-content/50">Type</span><span class="badge">{{ report.report_type }}</span></div>
+        <div class="flex justify-between"><span class="text-base-content/50">Status</span><span class="badge {{ report.status|status_badge }}">{{ report.status }}</span></div>
+        <div class="flex justify-between"><span class="text-base-content/50">Period</span><span>{{ report.period_start|default:"—" }} → {{ report.period_end|default:"—" }}</span></div>
+        <div class="flex justify-between"><span class="text-base-content/50">Generated</span><span>{{ report.generated_at|default:"—" }}</span></div>
+      </div>
+      {% if report.data_snapshot %}
+      <div class="divider"></div>
+      <pre class="text-xs bg-base-200 p-4 rounded-lg overflow-x-auto">{{ report.data_snapshot|json_script:"report-data" }}</pre>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MCH VoiceCare custom styles */
+@layer base {
+  h1 { @apply text-2xl font-bold; }
+  h2 { @apply text-xl font-semibold; }
+  h3 { @apply text-lg font-semibold; }
+}
+
+@layer components {
+  .form-field {
+    @apply form-control w-full;
+  }
+  .form-field label {
+    @apply label label-text font-medium;
+  }
+  .form-field input,
+  .form-field select,
+  .form-field textarea {
+    @apply input input-bordered w-full;
+  }
+  .form-field .error {
+    @apply text-error text-sm mt-1;
+  }
+  .card-section {
+    @apply card bg-base-100 shadow-sm border border-base-300;
+  }
+  .card-section .card-body {
+    @apply p-6;
+  }
+  .stat-pill {
+    @apply badge badge-lg;
+  }
+}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Audit Log — MCH VoiceCare{% endblock %}
+{% block navbar_title %}Audit Log{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div>
+    <h1 class="text-2xl font-bold">Audit Log</h1>
+    <p class="text-sm text-base-content/50">Append-only audit trail (spec §23)</p>
+  </div>
+
+  <form method="get" class="flex gap-2">
+    <input type="text" name="action" value="{{ request.GET.action }}" class="input input-bordered flex-1" placeholder="Filter by action...">
+    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+  </form>
+
+  <div class="overflow-x-auto card-section">
+    <table class="table table-zebra table-sm">
+      <thead><tr><th>Timestamp</th><th>Actor</th><th>Action</th><th>Entity</th><th>Purpose</th></tr></thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td>{{ e.occurred_at|date:"M d, Y H:i:s" }}</td>
+          <td>{{ e.actor }}</td>
+          <td class="font-mono text-xs">{{ e.action }}</td>
+          <td>{{ e.entity_type|default:"—" }} {{ e.entity_id|default:"" }}</td>
+          <td><span class="badge badge-xs">{{ e.purpose }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-base-content/50 py-8">No audit events found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+  <div class="flex justify-center">
+    <div class="join">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>{% endif %}
+      <span class="join-item btn btn-sm btn-active">Page {{ page_obj.number }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

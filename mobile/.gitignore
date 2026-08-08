@@ -1,0 +1,9 @@
+node_modules/
+.tmp-rn/
+android/app/build/
+android/.gradle/
+*.keystore
+!debug.keystore
+.env
+build/
+dist/

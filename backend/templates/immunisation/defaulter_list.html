@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load mch_tags %}
+{% block title %}Defaulters — MCH VoiceCare{% endblock %}
+{% block navbar_title %}Defaulters{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div>
+    <h1 class="text-2xl font-bold">Defaulter Episodes</h1>
+    <p class="text-sm text-base-content/50">Children overdue for immunisation</p>
+  </div>
+
+  <div class="flex gap-2">
+    <a href="?status=ACTIVE" class="btn btn-sm btn-primary">Active</a>
+    <a href="?status=TRACED" class="btn btn-sm btn-outline">Traced</a>
+    <a href="?status=RESOLVED" class="btn btn-sm btn-outline">Resolved</a>
+    <a href="?status=LOST" class="btn btn-sm btn-outline">Lost</a>
+    <a href="?status=" class="btn btn-sm btn-outline">All</a>
+  </div>
+
+  <div class="overflow-x-auto card-section">
+    <table class="table table-zebra">
+      <thead><tr><th>Child</th><th>Status</th><th>Days Overdue</th><th>Last Visit</th><th>Next Due</th><th>Trace</th><th class="text-right">Actions</th></tr></thead>
+      <tbody>
+        {% for d in defaulters %}
+        <tr>
+          <td class="font-medium">{{ d.child_record.child.full_name|default:d.child_name }}</td>
+          <td><span class="badge badge-sm {{ d.defaulter_status|status_badge }}">{{ d.defaulter_status }}</span></td>
+          <td>{{ d.days_overdue }}</td>
+          <td>{{ d.last_visit_date|default:"—" }}</td>
+          <td>{{ d.next_due_date|default:"—" }}</td>
+          <td><span class="badge badge-xs">{{ d.trace_status }}</span></td>
+          <td class="text-right"><a href="{% url 'defaulter_detail' d.pk %}" class="btn btn-ghost btn-xs">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-base-content/50 py-8">No defaulters found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+  <div class="flex justify-center">
+    <div class="join">
+      {% if page_obj.has_previous %}<a href="?status={{ request.GET.status }}&page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>{% endif %}
+      <span class="join-item btn btn-sm btn-active">Page {{ page_obj.number }}</span>
+      {% if page_obj.has_next %}<a href="?status={{ request.GET.status }}&page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

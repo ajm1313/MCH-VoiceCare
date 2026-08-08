@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load mch_tags %}
+{% block title %}{{ campaign.title }}{% endblock %}
+{% block navbar_title %}Campaign Detail{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'campaign_list' %}" class="btn btn-ghost btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <h1 class="text-2xl font-bold">{{ campaign.title }}</h1>
+  </div>
+
+  <div class="card-section">
+    <div class="card-body">
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-base-content/50">Channel</span><span class="badge">{{ campaign.channel }}</span></div>
+        <div class="flex justify-between"><span class="text-base-content/50">Status</span><span class="badge {{ campaign.status|status_badge }}">{{ campaign.status }}</span></div>
+        <div class="flex justify-between"><span class="text-base-content/50">Audience</span><span>{{ campaign.audience_count }}</span></div>
+        <div class="flex justify-between"><span class="text-base-content/50">Scheduled</span><span>{{ campaign.scheduled_at|default:"—" }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  {% if campaign.logs.all %}
+  <div class="card-section">
+    <div class="card-body">
+      <h2 class="card-title">Delivery Logs</h2>
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead><tr><th>Recipient</th><th>Status</th><th>Sent</th><th>Delivered</th></tr></thead>
+          <tbody>
+            {% for log in campaign.logs.all %}
+            <tr>
+              <td>{{ log.recipient }}</td>
+              <td><span class="badge badge-xs {{ log.status|status_badge }}">{{ log.status }}</span></td>
+              <td>{{ log.sent_at|default:"—" }}</td>
+              <td>{{ log.delivered_at|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

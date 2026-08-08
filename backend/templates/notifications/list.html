@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load mch_tags %}
+{% block title %}Notifications — MCH VoiceCare{% endblock %}
+{% block navbar_title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div>
+    <h1 class="text-2xl font-bold">Notifications</h1>
+    <p class="text-sm text-base-content/50">Alerts and action items</p>
+  </div>
+
+  <div class="flex gap-2">
+    <a href="?status=OPEN" class="btn btn-sm btn-primary">Open</a>
+    <a href="?status=ACKNOWLEDGED" class="btn btn-sm btn-outline">Acknowledged</a>
+    <a href="?status=ACTED" class="btn btn-sm btn-outline">Acted Upon</a>
+    <a href="?status=" class="btn btn-sm btn-outline">All</a>
+  </div>
+
+  <div class="space-y-2">
+    {% for n in notifications %}
+    <div class="card-section">
+      <div class="card-body flex-row items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="badge {{ n.urgency|urgency_badge }}">{{ n.urgency }}</span>
+          <div>
+            <p class="font-medium">{{ n.title }}</p>
+            <p class="text-xs text-base-content/50">{{ n.notification_class }} · {{ n.created_at|date:"M d, H:i" }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-sm {{ n.status|status_badge }}">{{ n.status }}</span>
+          <a href="{% url 'notification_detail' n.pk %}" class="btn btn-ghost btn-xs">View</a>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="text-center text-base-content/50 py-8">No notifications found.</div>
+    {% endfor %}
+  </div>
+
+  {% if is_paginated %}
+  <div class="flex justify-center">
+    <div class="join">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>{% endif %}
+      <span class="join-item btn btn-sm btn-active">Page {{ page_obj.number }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

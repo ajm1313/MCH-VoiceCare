@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load mch_tags %}
+{% block title %}Referrals — MCH VoiceCare{% endblock %}
+{% block navbar_title %}Referrals{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold">Referrals</h1>
+      <p class="text-sm text-base-content/50">Closed-loop referral coordination</p>
+    </div>
+    <a href="{% url 'referral_create' %}" class="btn btn-primary btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      Create Referral
+    </a>
+  </div>
+
+  <div class="overflow-x-auto card-section">
+    <table class="table table-zebra">
+      <thead><tr><th>Patient</th><th>Destination</th><th>Status</th><th>Urgency</th><th>Created</th><th class="text-right">Actions</th></tr></thead>
+      <tbody>
+        {% for r in referrals %}
+        <tr>
+          <td class="font-medium">{{ r.patient.full_name }}</td>
+          <td>{{ r.destination_facility.name|default:"—" }}</td>
+          <td><span class="badge badge-sm {{ r.status|status_badge }}">{{ r.status }}</span></td>
+          <td><span class="badge badge-sm {{ r.urgency|urgency_badge }}">{{ r.urgency }}</span></td>
+          <td>{{ r.created_at|date:"M d, Y" }}</td>
+          <td class="text-right"><a href="{% url 'referral_detail' r.pk %}" class="btn btn-ghost btn-xs">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-base-content/50 py-8">No referrals found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+  <div class="flex justify-center">
+    <div class="join">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>{% endif %}
+      <span class="join-item btn btn-sm btn-active">Page {{ page_obj.number }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

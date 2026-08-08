@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block navbar_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <!-- Welcome banner -->
+  <div class="hero bg-base-100 rounded-2xl shadow-sm border border-base-300">
+    <div class="hero-content py-8">
+      <div class="text-center">
+        <h1 class="text-3xl font-bold text-primary">Welcome, {{ user.full_name|default:user.username }}</h1>
+        <p class="py-3 text-base-content/60">MCH VoiceCare — Maternal & Child Health Risk Decision Support</p>
+        <div class="flex justify-center gap-3 mt-4">
+          <a href="{% url 'unified_register' %}" class="btn btn-primary">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Register Client
+          </a>
+          <a href="{% url 'pregnancy_list' %}" class="btn btn-outline">View Cases</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick stats -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="card-section">
+      <div class="card-body">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-base-content/50">Active Pregnancies</p>
+            <p class="text-3xl font-bold text-rose-500">{{ active_pregnancies }}</p>
+            {% if emergency_pregnancies %}
+            <p class="text-xs text-error mt-1">{{ emergency_pregnancies }} emergency</p>
+            {% endif %}
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-rose-100 flex items-center justify-center">
+            <svg class="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-section">
+      <div class="card-body">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-base-content/50">Newborn Episodes</p>
+            <p class="text-3xl font-bold text-sky-500">{{ newborn_episodes }}</p>
+            {% if emergency_newborns %}
+            <p class="text-xs text-error mt-1">{{ emergency_newborns }} emergency</p>
+            {% endif %}
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center">
+            <svg class="w-6 h-6 text-sky-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-section">
+      <div class="card-body">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-base-content/50">Immunisation Children</p>
+            <p class="text-3xl font-bold text-success">{{ immunisation_children }}</p>
+            {% if defaulters %}
+            <p class="text-xs text-warning mt-1">{{ defaulters }} defaulters</p>
+            {% endif %}
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
+            <svg class="w-6 h-6 text-success" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.412 15.696 6.75 20.25l-3.75-3.75 4.562-4.562m3.45-3.45L16.5 4.5l3.75 3.75-3.838 3.838M8.25 8.25l7.5 7.5"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-section">
+      <div class="card-body">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-base-content/50">Open Referrals</p>
+            <p class="text-3xl font-bold text-warning">{{ open_referrals }}</p>
+            {% if emergency_referrals %}
+            <p class="text-xs text-error mt-1">{{ emergency_referrals }} emergency</p>
+            {% endif %}
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+            <svg class="w-6 h-6 text-warning" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if emergency_notifications %}
+  <!-- Emergency alert banner -->
+  <div class="alert alert-error shadow-lg">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+    <div>
+      <h3 class="font-bold">{{ emergency_notifications }} emergency notification{{ emergency_notifications|pluralize }}</h3>
+      <p class="text-sm">Immediate action required. Check worklist for details.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if recent_referrals %}
+  <!-- Recent referrals table -->
+  <div class="card-section">
+    <div class="card-body">
+      <h2 class="card-title">Recent Referrals</h2>
+      <div class="overflow-x-auto mt-4">
+        <table class="table table-zebra">
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Urgency</th>
+              <th>Status</th>
+              <th>Destination</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ref in recent_referrals %}
+            <tr>
+              <td>{{ ref.patient.full_name }}</td>
+              <td>
+                {% if ref.urgency == 'EMERGENCY' %}
+                <span class="badge badge-error">EMERGENCY</span>
+                {% elif ref.urgency == 'PRIORITY' %}
+                <span class="badge badge-warning">PRIORITY</span>
+                {% else %}
+                <span class="badge badge-ghost">ROUTINE</span>
+                {% endif %}
+              </td>
+              <td>{{ ref.status }}</td>
+              <td>{{ ref.destination_facility.name|default:"—" }}</td>
+              <td>{{ ref.created_at|date:"M d, H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Quick actions -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <a href="{% url 'pregnancy_list' %}" class="card-section hover:shadow-md transition-shadow">
+      <div class="card-body items-center text-center">
+        <svg class="w-10 h-10 text-rose-400 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5"/></svg>
+        <h3 class="font-semibold">Pregnancy Care</h3>
+        <p class="text-sm text-base-content/50">ANC registration, observations, assessments</p>
+      </div>
+    </a>
+    <a href="{% url 'newborn_list' %}" class="card-section hover:shadow-md transition-shadow">
+      <div class="card-body items-center text-center">
+        <svg class="w-10 h-10 text-sky-400 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+        <h3 class="font-semibold">Newborn Care</h3>
+        <p class="text-sm text-base-content/50">Neonatal episodes, observations, KMC</p>
+      </div>
+    </a>
+    <a href="{% url 'immunisation_list' %}" class="card-section hover:shadow-md transition-shadow">
+      <div class="card-body items-center text-center">
+        <svg class="w-10 h-10 text-success mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.412 15.696 6.75 20.25l-3.75-3.75 4.562-4.562m3.45-3.45L16.5 4.5l3.75 3.75-3.838 3.838M8.25 8.25l7.5 7.5"/></svg>
+        <h3 class="font-semibold">Immunisation</h3>
+        <p class="text-sm text-base-content/50">CWC registration, vaccine doses, defaulters</p>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock %}
