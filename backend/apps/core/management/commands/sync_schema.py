@@ -1,9 +1,9 @@
 """
 Management command to sync database schema with models.
 
-Adds missing columns to existing tables using ALTER TABLE ... ADD COLUMN IF NOT EXISTS.
-This is needed when the database was created with an older schema and migrations
-were faked (marked as applied without actually running the SQL).
+Creates missing tables and adds missing columns to existing tables.
+This is needed when the database was created with an older schema and
+migrations were faked (marked as applied without actually running the SQL).
 
 Usage:
     python manage.py sync_schema
@@ -63,32 +63,49 @@ IMPLICIT_DEFAULTS = {
 
 
 class Command(BaseCommand):
-    help = "Add missing columns to existing tables to sync DB schema with models."
+    help = "Create missing tables and add missing columns to sync DB schema with models."
 
     def handle(self, *args, **options):
-        added = 0
+        tables_created = 0
+        columns_added = 0
         failed = 0
-        skipped = 0
 
         with connection.cursor() as cursor:
+            # Get all existing tables using Django's introspection (works
+            # with both SQLite and PostgreSQL)
+            existing_tables = set(connection.introspection.table_names())
+
             for model in apps.get_models():
                 table_name = model._meta.db_table
                 if not model._meta.managed:
                     continue
 
-                # Get existing columns from the database
-                try:
-                    cursor.execute(
-                        "SELECT column_name FROM information_schema.columns "
-                        "WHERE table_name = %s",
-                        [table_name],
-                    )
-                    existing_cols = {row[0] for row in cursor.fetchall()}
-                except Exception:
-                    skipped += 1
+                if table_name not in existing_tables:
+                    # Create the entire table using Django's schema editor
+                    try:
+                        with connection.schema_editor() as schema_editor:
+                            schema_editor.create_model(model)
+                        tables_created += 1
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f"  CREATED TABLE {table_name}"
+                            )
+                        )
+                    except Exception as e:
+                        failed += 1
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"  FAIL  CREATE TABLE {table_name}: {e}"
+                            )
+                        )
                     continue
 
-                # Check each model field
+                # Table exists — check for missing columns
+                col_description = connection.introspection.get_table_description(
+                    cursor, table_name
+                )
+                existing_cols = {col.name for col in col_description}
+
                 for field in model._meta.get_fields():
                     if not hasattr(field, "column") or not field.column:
                         continue
@@ -99,18 +116,13 @@ class Command(BaseCommand):
                     if col_name in existing_cols:
                         continue
 
-                    # Build column type
                     col_type = self._get_column_type(field)
                     if col_type is None:
                         continue
 
-                    # Build DEFAULT clause — critical for NOT NULL columns on
-                    # tables that already have rows
                     default_value = self._get_default_value(field)
                     default_clause = f" DEFAULT {default_value}" if default_value else ""
 
-                    # Build NULL clause — use NULL for FK columns to avoid
-                    # constraint issues, otherwise respect field.null
                     if field.null or isinstance(field, (models.ForeignKey, models.OneToOneField)):
                         null_clause = ""
                     else:
@@ -124,7 +136,7 @@ class Command(BaseCommand):
 
                     try:
                         cursor.execute(sql)
-                        added += 1
+                        columns_added += 1
                         self.stdout.write(
                             self.style.SUCCESS(
                                 f"  ADDED {table_name}.{col_name} ({col_type})"
@@ -140,7 +152,8 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"\nDone: {added} added, {failed} failed, {skipped} tables skipped"
+                f"\nDone: {tables_created} tables created, "
+                f"{columns_added} columns added, {failed} failed"
             )
         )
 
@@ -163,13 +176,7 @@ class Command(BaseCommand):
         return None
 
     def _get_default_value(self, field):
-        """Get a SQL DEFAULT value for a field.
-
-        Uses the field's explicit default if available, otherwise falls back
-        to an implicit default based on the field type (needed for NOT NULL
-        columns on tables with existing rows).
-        """
-        # Explicit default from the model definition
+        """Get a SQL DEFAULT value for a field."""
         if field.has_default():
             default = field.get_default()
             if default is None:
@@ -181,15 +188,12 @@ class Command(BaseCommand):
             if isinstance(default, str):
                 escaped = default.replace("'", "''")
                 return f"'{escaped}'"
-            # UUID, date, datetime, etc.
             escaped = str(default).replace("'", "''")
             return f"'{escaped}'"
 
-        # Auto-now timestamps — use current time
         if getattr(field, "auto_now_add", False) or getattr(field, "auto_now", False):
             return "now()"
 
-        # Implicit defaults for NOT NULL fields
         if not field.null:
             for field_class, default in IMPLICIT_DEFAULTS.items():
                 if isinstance(field, field_class):
