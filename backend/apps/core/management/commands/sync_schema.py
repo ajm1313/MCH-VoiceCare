@@ -24,6 +24,7 @@ FIELD_TYPE_MAP = {
     models.SmallIntegerField: "smallint",
     models.PositiveIntegerField: "integer",
     models.PositiveSmallIntegerField: "smallint",
+    models.PositiveBigIntegerField: "bigint",
     models.FloatField: "double precision",
     models.DecimalField: "numeric(%(max_digits)s, %(decimal_places)s)",
     models.DateTimeField: "timestamp with time zone",
@@ -35,6 +36,29 @@ FIELD_TYPE_MAP = {
     models.EmailField: "varchar(254)",
     models.URLField: "varchar(200)",
     models.SlugField: "varchar(50)",
+    models.DurationField: "interval",
+    models.FilePathField: "varchar(100)",
+}
+
+# Default values for NOT NULL columns by field type (used when field has no
+# explicit default and the table already has rows)
+IMPLICIT_DEFAULTS = {
+    models.CharField: "''",
+    models.TextField: "''",
+    models.BooleanField: "false",
+    models.IntegerField: "0",
+    models.BigIntegerField: "0",
+    models.SmallIntegerField: "0",
+    models.PositiveIntegerField: "0",
+    models.PositiveSmallIntegerField: "0",
+    models.PositiveBigIntegerField: "0",
+    models.FloatField: "0",
+    models.DecimalField: "0",
+    models.EmailField: "''",
+    models.URLField: "''",
+    models.SlugField: "''",
+    models.FilePathField: "''",
+    models.DurationField: "'0'::interval",
 }
 
 
@@ -43,6 +67,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         added = 0
+        failed = 0
         skipped = 0
 
         with connection.cursor() as cursor:
@@ -60,7 +85,6 @@ class Command(BaseCommand):
                     )
                     existing_cols = {row[0] for row in cursor.fetchall()}
                 except Exception:
-                    self.stdout.write(f"  SKIP {table_name} (table not found)")
                     skipped += 1
                     continue
 
@@ -78,26 +102,19 @@ class Command(BaseCommand):
                     # Build column type
                     col_type = self._get_column_type(field)
                     if col_type is None:
-                        self.stdout.write(
-                            f"  SKIP {table_name}.{col_name} (unsupported type: {type(field).__name__})"
-                        )
                         continue
 
-                    # Build ALTER TABLE statement
-                    null_clause = "" if field.null else " NOT NULL"
-                    default_clause = ""
-                    if field.has_default():
-                        default = field.get_default()
-                        if default is not None:
-                            if isinstance(default, bool):
-                                default_clause = f" DEFAULT {'true' if default else 'false'}"
-                            elif isinstance(default, (int, float)):
-                                default_clause = f" DEFAULT {default}"
-                            elif isinstance(default, str):
-                                escaped = default.replace("'", "''")
-                                default_clause = f" DEFAULT '{escaped}'"
-                        elif field.null:
-                            default_clause = " DEFAULT NULL"
+                    # Build DEFAULT clause — critical for NOT NULL columns on
+                    # tables that already have rows
+                    default_value = self._get_default_value(field)
+                    default_clause = f" DEFAULT {default_value}" if default_value else ""
+
+                    # Build NULL clause — use NULL for FK columns to avoid
+                    # constraint issues, otherwise respect field.null
+                    if field.null or isinstance(field, (models.ForeignKey, models.OneToOneField)):
+                        null_clause = ""
+                    else:
+                        null_clause = " NOT NULL"
 
                     sql = (
                         f"ALTER TABLE {table_name} "
@@ -109,15 +126,22 @@ class Command(BaseCommand):
                         cursor.execute(sql)
                         added += 1
                         self.stdout.write(
-                            self.style.SUCCESS(f"  ADDED {table_name}.{col_name} ({col_type})")
+                            self.style.SUCCESS(
+                                f"  ADDED {table_name}.{col_name} ({col_type})"
+                            )
                         )
                     except Exception as e:
+                        failed += 1
                         self.stdout.write(
-                            self.style.WARNING(f"  FAIL  {table_name}.{col_name}: {e}")
+                            self.style.WARNING(
+                                f"  FAIL  {table_name}.{col_name}: {e}"
+                            )
                         )
 
         self.stdout.write(
-            self.style.SUCCESS(f"\nDone: {added} columns added, {skipped} tables skipped")
+            self.style.SUCCESS(
+                f"\nDone: {added} added, {failed} failed, {skipped} tables skipped"
+            )
         )
 
     def _get_column_type(self, field):
@@ -133,12 +157,42 @@ class Command(BaseCommand):
                     params["decimal_places"] = field.decimal_places
                 return pg_type % params if params else pg_type
 
-        # ForeignKey → UUID (since all our PKs are UUIDs)
-        if isinstance(field, models.ForeignKey):
+        if isinstance(field, (models.ForeignKey, models.OneToOneField)):
             return "uuid"
 
-        # OneToOneField → UUID
-        if isinstance(field, models.OneToOneField):
-            return "uuid"
+        return None
+
+    def _get_default_value(self, field):
+        """Get a SQL DEFAULT value for a field.
+
+        Uses the field's explicit default if available, otherwise falls back
+        to an implicit default based on the field type (needed for NOT NULL
+        columns on tables with existing rows).
+        """
+        # Explicit default from the model definition
+        if field.has_default():
+            default = field.get_default()
+            if default is None:
+                return "NULL"
+            if isinstance(default, bool):
+                return "true" if default else "false"
+            if isinstance(default, (int, float)):
+                return str(default)
+            if isinstance(default, str):
+                escaped = default.replace("'", "''")
+                return f"'{escaped}'"
+            # UUID, date, datetime, etc.
+            escaped = str(default).replace("'", "''")
+            return f"'{escaped}'"
+
+        # Auto-now timestamps — use current time
+        if getattr(field, "auto_now_add", False) or getattr(field, "auto_now", False):
+            return "now()"
+
+        # Implicit defaults for NOT NULL fields
+        if not field.null:
+            for field_class, default in IMPLICIT_DEFAULTS.items():
+                if isinstance(field, field_class):
+                    return default
 
         return None
