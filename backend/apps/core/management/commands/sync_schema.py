@@ -166,6 +166,63 @@ class Command(BaseCommand):
         # varchar column created as uuid by a bad migration).
         self._fix_column_types()
 
+        # Drop extra columns that exist in the DB but not in the model
+        # (leftover from old schema versions). This prevents NOT NULL
+        # constraint violations when inserting new rows.
+        self._drop_extra_columns()
+
+    def _drop_extra_columns(self):
+        """Drop columns that exist in the DB but not in the model."""
+        if connection.vendor != "postgresql":
+            return
+
+        dropped = 0
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT table_name, column_name FROM information_schema.columns "
+                "WHERE table_schema = 'public'"
+            )
+            db_cols = {}
+            for table_name, col_name in cursor.fetchall():
+                db_cols.setdefault(table_name, set()).add(col_name)
+
+        for model in apps.get_models():
+            if not model._meta.managed:
+                continue
+            table_name = model._meta.db_table
+            if table_name not in db_cols:
+                continue
+
+            model_cols = set()
+            for field in model._meta.get_fields():
+                if hasattr(field, "column") and field.column:
+                    model_cols.add(field.column)
+
+            extra_cols = db_cols[table_name] - model_cols
+            for col_name in extra_cols:
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            f"ALTER TABLE {table_name} DROP COLUMN IF EXISTS {col_name}"
+                        )
+                        dropped += 1
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f"  DROPPED {table_name}.{col_name} (not in model)"
+                            )
+                        )
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"  FAIL  DROP {table_name}.{col_name}: {e}"
+                        )
+                    )
+
+        if dropped:
+            self.stdout.write(
+                self.style.SUCCESS(f"Dropped {dropped} extra columns total")
+            )
+
     def _fix_column_types(self):
         """Fix columns where the DB type doesn't match the model field type."""
         if connection.vendor != "postgresql":
