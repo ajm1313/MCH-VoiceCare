@@ -1,44 +1,44 @@
-Remove 26 old admin screens not in spec (clean up legacy platform code)
+Remove old admin web pages not in spec (clean up legacy platform code)
 
-The mobile app was built on top of a generic community health platform
-that included admin/management screens not required by the MCH VoiceCare
-implementation spec. These belong in the backend Django admin, not the
-mobile facility app.
+The backend web app had old admin/management HTML pages from a generic
+community health platform that are not required by the MCH VoiceCare
+implementation spec. The API endpoints for these apps remain — only the
+server-rendered HTML views were removed.
 
-Deleted screens (26):
-- Campaigns: CampaignList, CampaignDetail, CampaignForm
-- Templates: TemplateList, TemplateForm, TemplateDetail
-- Households: HouseholdList, HouseholdForm
-- Integrations: IntegrationList, IntegrationForm
-- OrgUnits: OrgUnitList, OrgUnitForm, OrgUnitDelete
-- Users: UserList, UserForm, RoleScopeAssign
-- Reports: ReportList, ReportDetail, ReportGenerate, ScheduledReportForm
-- Profiles: ProfileList, ProfileDetail, ProfileGenerate
-- Capabilities: CapabilityList, CapabilityForm
-- Monitoring: MonitoringScreen
+Removed web pages (4 apps, 11 templates):
+- Communication: campaign list, detail, form (old platform feature)
+- Integrations: list, form (old platform feature)
+- Reports: list, detail, generate (old report builder; spec §27
+  uses aggregate dashboards, not a report builder)
+- Organisations: list, form, delete (old org CRUD; spec §21.1
+  defines hierarchy as data, managed via Django admin)
 
 Cleaned up:
-- navigation/types.ts: removed 26 old route types
-- App.tsx: removed 26 old imports and Stack.Screen registrations
-- DashboardScreen: removed old admin entries from supportModules,
-  removed Profiling module (was referencing deleted ProfileList)
-- ReferralListScreen: removed "Capabilities" button (was navigating
-  to deleted CapabilityList)
+- config/web_urls.py: removed 4 old URL includes
+- templates/partials/sidebar.html: removed 4 old sidebar links
+  (Organisation Units, Reports, Communication, Integrations)
+- Deleted templates/communication/, templates/integrations/,
+  templates/reports/, templates/organisations/
 
-Remaining screens (41) are all spec-required clinical features:
-- Login, Dashboard, SyncStatus, AuditList
-- Person (list, detail, form)
-- Pregnancy (list, register, detail, observe, assessment, close, transfer)
-- Newborn (list, register, detail, observe, close, transfer)
-- Immunisation (list, register, child detail, record dose)
-- Defaulter (list, detail, trace), CWC (session, detail)
-- Growth (list, detail, record, chart)
-- OCR (scan, confirm)
-- Referral (list, detail, create, QR slip)
-- TaskList, NotificationDetail
-- ClinicianOverride, VoiceRecord
+Remaining web pages (all spec-required per §6.2, §27):
+- Dashboard, Login, Logout
+- Aggregate Dashboard (§27.1)
+- Monitoring (§27.2 clinical safety)
+- Override Log (§3.1, §23)
+- Packages (§24 package management)
+- Configuration (§33 config that must not be hard-coded)
+- Audit Log (§23)
+- Users & Roles (§21 access control)
+- Clinical supervisor views: Clients, Pregnancy, Newborn,
+  Immunisation, Growth, Referrals, Notifications
 
-All 202 tests pass.
+API endpoints unchanged — all spec-required APIs remain:
+- /api/v1/communication/telephony/webhook/ (§17)
+- /api/v1/organisations/ (§21, §32)
+- /api/v1/reports/ (§27)
+- /api/v1/integrations/ (§20.2)
+
+All 664 backend tests pass.
 
 Generated with [Devin](https://devin.ai)
 

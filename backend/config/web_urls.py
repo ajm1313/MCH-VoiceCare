@@ -1,4 +1,14 @@
-"""Web (server-rendered) URL routing."""
+"""Web (server-rendered) URL routing.
+
+Only spec-required web pages are included (spec §6.2):
+- Dashboard, Aggregate Dashboard, Monitoring, Override Log
+- Packages, Configuration, Audit Log, Users & Roles
+- Clinical supervisor views: Clients, Pregnancy, Newborn,
+  Immunisation, Growth, Referrals, Notifications
+
+Old platform pages removed: Communication campaigns,
+Integrations, Reports builder, Organisation units CRUD.
+"""
 from django.urls import include, path
 from django.views.generic import RedirectView
 
@@ -16,11 +26,7 @@ urlpatterns = [
     path("immunisation/", include("apps.immunisation.urls")),
     path("growth/", include("apps.growth.urls")),
     path("referrals/", include("apps.referrals.urls")),
-    path("organisations/", include("apps.organisations.urls")),
     path("audit/", include("apps.audit.urls")),
     path("notifications/", include("apps.notifications.urls")),
-    path("communication/", include("apps.communication.urls")),
-    path("reports/", include("apps.reports.urls")),
-    path("integrations/", include("apps.integrations.urls")),
     path("", RedirectView.as_view(url="/dashboard/", permanent=False)),
 ]
