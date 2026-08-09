@@ -87,6 +87,7 @@ class OCRJob(TimeStampedModel):
         ("CONFIRMED", "Confirmed — human confirmed, ready for clinical use"),
         ("REJECTED", "Rejected — human rejected the extraction"),
         ("FAILED", "Failed — OCR processing error"),
+        ("UNKNOWN_TEMPLATE", "Unknown template — manual entry required (spec §16.4)"),
         ("EXPIRED", "Expired — retention window elapsed, image purged"),
     ]
 

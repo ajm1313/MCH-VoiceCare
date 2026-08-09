@@ -5,6 +5,16 @@ Receives webhook callbacks from telephony providers, maps DTMF/USSD answers
 to the common data schema, and triggers emergency cascade when approved
 danger signs are detected.
 
+Emergency path steps (spec §17.4):
+1. Persist the remote observation centrally
+2. Create emergency alert (Notification) centrally
+3. Repeat approved emergency advice to caller
+4. Notify assigned facility role
+5. Initiate referral workflow (create DRAFT Referral with EMERGENCY urgency)
+6. Sync to facility app — happens automatically via normal sync mechanism
+   (the observation and referral are stored centrally and sync to the
+   facility device when it next connects; spec §17.4 step 6)
+
 No caller speech is recorded (spec §37).
 """
 import uuid
@@ -19,6 +29,14 @@ from apps.core.enums import UrgencyLevel, NotificationClass, NotificationStatus
 from apps.notifications.models import Notification
 from apps.audit.models import AuditEvent
 from apps.audit.services import log_audit
+from apps.referrals.models import Referral
+from apps.clients.models import Person
+
+
+# Approved emergency advice repeated to the caller (spec §17.4 step 3)
+EMERGENCY_ADVICE = (
+    "Stay calm. Help is being arranged. Go to the nearest health facility immediately."
+)
 
 
 # DTMF key → danger sign mapping (spec §17.1)
@@ -124,12 +142,58 @@ class TelephonyWebhookView(APIView):
                 },
             )
 
+            # Initiate referral workflow (spec §17.4 step 5)
+            # Create a DRAFT Referral with EMERGENCY urgency so the facility
+            # can pick it up and complete the closed-loop referral.
+            referral = None
+            if patient_id:
+                try:
+                    uid = uuid.UUID(str(patient_id))
+                    patient = Person.objects.filter(id=uid).first()
+                    if patient:
+                        referral = Referral.objects.create(
+                            patient=patient,
+                            referral_reason=(
+                                f"Remote emergency via {channel}: "
+                                f"{', '.join(danger_signs_detected)}"
+                            ),
+                            status="DRAFT",
+                            urgency=UrgencyLevel.EMERGENCY,
+                            pre_referral_care=EMERGENCY_ADVICE,
+                            created_by=caller_number or "telephony",
+                        )
+                        # Audit log the referral creation (spec §23)
+                        log_audit(
+                            actor=caller_number or "telephony",
+                            action="REFERRAL_CREATED",
+                            entity_type="Referral",
+                            entity_id=str(referral.id),
+                            patient_id=patient.id,
+                            referral_episode_id=referral.id,
+                            facility_id=facility_id,
+                            purpose="REFERRAL",
+                            metadata={
+                                "urgency": UrgencyLevel.EMERGENCY,
+                                "source": "telephony_emergency",
+                                "danger_signs": danger_signs_detected,
+                            },
+                        )
+                except (ValueError, TypeError):
+                    pass
+
+            # Step 6: Sync to facility app — the observation and referral are
+            # stored centrally and will sync to the facility device via the
+            # normal bidirectional sync mechanism when it next connects
+            # (spec §17.4 step 6). No additional action needed here.
+
             return Response({
                 "status": "EMERGENCY_DETECTED",
                 "danger_signs": danger_signs_detected,
                 "notification_id": str(notification.id),
-                "advice": "Stay calm. Help is being arranged. Go to the nearest health facility immediately.",
+                # Step 3: repeat approved emergency advice to the caller
+                "advice": EMERGENCY_ADVICE,
                 "escalation_started": True,
+                "referral_id": str(referral.id) if referral else None,
             }, status=status.HTTP_200_OK)
 
         return Response({

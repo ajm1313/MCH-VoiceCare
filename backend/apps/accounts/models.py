@@ -1,5 +1,6 @@
 """
 UserAccount model — custom user with role-based access (spec §21).
+Device model — device provisioning and revocation (spec §22.1).
 """
 import uuid
 
@@ -7,6 +8,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 from apps.core.enums import SystemRole
+from apps.core.models import TimeStampedModel
 
 
 class UserAccount(AbstractUser):
@@ -101,3 +103,38 @@ class UserRoleScope(models.Model):
 
     def __str__(self):
         return f"{self.user.username} — {self.get_role_code_display()} @ {self.scope_unit}"
+
+
+class Device(TimeStampedModel):
+    """Registered mobile device for offline-first provisioning (spec §22.1).
+
+    Tracks device identity, facility assignment, public key, minimum
+    supported app version, and revocation status.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    device_id = models.CharField(max_length=200, unique=True, verbose_name="Device ID")
+    facility = models.ForeignKey(
+        "organisations.OrganisationUnit",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="devices",
+    )
+    public_key = models.TextField(blank=True, verbose_name="Public Key")
+    minimum_app_version = models.CharField(max_length=50, blank=True)
+    is_revoked = models.BooleanField(default=False)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.device_id} ({'revoked' if self.is_revoked else 'active'})"
+
+    def revoke(self):
+        """Mark this device as revoked."""
+        from django.utils import timezone
+        self.is_revoked = True
+        self.revoked_at = timezone.now()
+        self.save(update_fields=["is_revoked", "revoked_at", "updated_at"])

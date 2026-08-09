@@ -10,7 +10,7 @@ class ReferralSerializer(serializers.ModelSerializer):
     class Meta:
         model = Referral
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "qr_token", "short_code", "acknowledged_at", "arrived_at", "closed_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "qr_token", "short_code", "acknowledged_at", "arrived_at", "closed_at", "version"]
 
 
 class ReferralStateLogSerializer(serializers.ModelSerializer):

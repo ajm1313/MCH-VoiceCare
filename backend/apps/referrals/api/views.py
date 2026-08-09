@@ -53,7 +53,8 @@ class ReferralViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
         referral.status = to_status
         for field, value in extra_fields.items():
             setattr(referral, field, value)
-        referral.save(update_fields=["status"] + list(extra_fields.keys()) + ["updated_at"])
+        referral.version = (referral.version or 0) + 1
+        referral.save(update_fields=["status"] + list(extra_fields.keys()) + ["version", "updated_at"])
 
         ReferralStateLog.objects.create(
             referral=referral,

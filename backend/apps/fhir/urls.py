@@ -16,6 +16,10 @@ from .views import (
     FHIRImmunizationDetailView,
     FHIRProvenanceListView,
     FHIRProvenanceDetailView,
+    FHIRTaskListView,
+    FHIRTaskDetailView,
+    FHIRAuditEventListView,
+    FHIRAuditEventDetailView,
     FHIRLibraryListView,
     FHIRLibraryDetailView,
     FHIRPlanDefinitionListView,
@@ -45,6 +49,12 @@ urlpatterns = [
     # Provenance
     path("Provenance", FHIRProvenanceListView.as_view(), name="fhir-provenance-list"),
     path("Provenance/<str:pk>", FHIRProvenanceDetailView.as_view(), name="fhir-provenance-detail"),
+    # Task (referral workflow state, spec §8.3, §18)
+    path("Task", FHIRTaskListView.as_view(), name="fhir-task-list"),
+    path("Task/<str:pk>", FHIRTaskDetailView.as_view(), name="fhir-task-detail"),
+    # AuditEvent (spec §8.3, §23)
+    path("AuditEvent", FHIRAuditEventListView.as_view(), name="fhir-auditevent-list"),
+    path("AuditEvent/<str:pk>", FHIRAuditEventDetailView.as_view(), name="fhir-auditevent-detail"),
     # Library
     path("Library", FHIRLibraryListView.as_view(), name="fhir-library-list"),
     path("Library/<str:pk>", FHIRLibraryDetailView.as_view(), name="fhir-library-detail"),

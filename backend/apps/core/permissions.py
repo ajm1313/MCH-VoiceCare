@@ -2,7 +2,7 @@
 Row-level permission utilities for organisation-unit-scoped data access.
 
 Hierarchy:
-  SUPER_ADMIN → sees everything
+  SUPER_ADMIN → scoped to their org_unit + descendants (NOT unrestricted, spec §21.3, §37)
   REGIONAL_ADMIN → sees data within their region and all descendants
   DISTRICT_ADMIN → sees data within their district and all descendants
   SUBDISTRICT_ADMIN → sees data within their sub-district and all descendants
@@ -28,13 +28,17 @@ def get_descendant_unit_ids(org_unit):
 def get_user_org_unit_ids(user):
     """
     Return list of OrganisationUnit IDs the user can access.
-    SUPER_ADMIN returns None (meaning: no filter, see all).
+    Django superuser returns None (meaning: no filter, see all — dev/admin only).
+    is_super_admin is scoped to their org_unit + descendants (spec §21.3, §37).
     """
-    if user.is_superuser or user.is_super_admin:
-        return None
+    if user.is_superuser:
+        return None  # Django superuser for dev/admin only
 
-    if user.system_role == SystemRole.SUPER_ADMIN:
-        return None
+    if user.is_super_admin or user.system_role == SystemRole.SUPER_ADMIN:
+        # Super admin is scoped to their org unit + descendants, NOT unrestricted
+        if user.organisation_unit:
+            return get_descendant_unit_ids(user.organisation_unit)
+        return None  # Only truly unrestricted if no org_unit (should not happen in production)
 
     org_unit = user.organisation_unit
     if org_unit is None:
@@ -51,9 +55,9 @@ def get_user_org_unit_ids(user):
 def filter_queryset_by_org(qs, user, org_field="organisation_unit"):
     """
     Filter a queryset so the user only sees records within their org scope.
-    Returns unfiltered queryset for SUPER_ADMIN.
+    Returns unfiltered queryset for Django superuser only.
     """
-    if user.is_superuser or user.is_super_admin:
+    if user.is_superuser:
         return qs
 
     unit_ids = get_user_org_unit_ids(user)
@@ -70,7 +74,7 @@ def filter_queryset_by_org_multi(qs, user, org_fields):
     Filter a queryset where org unit may be referenced via multiple fields.
     Uses OR logic across the provided fields.
     """
-    if user.is_superuser or user.is_super_admin:
+    if user.is_superuser:
         return qs
 
     unit_ids = get_user_org_unit_ids(user)
@@ -98,3 +102,32 @@ def user_can_manage_users(user):
         SystemRole.DISTRICT_ADMIN,
         SystemRole.SUBDISTRICT_ADMIN,
     ) or user.is_super_admin
+
+
+# Valid purposes for purpose-bound access (spec §21.2)
+VALID_PURPOSES = ("DIRECT_CARE", "REFERRAL", "SUPERVISION", "AUDIT", "ADMIN")
+
+# Facility-level roles that have direct care access without purpose checks
+_FACILITY_LEVEL_ROLES = (
+    SystemRole.FACILITY_CLINICAL_USER,
+    SystemRole.READ_ONLY,
+)
+
+
+def has_purpose_bound_access(user, purpose: str) -> bool:
+    """
+    Check if user has the required purpose for identified access
+    above facility level (spec §21.2).
+
+    Facility-level users always have direct care access.
+    Above-facility admin users need a valid purpose claim for
+    identified (non-aggregate) patient records.
+    """
+    if user.is_superuser:
+        return True  # Django superuser bypasses (dev/admin only)
+    if user.system_role in _FACILITY_LEVEL_ROLES:
+        return True  # Facility-level users have direct care access
+    # Above-facility users need purpose-bound roles
+    # For now, allow SUPER_ADMIN, REGIONAL_ADMIN etc. with valid purposes
+    # This can be extended with a Purpose model later
+    return purpose in VALID_PURPOSES

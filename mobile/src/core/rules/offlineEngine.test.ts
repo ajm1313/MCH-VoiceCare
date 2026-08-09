@@ -175,6 +175,8 @@ describe('offlineEngine — immunisation rules', () => {
       missed_cwc_sessions: 0,
       age_months: 12,
       next_due_vaccine: 'OPV3',
+      vaccine_code: 'OPV3',
+      dose_number: 3,
     });
     expect(result.minimum_class).toBe('GREEN');
     expect(result.triggered_rule_ids).toHaveLength(0);

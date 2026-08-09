@@ -64,8 +64,9 @@ describe('Referral State Machine (spec §18.3)', () => {
       expect(isValidReferralTransition('DISPOSITION_RECORDED', 'CLOSED')).toBe(true);
     });
 
-    it('ARRIVED → CLOSED (direct close after arrival)', () => {
-      expect(isValidReferralTransition('ARRIVED', 'CLOSED')).toBe(true);
+    it('ARRIVED → CLOSED (direct close after arrival — now blocked by §18.3)', () => {
+      // FIX 7: ARRIVED must go through DISPOSITION_RECORDED before CLOSED
+      expect(isValidReferralTransition('ARRIVED', 'CLOSED')).toBe(false);
     });
 
     it('TRANSPORT_UNAVAILABLE → TRANSPORT_REQUESTED (retry)', () => {
@@ -145,8 +146,9 @@ describe('Referral State Machine (spec §18.3)', () => {
       expect(isValidReferralTransition('IN_TRANSIT', 'CLOSED')).toBe(false);
     });
 
-    it('Can close from ARRIVED (direct)', () => {
-      expect(isValidReferralTransition('ARRIVED', 'CLOSED')).toBe(true);
+    it('Cannot close from ARRIVED (must go through DISPOSITION_RECORDED)', () => {
+      // FIX 7 (§18.3): ARRIVED → CLOSED bypasses disposition, now blocked
+      expect(isValidReferralTransition('ARRIVED', 'CLOSED')).toBe(false);
     });
 
     it('Can close from DISPOSITION_RECORDED', () => {
@@ -172,8 +174,8 @@ describe('Urgency Mapping (spec §15)', () => {
     expect(toBackendUrgency('GREEN')).toBe('ROUTINE');
   });
 
-  it('GREY → ROUTINE', () => {
-    expect(toBackendUrgency('GREY')).toBe('ROUTINE');
+  it('GREY → ABSTAIN (§3.1: missing data must not map to routine)', () => {
+    expect(toBackendUrgency('GREY')).toBe('ABSTAIN');
   });
 
   it('EMERGENCY → RED (reverse)', () => {

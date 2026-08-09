@@ -71,8 +71,16 @@ class UserScopeTests(TestCase):
         self.facility2 = _make_org("Facility 2", "F2", parent=self.subdistrict)
 
     def test_super_admin_sees_all(self):
+        """Super admin is scoped to their org unit + descendants (spec §21.3, §37)."""
         user = _make_user("superadmin", self.region, SystemRole.SUPER_ADMIN, is_super_admin=True)
-        self.assertIsNone(get_user_org_unit_ids(user))
+        ids = get_user_org_unit_ids(user)
+        # Super admin at region sees region + all descendants
+        self.assertIsNotNone(ids)
+        self.assertIn(self.region.id, ids)
+        self.assertIn(self.district.id, ids)
+        self.assertIn(self.subdistrict.id, ids)
+        self.assertIn(self.facility1.id, ids)
+        self.assertIn(self.facility2.id, ids)
 
     def test_facility_user_sees_own_only(self):
         user = _make_user("midwife", self.facility1, SystemRole.FACILITY_CLINICAL_USER)

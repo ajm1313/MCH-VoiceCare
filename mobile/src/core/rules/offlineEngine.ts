@@ -14,17 +14,35 @@ import { loadClinicalThresholds } from './clinicalThresholds';
 
 export type UrgencyClass = 'RED' | 'ORANGE' | 'AMBER' | 'GREEN' | 'GREY';
 
+// FIX 2 (§12.3): RuleResult must include all 8 spec-required fields.
+// The original fields (rule_id, urgency, action_text) are kept for backward compatibility.
 export interface RuleResult {
+  // --- Original fields (backward compatibility) ---
   rule_id: string;
   urgency: UrgencyClass;
   action_text: string;
+  // --- Spec §12.3 required fields ---
+  ruleId: string;
+  ruleVersion: string;
+  severity: 'EMERGENCY' | 'PRIORITY' | 'ROUTINE' | 'ABSTAIN';
+  reasonCode: string;
+  reasonText: string;
+  sourceTitle: string;
+  sourceVersion: string;
+  sourceEffectiveDate: string;
 }
 
+// FIX 3 (§12.2): AssessmentResult now includes disposition, missingCriticalFields,
+// bundleVersion, and evaluatedAt. minimum_class kept as backward-compatible alias.
 export interface AssessmentResult {
-  minimum_class: UrgencyClass;
+  disposition: UrgencyClass;
+  minimum_class: UrgencyClass; // backward-compatible alias for disposition
   triggered_rule_ids: string[];
   results: RuleResult[];
   recommended_action: string;
+  missingCriticalFields: string[];
+  bundleVersion: string;
+  evaluatedAt: string;
 }
 
 const URGENCY_RANK: Record<UrgencyClass, number> = {
@@ -39,11 +57,104 @@ function higher(a: UrgencyClass, b: UrgencyClass): UrgencyClass {
   return URGENCY_RANK[a] <= URGENCY_RANK[b] ? a : b;
 }
 
+// FIX 2: Default source metadata for all rules
+const RULE_SOURCE_TITLE = 'Ghana Safe Motherhood Protocol';
+const RULE_SOURCE_VERSION = '2016';
+const RULE_SOURCE_EFFECTIVE_DATE = '2016-01-01';
+const RULE_VERSION = '1.0.0';
+
+// FIX 2: Map urgency to severity
+function urgencyToSeverity(urgency: UrgencyClass): 'EMERGENCY' | 'PRIORITY' | 'ROUTINE' | 'ABSTAIN' {
+  switch (urgency) {
+    case 'RED': return 'EMERGENCY';
+    case 'ORANGE': return 'PRIORITY';
+    case 'AMBER': return 'PRIORITY';
+    case 'GREEN': return 'ROUTINE';
+    case 'GREY': return 'ABSTAIN';
+    default: return 'ABSTAIN';
+  }
+}
+
+// FIX 2: Derive reasonCode from rule_id pattern
+function deriveReasonCode(ruleId: string): string {
+  if (ruleId.startsWith('PREG-R-')) return 'DANGER_SIGN';
+  if (ruleId.startsWith('PREG-O-')) return 'PRIORITY_SIGN';
+  if (ruleId.startsWith('PREG-A-')) return 'RISK_FACTOR';
+  if (ruleId.startsWith('PREG-G-')) return 'MISSING_DATA';
+  if (ruleId.startsWith('NEO-R-')) return 'DANGER_SIGN';
+  if (ruleId.startsWith('NEO-O-')) return 'PRIORITY_SIGN';
+  if (ruleId.startsWith('NEO-A-')) return 'RISK_FACTOR';
+  if (ruleId.startsWith('NEO-G-')) return 'MISSING_DATA';
+  if (ruleId.startsWith('GRO-R-')) return 'SEVERE_MALNUTRITION';
+  if (ruleId.startsWith('GRO-O-')) return 'MODERATE_MALNUTRITION';
+  if (ruleId.startsWith('GRO-A-')) return 'GROWTH_CONCERN';
+  if (ruleId.startsWith('GRO-G-')) return 'MISSING_DATA';
+  if (ruleId.startsWith('IMM-R-')) return 'ADVERSE_EVENT';
+  if (ruleId.startsWith('IMM-O-')) return 'IMMUNISATION_PRIORITY';
+  if (ruleId.startsWith('IMM-A-')) return 'IMMUNISATION_REMINDER';
+  if (ruleId.startsWith('IMM-G-')) return 'MISSING_DATA';
+  return 'CLINICAL_RULE';
+}
+
 interface Rule {
   rule_id: string;
   condition: (facts: Record<string, any>) => boolean;
   urgency: UrgencyClass;
   action_text: string;
+}
+
+// FIX 2: Build a full RuleResult from a Rule, adding all spec-required fields
+function buildRuleResult(rule: Rule): RuleResult {
+  return {
+    rule_id: rule.rule_id,
+    urgency: rule.urgency,
+    action_text: rule.action_text,
+    ruleId: rule.rule_id,
+    ruleVersion: RULE_VERSION,
+    severity: urgencyToSeverity(rule.urgency),
+    reasonCode: deriveReasonCode(rule.rule_id),
+    reasonText: rule.action_text,
+    sourceTitle: RULE_SOURCE_TITLE,
+    sourceVersion: RULE_SOURCE_VERSION,
+    sourceEffectiveDate: RULE_SOURCE_EFFECTIVE_DATE,
+  };
+}
+
+// FIX 4 (§3.1, §12.2): Compute missing critical fields per module.
+// Each entry is a list of alternative field names — if ANY is present, the field is satisfied.
+const CRITICAL_FIELDS: Record<string, string[][]> = {
+  pregnancy: [
+    ['bp_systolic_mm_hg', 'bp_systolic'],
+    ['bp_diastolic_mm_hg', 'bp_diastolic'],
+    ['gestational_age_weeks', 'gestational_age_days', 'edd_date'],
+  ],
+  newborn: [
+    ['weight_kg', 'birth_weight_g'],
+    ['temperature_c'],
+  ],
+  growth: [
+    ['weight_kg'],
+    ['height_cm'],
+  ],
+  immunisation: [
+    ['vaccine_code'],
+    ['dose_number'],
+  ],
+};
+
+function computeMissingCriticalFields(
+  module: string,
+  facts: Record<string, any>,
+): string[] {
+  const fieldGroups = CRITICAL_FIELDS[module] || [];
+  const missing: string[] = [];
+  for (const alternatives of fieldGroups) {
+    const present = alternatives.some(f => facts[f] != null);
+    if (!present) {
+      missing.push(alternatives[0]);
+    }
+  }
+  return missing;
 }
 
 // --- Pregnancy rules (aligned with backend pregnancy_rules.py) ---
@@ -962,11 +1073,7 @@ export function evaluateOffline(
   for (const rule of rules) {
     try {
       if (rule.condition(enrichedFacts)) {
-        triggered.push({
-          rule_id: rule.rule_id,
-          urgency: rule.urgency,
-          action_text: rule.action_text,
-        });
+        triggered.push(buildRuleResult(rule));
       }
     } catch {
       // Fact missing — skip silently
@@ -986,10 +1093,25 @@ export function evaluateOffline(
     action = highest?.action_text || action;
   }
 
+  // FIX 4 (§3.1): Compute missing critical fields. When critical fields are
+  // missing and the disposition would otherwise be GREEN/GREY, force ABSTAIN
+  // (GREY) — missing data must never produce a routine classification.
+  const missingFields = computeMissingCriticalFields(module, enrichedFacts);
+  if (missingFields.length > 0 && (minClass === 'GREEN' || minClass === 'GREY')) {
+    minClass = 'GREY';
+  }
+
+  // FIX 3 (§12.2): Return disposition (renamed from minimum_class) with
+  // missingCriticalFields, bundleVersion, and evaluatedAt. minimum_class
+  // is kept as a backward-compatible alias.
   return {
+    disposition: minClass,
     minimum_class: minClass,
     triggered_rule_ids: triggeredIds,
     results: triggered,
     recommended_action: action,
+    missingCriticalFields: missingFields,
+    bundleVersion: RULE_VERSION,
+    evaluatedAt: new Date().toISOString(),
   };
 }

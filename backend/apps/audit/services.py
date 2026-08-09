@@ -14,6 +14,8 @@ def log_audit(
     entity_type: str = "",
     entity_id: str = "",
     patient_id=None,
+    pregnancy_episode_id=None,
+    referral_episode_id=None,
     facility_id=None,
     device_id: str = "",
     purpose: str = "DIRECT_CARE",
@@ -29,6 +31,8 @@ def log_audit(
         entity_type: Type of entity acted upon
         entity_id: ID of the entity acted upon
         patient_id: UUID of the patient if applicable
+        pregnancy_episode_id: UUID of the pregnancy episode if applicable (spec §23)
+        referral_episode_id: UUID of the referral episode if applicable (spec §23)
         facility_id: UUID of the facility if applicable
         device_id: Device identifier if applicable
         purpose: Purpose context (DIRECT_CARE, REFERRAL, SUPERVISION, AUDIT, ADMIN)
@@ -44,6 +48,8 @@ def log_audit(
         entity_type=entity_type,
         entity_id=str(entity_id) if entity_id else "",
         patient_id=patient_id or None,
+        pregnancy_episode_id=pregnancy_episode_id or None,
+        referral_episode_id=referral_episode_id or None,
         facility_id=facility_id or None,
         device_id=device_id,
         purpose=purpose,
@@ -62,6 +68,20 @@ def log_rule_evaluation(
     device_id: str = "",
 ):
     """Log a clinical rule evaluation event."""
+    # Determine the episode id to record based on episode type.
+    # Only populate the UUID fields if the episode_id is a valid UUID.
+    pregnancy_episode_id = None
+    referral_episode_id = None
+    if episode_id:
+        try:
+            import uuid as _uuid
+            _uuid.UUID(str(episode_id))
+            if episode_type and "PREGNANCY" in episode_type.upper():
+                pregnancy_episode_id = episode_id
+            elif episode_type and "REFERRAL" in episode_type.upper():
+                referral_episode_id = episode_id
+        except (ValueError, TypeError):
+            pass
     return log_audit(
         actor=actor,
         action="RULE_EVALUATION",
@@ -69,6 +89,8 @@ def log_rule_evaluation(
         entity_type=episode_type,
         entity_id=str(episode_id),
         patient_id=patient_id,
+        pregnancy_episode_id=pregnancy_episode_id,
+        referral_episode_id=referral_episode_id,
         device_id=device_id,
         purpose="DIRECT_CARE",
         metadata={
@@ -85,8 +107,18 @@ def log_referral_created(
     urgency: str = "",
     referring_facility_id=None,
     actor_role: str = "",
+    referral_episode_id=None,
 ):
     """Log a referral creation event."""
+    # Only populate the referral_episode_id UUID field if the value is a valid UUID
+    resolved_referral_episode_id = referral_episode_id
+    if not resolved_referral_episode_id and referral_id:
+        try:
+            import uuid as _uuid
+            _uuid.UUID(str(referral_id))
+            resolved_referral_episode_id = referral_id
+        except (ValueError, TypeError):
+            pass
     return log_audit(
         actor=actor,
         action="REFERRAL_CREATED",
@@ -94,6 +126,7 @@ def log_referral_created(
         entity_type="Referral",
         entity_id=str(referral_id),
         patient_id=patient_id,
+        referral_episode_id=resolved_referral_episode_id,
         facility_id=referring_facility_id,
         purpose="REFERRAL",
         metadata={"urgency": urgency},

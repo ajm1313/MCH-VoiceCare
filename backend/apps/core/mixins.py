@@ -41,7 +41,7 @@ class RelatedOrgScopedQuerySetMixin:
         if not self.request.user.is_authenticated:
             return qs.none()
         user = self.request.user
-        if user.is_superuser or user.is_super_admin:
+        if user.is_superuser:
             return qs
         unit_ids = get_user_org_unit_ids(user)
         if unit_ids is None:

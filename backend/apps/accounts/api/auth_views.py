@@ -21,6 +21,14 @@ class LoginSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
+        # Spec §21.3 required claims
+        token["sub"] = str(user.id)
+        token["roles"] = [user.system_role] if user.system_role else []
+        org_unit = user.organisation_unit
+        token["organizationId"] = str(org_unit.id) if org_unit else None
+        token["organizationPath"] = org_unit.path if org_unit else "/"
+        token["purposes"] = ["DIRECT_CARE"]  # default; can be extended later
+        # Backward-compatible claims
         token["username"] = user.username
         token["role"] = user.system_role
         return token
@@ -104,10 +112,57 @@ class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
+        # Pre-check MFA for privileged roles before issuing JWT (spec §22.3)
+        from django.contrib.auth import authenticate
+        from apps.accounts.mfa_models import (
+            is_privileged_role, user_has_mfa_enabled,
+        )
+
+        username = request.data.get("username", "")
+        password = request.data.get("password", "")
+
+        # Try to authenticate first (without issuing token) to check MFA
+        user = authenticate(request=request, username=username, password=password)
+
+        if user is not None and is_privileged_role(user.system_role):
+            # Privileged roles require MFA (spec §22.3)
+            if not user_has_mfa_enabled(user):
+                return Response(
+                    {
+                        "error": "MFA setup required for privileged roles",
+                        "mfa_required": True,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            mfa_code = request.data.get("mfa_code")
+            if not mfa_code:
+                # Generate a temporary challenge token for the MFA step
+                refresh = RefreshToken.for_user(user)
+                return Response(
+                    {
+                        "error": "MFA code required",
+                        "mfa_challenge": True,
+                        "challenge_token": str(refresh.access_token),
+                    },
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            # Verify the MFA code
+            factor = user.mfa_factors.filter(enabled=True).first()
+            if not factor or not factor.verify_totp(mfa_code):
+                return Response(
+                    {
+                        "error": "Invalid MFA code",
+                        "mfa_challenge": True,
+                    },
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+        # MFA passed (or not required) — proceed with normal JWT issuance
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
             from apps.accounts.models import UserAccount
-            username = request.data.get("username", "")
             try:
                 user = UserAccount.objects.get(username=username)
                 log_audit(

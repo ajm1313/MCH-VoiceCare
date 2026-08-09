@@ -1,10 +1,10 @@
 """
-Device provisioning endpoint — POST /api/v1/auth/device-provision (spec §20.2).
+Device provisioning endpoint — POST /api/v1/auth/device-provision (spec §20.2, §22.1).
 
 Registers a mobile device for a user, returning configuration bootstrap
-data needed for first-time setup.
+data needed for first-time setup. Persists a Device record (spec §22.1).
 """
-import uuid
+from django.utils import timezone
 
 from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated
@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 
 from apps.core.config_models import SystemConfig
 from apps.audit.services import log_audit
+from apps.accounts.models import Device
 
 
 class DeviceProvisionSerializer(serializers.Serializer):
@@ -21,6 +22,7 @@ class DeviceProvisionSerializer(serializers.Serializer):
     os_version = serializers.CharField(max_length=100, required=False, allow_blank=True)
     app_version = serializers.CharField(max_length=50, required=False, allow_blank=True)
     fcm_token = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    public_key = serializers.CharField(required=False, allow_blank=True)
 
 
 class DeviceProvisionView(APIView):
@@ -29,6 +31,7 @@ class DeviceProvisionView(APIView):
 
     Registers a device for the authenticated user and returns
     bootstrap configuration for offline-first setup.
+    Persists a Device record (spec §22.1).
     """
     permission_classes = [IsAuthenticated]
 
@@ -39,6 +42,18 @@ class DeviceProvisionView(APIView):
 
         user = request.user
         config = SystemConfig.get_config()
+
+        # Create or update the Device record (spec §22.1)
+        device, created = Device.objects.update_or_create(
+            device_id=data["device_id"],
+            defaults={
+                "facility": user.organisation_unit,
+                "public_key": data.get("public_key", ""),
+                "last_seen_at": timezone.now(),
+                "is_revoked": False,
+                "revoked_at": None,
+            },
+        )
 
         # Audit the provisioning event
         log_audit(
@@ -54,6 +69,7 @@ class DeviceProvisionView(APIView):
                 "device_model": data.get("device_model", ""),
                 "os_version": data.get("os_version", ""),
                 "app_version": data.get("app_version", ""),
+                "created": created,
             },
         )
 
@@ -65,6 +81,8 @@ class DeviceProvisionView(APIView):
             "systemRole": user.system_role,
             "organisationUnitId": str(user.organisation_unit_id) if user.organisation_unit_id else None,
             "organisationUnitName": user.organisation_unit.name if user.organisation_unit else None,
+            "minimumAppVersion": device.minimum_app_version,
+            "deviceRevoked": device.is_revoked,
             "config": {
                 "clinical_ml_mode": config.clinical_ml_mode,
                 "feature_flags": {

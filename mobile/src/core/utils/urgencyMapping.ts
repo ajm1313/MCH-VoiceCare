@@ -10,12 +10,16 @@
 export type OfflineUrgency = 'RED' | 'ORANGE' | 'AMBER' | 'GREEN' | 'GREY';
 export type BackendUrgency = 'EMERGENCY' | 'PRIORITY' | 'ROUTINE' | 'ABSTAIN';
 
+// FIX 5: Spec disposition system (§12.2) — 4-class aligned with backend
+export type SpecDisposition = 'EMERGENCY_NOW' | 'PRIORITY_REVIEW' | 'ROUTINE' | 'ABSTAIN';
+
 const OFFLINE_TO_BACKEND: Record<OfflineUrgency, BackendUrgency> = {
   RED: 'EMERGENCY',
   ORANGE: 'PRIORITY',
   AMBER: 'PRIORITY',
   GREEN: 'ROUTINE',
-  GREY: 'ROUTINE',
+  // FIX 1 (§3.1): Missing critical fields MUST produce ABSTAIN, not routine.
+  GREY: 'ABSTAIN',
 };
 
 const BACKEND_TO_OFFLINE: Record<BackendUrgency, OfflineUrgency> = {
@@ -25,8 +29,23 @@ const BACKEND_TO_OFFLINE: Record<BackendUrgency, OfflineUrgency> = {
   ABSTAIN: 'GREY',
 };
 
+// FIX 5: Mobile 5-class → spec 4-class disposition mapping (§12.2)
+const OFFLINE_TO_SPEC_DISPOSITION: Record<OfflineUrgency, SpecDisposition> = {
+  RED: 'EMERGENCY_NOW',
+  ORANGE: 'PRIORITY_REVIEW',
+  AMBER: 'PRIORITY_REVIEW',
+  GREEN: 'ROUTINE',
+  GREY: 'ABSTAIN',
+};
+
 export function toBackendUrgency(offline: OfflineUrgency): BackendUrgency {
-  return OFFLINE_TO_BACKEND[offline] ?? 'ROUTINE';
+  // FIX 1: fallback to ABSTAIN (not ROUTINE) for safety
+  return OFFLINE_TO_BACKEND[offline] ?? 'ABSTAIN';
+}
+
+// FIX 5: Map mobile urgency to spec disposition
+export function toSpecDisposition(offline: OfflineUrgency): SpecDisposition {
+  return OFFLINE_TO_SPEC_DISPOSITION[offline] ?? 'ABSTAIN';
 }
 
 export function toOfflineUrgency(backend: string): OfflineUrgency {
@@ -59,7 +78,8 @@ export const VALID_REFERRAL_TRANSITIONS: Record<string, string[]> = {
   ACCEPTED: ['TRANSPORT_REQUESTED', 'ARRIVED', 'DECLINED', 'CANCELLED_BY_CLINICIAN'],
   TRANSPORT_REQUESTED: ['IN_TRANSIT', 'ARRIVED', 'TRANSPORT_UNAVAILABLE', 'CANCELLED_BY_CLINICIAN'],
   IN_TRANSIT: ['ARRIVED', 'LOST_TO_FOLLOWUP'],
-  ARRIVED: ['DISPOSITION_RECORDED', 'CLOSED'],
+  // FIX 7 (§18.3): ARRIVED must go through DISPOSITION_RECORDED before CLOSED
+  ARRIVED: ['DISPOSITION_RECORDED'],
   DISPOSITION_RECORDED: ['CLOSED'],
   TRANSPORT_UNAVAILABLE: ['TRANSPORT_REQUESTED', 'CANCELLED_BY_CLINICIAN'],
   NO_ACK_ESCALATED: ['ACCEPTED', 'DECLINED', 'CANCELLED_BY_CLINICIAN'],

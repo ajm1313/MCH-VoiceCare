@@ -36,8 +36,10 @@ from .serializers import (
     pregnancy_assessment_to_encounter,
     newborn_assessment_to_encounter,
     referral_to_service_request,
+    referral_to_task,
     vaccine_dose_to_immunization,
     audit_event_to_provenance,
+    audit_event_to_fhir,
     package_to_library,
     package_to_plan_definition,
 )
@@ -485,6 +487,101 @@ class FHIRProvenanceDetailView(APIView):
         return Response(audit_event_to_provenance(event))
 
 
+# --- Task (Referral workflow state, spec §8.3, §18) ---
+
+class FHIRTaskListView(APIView):
+    """GET /fhir/R4/Task — search referral workflow tasks (spec §8.3, §18)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.referrals.models import Referral
+
+        qs = Referral.objects.select_related("patient")
+        patient_id = request.query_params.get("patient")
+        if patient_id:
+            uid = _parse_uuid(patient_id)
+            if uid:
+                qs = qs.filter(patient_id=uid)
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            qs = qs.filter(status=status_filter.upper())
+        count = _get_count(request)
+
+        referrals = list(qs[:count])
+        entries = [referral_to_task(r) for r in referrals]
+
+        log_audit(
+            actor=request.user.username,
+            action="FHIR_TASK_SEARCH",
+            actor_role=request.user.system_role,
+            purpose="DIRECT_CARE",
+            metadata={"patient": patient_id or "", "result_count": len(entries)},
+        )
+
+        return _bundle(entries)
+
+
+class FHIRTaskDetailView(APIView):
+    """GET /fhir/R4/Task/{id} — retrieve a single referral task."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from apps.referrals.models import Referral
+
+        uid = _parse_uuid(pk)
+        if not uid:
+            return _operation_outcome("error", "invalid", "Invalid UUID", status.HTTP_400_BAD_REQUEST)
+
+        referral = Referral.objects.filter(id=uid).select_related("patient").first()
+        if not referral:
+            return _operation_outcome("error", "not-found", "Task not found", status.HTTP_404_NOT_FOUND)
+
+        return Response(referral_to_task(referral))
+
+
+# --- AuditEvent (spec §8.3, §23) ---
+
+class FHIRAuditEventListView(APIView):
+    """GET /fhir/R4/AuditEvent — search audit events (spec §8.3, §23)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = AuditEvent.objects.all()
+        entity_id = request.query_params.get("entity")
+        if entity_id:
+            qs = qs.filter(entity_id=entity_id)
+        action = request.query_params.get("action")
+        if action:
+            qs = qs.filter(action=action)
+        patient_id = request.query_params.get("patient")
+        if patient_id:
+            uid = _parse_uuid(patient_id)
+            if uid:
+                qs = qs.filter(patient_id=uid)
+        count = _get_count(request, default=100)
+
+        events = list(qs[:count])
+        entries = [audit_event_to_fhir(e) for e in events]
+
+        return _bundle(entries)
+
+
+class FHIRAuditEventDetailView(APIView):
+    """GET /fhir/R4/AuditEvent/{id} — retrieve a single audit event."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        uid = _parse_uuid(pk)
+        if not uid:
+            return _operation_outcome("error", "invalid", "Invalid UUID", status.HTTP_400_BAD_REQUEST)
+
+        event = AuditEvent.objects.filter(id=uid).first()
+        if not event:
+            return _operation_outcome("error", "not-found", "AuditEvent not found", status.HTTP_404_NOT_FOUND)
+
+        return Response(audit_event_to_fhir(event))
+
+
 # --- Library (Rule packages) ---
 
 class FHIRLibraryListView(APIView):
@@ -589,6 +686,10 @@ class FHIRCapabilityStatementView(APIView):
              "searchParam": [{"name": "patient", "type": "reference"}, {"name": "_count", "type": "number"}]},
             {"type": "Provenance", "interaction": [{"code": "read"}, {"code": "search-type"}],
              "searchParam": [{"name": "target", "type": "token"}, {"name": "_count", "type": "number"}]},
+            {"type": "Task", "interaction": [{"code": "read"}, {"code": "search-type"}],
+             "searchParam": [{"name": "patient", "type": "reference"}, {"name": "status", "type": "token"}, {"name": "_count", "type": "number"}]},
+            {"type": "AuditEvent", "interaction": [{"code": "read"}, {"code": "search-type"}],
+             "searchParam": [{"name": "entity", "type": "token"}, {"name": "action", "type": "token"}, {"name": "patient", "type": "reference"}, {"name": "_count", "type": "number"}]},
             {"type": "Library", "interaction": [{"code": "read"}, {"code": "search-type"}],
              "searchParam": [{"name": "status", "type": "token"}, {"name": "_count", "type": "number"}]},
             {"type": "PlanDefinition", "interaction": [{"code": "read"}, {"code": "search-type"}],

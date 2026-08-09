@@ -104,8 +104,18 @@ class AuthorizationBoundaryTest(TestCase):
         self.assertEqual(resp.status_code, 401)
 
     def test_super_admin_can_access_all_facilities(self):
-        """Super admin should access patients from any facility."""
-        admin = _make_user(self.org_a, SystemRole.SUPER_ADMIN, "superadmin")
+        """Super admin scoped to a parent org should access patients from descendant facilities."""
+        # Create a parent region that contains both facilities
+        from apps.core.enums import OrganisationUnitType
+        region = OrganisationUnit.objects.create(
+            name="Parent Region", code="PREG01", unit_type=OrganisationUnitType.REGION,
+        )
+        self.org_a.parent = region
+        self.org_a.save()
+        self.org_b.parent = region
+        self.org_b.save()
+
+        admin = _make_user(region, SystemRole.SUPER_ADMIN, "superadmin")
         admin.is_super_admin = True
         admin.save()
 

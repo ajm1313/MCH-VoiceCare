@@ -368,9 +368,16 @@ class AuthorizationBoundaryTests(TestCase):
         self.assertIn(self.facility1.id, unit_ids)
 
     def test_super_admin_sees_everything(self):
-        user = _make_user(self.facility1, username="superuser", role=SystemRole.SUPER_ADMIN, is_super_admin=True)
+        """Super admin is scoped to their org unit + descendants (spec §21.3, §37)."""
+        user = _make_user(self.region, username="superuser", role=SystemRole.SUPER_ADMIN, is_super_admin=True)
         unit_ids = get_user_org_unit_ids(user)
-        self.assertIsNone(unit_ids)  # None means no filter
+        # Super admin at region sees all descendants
+        self.assertIsNotNone(unit_ids)
+        self.assertIn(self.region.id, unit_ids)
+        self.assertIn(self.district.id, unit_ids)
+        self.assertIn(self.subdistrict.id, unit_ids)
+        self.assertIn(self.facility1.id, unit_ids)
+        self.assertIn(self.facility2.id, unit_ids)
 
     def test_read_only_cannot_write(self):
         user = _make_user(self.facility1, username="rouser", role=SystemRole.READ_ONLY)

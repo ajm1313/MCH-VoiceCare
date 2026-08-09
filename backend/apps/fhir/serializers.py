@@ -400,3 +400,123 @@ def package_to_plan_definition(pkg):
         "library": [f"urn:mchvc:library:{pkg.package_id}:{pkg.version}"],
         "meta": _fhir_meta(pkg),
     }
+
+
+# --- Task (maps to Referral workflow state, spec §8.3, §18) ---
+
+def referral_to_task(referral):
+    """Convert a Referral to FHIR Task resource (spec §8.3, §18).
+
+    The Task resource tracks the workflow state of a referral, complementing
+    the ServiceRequest which represents the referral order itself.
+    """
+    status_map = {
+        "DRAFT": "draft",
+        "REQUESTED": "requested",
+        "RECEIVING_FACILITY_NOTIFIED": "in-progress",
+        "ACCEPTED": "in-progress",
+        "TRANSPORT_REQUESTED": "in-progress",
+        "IN_TRANSIT": "in-progress",
+        "ARRIVED": "in-progress",
+        "DISPOSITION_RECORDED": "completed",
+        "CLOSED": "completed",
+        "DECLINED": "rejected",
+        "NO_ACK_ESCALATED": "failed",
+        "TRANSPORT_UNAVAILABLE": "failed",
+    }
+    intent_map = {
+        "DRAFT": "draft",
+    }
+    priority_map = {
+        "EMERGENCY": "stat",
+        "PRIORITY": "urgent",
+        "ROUTINE": "routine",
+        "ABSTAIN": "routine",
+    }
+    return {
+        "resourceType": "Task",
+        "id": str(referral.id),
+        "status": status_map.get(referral.status, "requested"),
+        "intent": intent_map.get(referral.status, "order"),
+        "priority": priority_map.get(referral.urgency, "routine"),
+        "subject": _fhir_reference("Patient", referral.patient_id, display=referral.patient.full_name),
+        "basedOn": [_fhir_reference("ServiceRequest", referral.id)],
+        "code": _fhir_codeable_concept("referral-task", "http://terminology.hl7.org/CodeSystem/v3-ActCode", "Referral workflow task"),
+        "description": referral.referral_reason or None,
+        "requester": {"display": referral.created_by} if referral.created_by else None,
+        "owner": _fhir_reference("Organization", referral.destination_facility_id) if referral.destination_facility_id else None,
+        "meta": _fhir_meta(referral),
+    }
+
+
+# --- AuditEvent (maps to AuditEvent model, spec §8.3, §23) ---
+
+def audit_event_to_fhir(event):
+    """Convert an AuditEvent to FHIR AuditEvent resource (spec §8.3, §23)."""
+    # Map internal action to FHIR audit event type codes
+    action_code_map = {
+        "CREATE": "C",
+        "READ": "R",
+        "UPDATE": "U",
+        "DELETE": "D",
+        "EXECUTE": "E",
+    }
+    # Derive a single-letter FHIR action code from the action name
+    action_upper = (event.action or "").upper()
+    if action_upper.startswith("CREATE") or "CREATED" in action_upper:
+        fhir_action = "C"
+    elif action_upper.startswith("READ") or "VIEW" in action_upper or "SEARCH" in action_upper:
+        fhir_action = "R"
+    elif action_upper.startswith("UPDATE") or "CHANGE" in action_upper or "OVERRIDE" in action_upper or "CORRECT" in action_upper:
+        fhir_action = "U"
+    elif action_upper.startswith("DELETE") or "REJECT" in action_upper:
+        fhir_action = "D"
+    else:
+        fhir_action = "E"
+
+    # Build the entity list
+    entities = []
+    if event.entity_type and event.entity_id:
+        entities.append({
+            "what": {"reference": f"{event.entity_type}/{event.entity_id}"},
+            "type": {
+                "code": event.entity_type,
+                "system": "urn:mchvc:entity-types",
+            },
+        })
+    if event.patient_id:
+        entities.append({
+            "what": {"reference": f"Patient/{event.patient_id}"},
+            "type": {
+                "code": "1",
+                "system": "http://hl7.org/fhir/resource-types",
+                "display": "Patient",
+            },
+        })
+
+    agent = {
+        "who": {"display": event.actor},
+        "requestor": True,
+    }
+    if event.actor_role:
+        agent["role"] = [{"text": event.actor_role}]
+    if event.device_id:
+        agent["location"] = {"display": event.device_id}
+
+    return {
+        "resourceType": "AuditEvent",
+        "id": str(event.id),
+        "type": {
+            "code": fhir_action,
+            "system": "http://hl7.org/fhir/audit-event-type",
+            "display": event.action,
+        },
+        "action": fhir_action,
+        "recorded": event.occurred_at.isoformat() if event.occurred_at else None,
+        "agent": [agent],
+        "source": {
+            "observer": {"display": "MCH VoiceCare"},
+        },
+        "entity": entities if entities else None,
+        "meta": _fhir_meta(event),
+    }

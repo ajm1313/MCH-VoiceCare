@@ -171,6 +171,29 @@ class OCRJobCreateView(APIView):
             return Response({"error": "OCR processing failed", "detail": result.error},
                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        # Unknown template — route to manual entry (spec §16.4)
+        if result.is_unknown_template:
+            job.status = "UNKNOWN_TEMPLATE"
+            job.save(update_fields=["status", "ocr_engine", "ocr_duration_ms", "updated_at"])
+            log_audit(
+                actor=request.user.username,
+                action="OCR_UNKNOWN_TEMPLATE",
+                actor_role=request.user.system_role,
+                entity_type="OCRJob",
+                entity_id=str(job.id),
+                patient_id=patient.id if patient else None,
+                purpose="DIRECT_CARE",
+                metadata={
+                    "templateId": None,
+                    "manual_entry_required": True,
+                },
+            )
+            return Response({
+                "error": "Unknown template. Please enter data manually.",
+                "manual_entry_required": True,
+                "job_id": str(job.id),
+            }, status=status.HTTP_200_OK)  # 200 not 400 — it's not an error, just needs manual entry
+
         # Convert extracted fields to dict format with validation
         extracted = []
         validation_errors = []

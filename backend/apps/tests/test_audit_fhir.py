@@ -2,6 +2,11 @@
 Tests for notification actions, audit logging (login/logout/patient search),
 and FHIR R4 API endpoints (spec §18.4, §20.1, §23).
 """
+import base64
+import hashlib
+import hmac
+import struct
+import time
 import uuid
 
 from django.test import TestCase
@@ -13,9 +18,21 @@ from apps.core.enums import (
 )
 from apps.organisations.models import OrganisationUnit
 from apps.accounts.models import UserAccount
+from apps.accounts.mfa_models import MFAFactor
 from apps.clients.models import Person, Household
 from apps.notifications.models import Notification, ActionRecord
 from apps.audit.models import AuditEvent
+
+
+def _generate_valid_totp(secret: str) -> str:
+    """Generate a valid TOTP code for the current time step."""
+    secret_bytes = base64.b32decode(secret, casefold=True)
+    step = int(time.time() // 30)
+    msg = struct.pack(">Q", step)
+    h = hmac.new(secret_bytes, msg, hashlib.sha1).digest()
+    offset = h[-1] & 0x0F
+    code = struct.unpack(">I", h[offset:offset + 4])[0] & 0x7FFFFFFF
+    return str(code % 1000000).zfill(6)
 
 
 def _make_org():
@@ -114,9 +131,16 @@ class AuditLoggingTests(TestCase):
         self.client = APIClient()
 
     def test_login_creates_audit(self):
+        # Set up MFA for the privileged user (spec §22.3)
+        secret = MFAFactor.generate_secret()
+        factor = MFAFactor.objects.create(user=self.user, secret=secret, enabled=False)
+        factor.enable()
+
+        code = _generate_valid_totp(secret)
         resp = self.client.post("/api/v1/accounts/auth/login/", {
             "username": "auditlogin",
             "password": "testpass123",
+            "mfa_code": code,
         }, format="json")
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(AuditEvent.objects.filter(action="LOGIN", actor="auditlogin").exists())

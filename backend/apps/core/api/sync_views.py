@@ -36,6 +36,42 @@ from apps.growth.api.serializers import GrowthMeasurementSerializer
 from apps.referrals.api.serializers import ReferralSerializer
 
 
+class VersionConflict(Exception):
+    """Raised when optimistic concurrency version check fails (spec §19.4)."""
+    pass
+
+
+def _prepare_observation_correction(item, existing_obs):
+    """Build correction data for an append-only observation update (spec §19.4).
+
+    Observations are append-only — corrections create a new record with
+    ``correction_of_id`` pointing to the original, rather than overwriting.
+    """
+    correction_data = dict(item)
+    correction_data.pop("id", None)
+    correction_data["correction_of_id"] = str(existing_obs.id)
+    correction_data.setdefault("correction_reason", "")
+    return correction_data
+
+
+def _check_referral_version(item, existing_ref):
+    """Validate optimistic concurrency version for a referral update (spec §19.4).
+
+    Raises :class:`VersionConflict` if the incoming version is stale.
+    """
+    incoming_version = item.get("version")
+    if incoming_version is not None:
+        try:
+            incoming_version = int(incoming_version)
+        except (TypeError, ValueError):
+            return  # malformed version — let serializer handle validation
+        if incoming_version < existing_ref.version:
+            raise VersionConflict(
+                f"Referral {existing_ref.id} version conflict: "
+                f"incoming version {incoming_version} < current version {existing_ref.version}"
+            )
+
+
 # Registry mapping entity type → (model, serializer, org_lookup)
 SYNC_REGISTRY = {
     "persons": (Person, PersonSerializer, "organisation_unit"),
@@ -77,6 +113,36 @@ class SyncViewSet(viewsets.ViewSet):
             for item in items:
                 item_id = item.get("id")
                 try:
+                    # Append-only observations (spec §19.4) — corrections create
+                    # a new record rather than overwriting the original.
+                    if entity_type == "pregnancy_observations" and item_id:
+                        existing_obs = model.objects.filter(id=item_id).first()
+                        if existing_obs:
+                            correction_data = _prepare_observation_correction(item, existing_obs)
+                            serializer = serializer_class(data=correction_data)
+                            if serializer.is_valid():
+                                serializer.save()
+                                entity_results.append({
+                                    "id": serializer.instance.id,
+                                    "status": "corrected",
+                                    "corrected_of": item_id,
+                                })
+                            else:
+                                entity_results.append({
+                                    "id": item_id,
+                                    "status": "error",
+                                    "errors": serializer.errors,
+                                })
+                            continue
+
+                    # Optimistic concurrency for referrals (spec §19.4)
+                    referral_existed = False
+                    if entity_type == "referrals" and item_id:
+                        existing_ref = model.objects.filter(id=item_id).first()
+                        if existing_ref:
+                            referral_existed = True
+                            _check_referral_version(item, existing_ref)
+
                     if item_id:
                         obj = model.objects.filter(id=item_id).first()
                         if obj:
@@ -87,7 +153,11 @@ class SyncViewSet(viewsets.ViewSet):
                         serializer = serializer_class(data=item)
 
                     if serializer.is_valid():
-                        serializer.save()
+                        instance = serializer.save()
+                        # Increment version on referral updates (spec §19.4)
+                        if entity_type == "referrals" and referral_existed:
+                            instance.version = (instance.version or 0) + 1
+                            instance.save(update_fields=["version", "updated_at"])
                         entity_results.append({
                             "id": serializer.instance.id,
                             "status": "updated" if item_id and model.objects.filter(id=item_id).exists() else "created",
@@ -98,6 +168,12 @@ class SyncViewSet(viewsets.ViewSet):
                             "status": "error",
                             "errors": serializer.errors,
                         })
+                except VersionConflict as e:
+                    entity_results.append({
+                        "id": item_id,
+                        "status": "conflict",
+                        "error": str(e),
+                    })
                 except Exception as e:
                     entity_results.append({
                         "id": item_id,
@@ -228,6 +304,32 @@ class SyncViewSet(viewsets.ViewSet):
 
             try:
                 item_id = resource.get("id")
+
+                # Append-only observations (spec §19.4)
+                if entity_type == "pregnancy_observations" and item_id:
+                    existing_obs = model.objects.filter(id=item_id).first()
+                    if existing_obs:
+                        correction_data = _prepare_observation_correction(resource, existing_obs)
+                        serializer = serializer_class(data=correction_data)
+                        if serializer.is_valid():
+                            serializer.save()
+                            accepted.append(event_id)
+                        else:
+                            rejected.append({
+                                "eventId": event_id,
+                                "code": "VALIDATION_ERROR",
+                                "message": str(serializer.errors),
+                            })
+                        continue
+
+                # Optimistic concurrency for referrals (spec §19.4)
+                referral_existed = False
+                if entity_type == "referrals" and item_id:
+                    existing_ref = model.objects.filter(id=item_id).first()
+                    if existing_ref:
+                        referral_existed = True
+                        _check_referral_version(resource, existing_ref)
+
                 if item_id:
                     obj = model.objects.filter(id=item_id).first()
                     if obj:
@@ -238,7 +340,11 @@ class SyncViewSet(viewsets.ViewSet):
                     serializer = serializer_class(data=resource)
 
                 if serializer.is_valid():
-                    serializer.save()
+                    instance = serializer.save()
+                    # Increment version on referral updates (spec §19.4)
+                    if entity_type == "referrals" and referral_existed:
+                        instance.version = (instance.version or 0) + 1
+                        instance.save(update_fields=["version", "updated_at"])
                     accepted.append(event_id)
                 else:
                     rejected.append({
@@ -246,6 +352,12 @@ class SyncViewSet(viewsets.ViewSet):
                         "code": "VALIDATION_ERROR",
                         "message": str(serializer.errors),
                     })
+            except VersionConflict as e:
+                rejected.append({
+                    "eventId": event_id,
+                    "code": "VERSION_CONFLICT",
+                    "message": str(e),
+                })
             except Exception as e:
                 rejected.append({
                     "eventId": event_id,

@@ -47,6 +47,9 @@ class Referral(TimeStampedModel):
     closed_at = models.DateTimeField(null=True, blank=True)
     created_by = models.CharField(max_length=200, blank=True)
 
+    # Optimistic concurrency (spec §19.4) — FHIR meta.versionId / ETag
+    version = models.PositiveIntegerField(default=1)
+
     class Meta:
         ordering = ["-created_at"]
 

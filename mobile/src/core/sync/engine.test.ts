@@ -1,7 +1,7 @@
 /**
  * Tests for sync engine (SYNC-001..SYNC-010).
  */
-import { setPostFunction, syncOnce, subscribeToSyncDepth } from './engine';
+import { setPostFunction, syncOnce, subscribeToSyncDepth, setLastServerCursor } from './engine';
 
 // Mock outbox
 jest.mock('./outbox', () => ({
@@ -20,6 +20,7 @@ const { getPending, updateStatus } = require('./outbox');
 describe('syncOnce', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    setLastServerCursor(null);
   });
 
   it('returns zero counts when no post function set', async () => {
@@ -37,7 +38,7 @@ describe('syncOnce', () => {
     expect(mockPost).not.toHaveBeenCalled();
   });
 
-  it('marks record SYNCED on 200 OK', async () => {
+  it('marks record SYNCED on 200 OK via /sync/batch', async () => {
     const record = {
       clientId: 'abc',
       idempotencyKey: 'abc:1',
@@ -53,7 +54,12 @@ describe('syncOnce', () => {
     const mockPost = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({}),
+      json: () => Promise.resolve({
+        acceptedEventIds: ['abc:1'],
+        rejectedEvents: [],
+        serverChanges: [],
+        nextServerCursor: 'cursor-1',
+      }),
     });
     setPostFunction(mockPost as any);
 
@@ -61,9 +67,13 @@ describe('syncOnce', () => {
     expect(result.synced).toBe(1);
     expect(result.failed).toBe(0);
     expect(updateStatus).toHaveBeenCalledWith('abc', 'SYNCED');
+    // Should have called /sync/batch endpoint
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    const callUrl = mockPost.mock.calls[0][0];
+    expect(callUrl).toContain('/sync/batch');
   });
 
-  it('marks record CONFLICT on 409', async () => {
+  it('marks record CONFLICT on 409 (batch fails, legacy fallback)', async () => {
     const record = {
       clientId: 'abc',
       idempotencyKey: 'abc:1',
@@ -76,11 +86,19 @@ describe('syncOnce', () => {
       attempts: 0,
     };
     (getPending as jest.Mock).mockReturnValue([record]);
-    const mockPost = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: () => Promise.resolve({ clientId: 'abc', errors: { field: ['err'] } }),
-    });
+    // First call: /sync/batch returns 409 → fallback
+    // Second call: /sync/ legacy returns 409
+    const mockPost = jest.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: () => Promise.resolve({ clientId: 'abc', errors: { field: ['err'] } }),
+      });
     setPostFunction(mockPost as any);
 
     const result = await syncOnce();
@@ -92,7 +110,7 @@ describe('syncOnce', () => {
     );
   });
 
-  it('marks record REJECTED on 4xx (non-409)', async () => {
+  it('marks record REJECTED on 4xx (non-409) via legacy fallback', async () => {
     const record = {
       clientId: 'abc',
       idempotencyKey: 'abc:1',
@@ -105,11 +123,17 @@ describe('syncOnce', () => {
       attempts: 0,
     };
     (getPending as jest.Mock).mockReturnValue([record]);
-    const mockPost = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 422,
-      json: () => Promise.resolve({ clientId: 'abc', errors: { field: ['bad'] } }),
-    });
+    const mockPost = jest.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: () => Promise.resolve({ clientId: 'abc', errors: { field: ['bad'] } }),
+      });
     setPostFunction(mockPost as any);
 
     const result = await syncOnce();
@@ -121,7 +145,7 @@ describe('syncOnce', () => {
     );
   });
 
-  it('marks record RETRY_PENDING on 5xx', async () => {
+  it('marks record RETRY_PENDING on 5xx via legacy fallback', async () => {
     const record = {
       clientId: 'abc',
       idempotencyKey: 'abc:1',
@@ -134,11 +158,17 @@ describe('syncOnce', () => {
       attempts: 0,
     };
     (getPending as jest.Mock).mockReturnValue([record]);
-    const mockPost = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ clientId: 'abc', errors: {} }),
-    });
+    const mockPost = jest.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ clientId: 'abc', errors: {} }),
+      });
     setPostFunction(mockPost as any);
 
     const result = await syncOnce();
@@ -173,6 +203,78 @@ describe('syncOnce', () => {
       'abc',
       'REJECTED',
       'Max retry attempts exceeded',
+    );
+  });
+
+  it('marks record REJECTED when /sync/batch rejects the event', async () => {
+    const record = {
+      clientId: 'abc',
+      idempotencyKey: 'abc:1',
+      entityType: 'pregnancy',
+      payload: {},
+      createdAtLocal: '2026-01-01',
+      deviceId: 'dev-1',
+      ruleSetVersion: 'v1',
+      syncStatus: 'NOT_SYNCED',
+      attempts: 0,
+    };
+    (getPending as jest.Mock).mockReturnValue([record]);
+    const mockPost = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        acceptedEventIds: [],
+        rejectedEvents: [
+          { eventId: 'abc:1', code: 'VALIDATION_ERROR', message: 'Invalid data' },
+        ],
+        serverChanges: [],
+        nextServerCursor: 'cursor-2',
+      }),
+    });
+    setPostFunction(mockPost as any);
+
+    const result = await syncOnce();
+    expect(result.failed).toBe(1);
+    expect(updateStatus).toHaveBeenCalledWith(
+      'abc',
+      'REJECTED',
+      'Invalid data',
+    );
+  });
+
+  it('marks record CONFLICT when /sync/batch returns VERSION_CONFLICT', async () => {
+    const record = {
+      clientId: 'abc',
+      idempotencyKey: 'abc:1',
+      entityType: 'referrals',
+      payload: {},
+      createdAtLocal: '2026-01-01',
+      deviceId: 'dev-1',
+      ruleSetVersion: 'v1',
+      syncStatus: 'NOT_SYNCED',
+      attempts: 0,
+    };
+    (getPending as jest.Mock).mockReturnValue([record]);
+    const mockPost = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        acceptedEventIds: [],
+        rejectedEvents: [
+          { eventId: 'abc:1', code: 'VERSION_CONFLICT', message: 'Version conflict' },
+        ],
+        serverChanges: [],
+        nextServerCursor: 'cursor-3',
+      }),
+    });
+    setPostFunction(mockPost as any);
+
+    const result = await syncOnce();
+    expect(result.failed).toBe(1);
+    expect(updateStatus).toHaveBeenCalledWith(
+      'abc',
+      'CONFLICT',
+      'Version conflict',
     );
   });
 });

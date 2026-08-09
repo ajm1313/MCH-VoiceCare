@@ -3,6 +3,8 @@ Pregnancy rule engine — deterministic danger-sign rules (spec §12).
 Production default is RULES_ONLY. All rules use GHS Safe Motherhood Protocol
 thresholds (2016) with WHO 2016 ANC recommendations where applicable.
 """
+from datetime import datetime
+
 from apps.core.enums import UrgencyLevel
 
 
@@ -141,4 +143,7 @@ def run_pregnancy_assessment(episode) -> dict:
         "fired_rules": fired,
         "recommended_action": action_map.get(disposition, ""),
         "rule_set_version": RULE_SET_VERSION,
+        "bundleVersion": RULE_SET_VERSION,
+        "missingCriticalFields": [],
+        "evaluatedAt": datetime.utcnow().isoformat() + "Z",
     }
