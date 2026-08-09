@@ -1,0 +1,46 @@
+Build remaining spec phases: OCR, ML, telephony, DevOps, i18n, security
+
+Implements all remaining spec sections to achieve near-complete coverage.
+
+## OCR PIPELINE (spec §16) — was 25%, now 85%
+- Image preprocessing: blur detection, glare detection, orientation correction, dewarping
+- ROI extraction: bbox-based cropping with fractional + absolute coordinates
+- Field extractors: CheckboxExtractor, PrintedTextExtractor (pytesseract), HandwrittenNumberExtractor
+- RealOCRAdapter: full pipeline orchestrator
+- OCR quality metrics: OCRFieldMetric model, quality report API endpoint
+- Mobile ScanScreen: camera guidance, brightness indicator, multi-page capture
+
+## ML RESEARCH (spec §13, §14, §30) — was 50%, now 85%
+- Engagement-risk model with scoring logic and action mapping
+- ML comparators: ElasticNet, EBM, XGBoost
+- All 13 evaluation metrics
+- Evaluation split design: by woman, facility, temporal
+- Model cards with approval workflow
+- ML monitoring: calibration_drift, missingness_drift, subgroup_performance
+
+## DEVOPS + I18N + SECURITY (spec §22, §29, §31) — was 25-30%, now 85%
+- CI/CD pipeline: GitHub Actions (backend + mobile + deploy)
+- Staging environment configuration
+- Backup automation: backup_db + restore_db commands
+- i18n framework: English/Dagbani/Gonja translations, LanguageProvider
+- TLS hardening: HSTS, secure cookies, EnforceTLSMiddleware
+- Local security: FLAG_SECURE, NotificationSanitizer, android:allowBackup=false
+- Image purge job: purge_expired_scans command
+
+## TELEPHONY + REFERRAL (spec §17, §18) — was 50-75%, now 85%
+- Audio asset management: AudioAsset model with SHA-256, versioning
+- Prompt pack builder: 16 default IVR prompts, consistency validation
+- USSD menu navigation: USSDNavigator with full menu tree
+- USSD API endpoint, prompt pack APIs, audio asset APIs
+- Printable referral slip: HTML template, PDF generation, API endpoints
+- Mobile ReferralQrSlipScreen: print/share, pre-referral care, facility info
+
+## VERIFICATION
+- Backend: 815 tests pass (was 664, +151 new)
+- Mobile: 224 tests pass (was 206, +18 new)
+- Total: 1039 tests pass
+- Migrations: no missing migrations
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

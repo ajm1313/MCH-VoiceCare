@@ -18,10 +18,13 @@ from apps.core.api.ocr_views import (
     OCRTemplateListView, OCRTemplateDetailView,
     OCRJobCreateView, OCRJobListView, OCRJobDetailView,
     OCRJobConfirmView, OCRJobRejectView,
+    OCRQualityMetricsView,
 )
 from apps.core.api.telephony_views import (
     TelephonyWebhookView, PromptPackListView,
     PromptPackByLanguageView, TelephonySessionListView,
+    USSDEndpointView, PromptPackUploadView,
+    AudioAssetView, AudioAssetUploadView,
 )
 from apps.core.api.ml_views import MLPredictView, MLMetadataView
 from apps.core.api.ml_monitoring_views import MLMonitoringView
@@ -59,11 +62,19 @@ urlpatterns = [
     path("ocr/jobs/<str:pk>", OCRJobDetailView.as_view(), name="ocr-job-detail"),
     path("ocr/jobs/<str:pk>/confirm", OCRJobConfirmView.as_view(), name="ocr-job-confirm"),
     path("ocr/jobs/<str:pk>/reject", OCRJobRejectView.as_view(), name="ocr-job-reject"),
+    path("ocr/quality-metrics", OCRQualityMetricsView.as_view(), name="ocr-quality-metrics"),
     # Telephony (spec §17, §22)
     path("telephony/webhooks/<str:provider>", TelephonyWebhookView.as_view(), name="telephony-webhook"),
     path("telephony/prompt-packs", PromptPackListView.as_view(), name="prompt-pack-list"),
+    # Prompt pack upload — admin only (spec §17.2) — MUST be before <str:language> to avoid conflict
+    path("telephony/prompt-packs/upload", PromptPackUploadView.as_view(), name="prompt-pack-upload"),
     path("telephony/prompt-packs/<str:language>", PromptPackByLanguageView.as_view(), name="prompt-pack-by-language"),
     path("telephony/sessions", TelephonySessionListView.as_view(), name="telephony-session-list"),
+    # USSD (spec §17.5)
+    path("telephony/ussd", USSDEndpointView.as_view(), name="telephony-ussd"),
+    # Audio assets (spec §17.2)
+    path("telephony/audio", AudioAssetUploadView.as_view(), name="audio-asset-upload"),
+    path("telephony/audio/<str:asset_id>", AudioAssetView.as_view(), name="audio-asset-detail"),
     # Clinical ML (spec §13, §6.3)
     path("ml/predict", MLPredictView.as_view(), name="ml-predict"),
     path("ml/metadata", MLMetadataView.as_view(), name="ml-metadata"),

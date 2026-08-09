@@ -8,8 +8,37 @@ DEBUG = False
 SECRET_KEY = env("SECRET_KEY")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS", default="").split(",")
 
+# ── Transport security (spec §22.3) ──
+# TLS 1.2+ minimum; TLS 1.3 preferred. Certificate validation MUST NOT be bypassed.
+# The TLS minimum version is enforced at the reverse-proxy/load-balancer layer
+# (Railway terminates TLS). These Django settings enforce HTTPS-only behaviour.
+
 # Trust proxy headers from Railway
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Redirect all HTTP requests to HTTPS
+SECURE_SSL_REDIRECT = True
+
+# HSTS — tell browsers to only use HTTPS for 1 year
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Additional security headers
+SECURE_CONTENT_TYPE_NOSNIFF = True
+# Note: SECURE_BROWSER_XSS_FILTER was removed in Django 4+ (X-XSS-Protection
+# header is no longer honored by modern browsers). Kept for documentation
+# purposes — SecurityMiddleware no longer reads this setting.
+SECURE_BROWSER_XSS_FILTER = True
+
+# Secure cookies — only transmitted over HTTPS
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# Enforce TLS via custom middleware (spec §22.3) — additional layer beyond
+# SecurityMiddleware's SECURE_SSL_REDIRECT. Ensures no content is served
+# over plain HTTP even if proxy headers are missing.
+MIDDLEWARE = MIDDLEWARE + ["config.middleware.EnforceTLSMiddleware"]  # noqa: F405
 
 # CSRF trusted origins — include Railway domain and allow env override
 _extra_csrf = env("CSRF_TRUSTED_ORIGINS", default="")

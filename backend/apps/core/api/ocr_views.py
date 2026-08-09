@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from apps.core.permissions import filter_queryset_by_org
 from apps.core.ocr_models import DocumentTemplate, OCRJob
 from apps.core.ocr_service import get_ocr_adapter, validate_extracted_field
+from apps.core.ocr_metrics import get_quality_report
 from apps.core.config_models import SystemConfig
 from apps.audit.services import log_audit
 from apps.clients.models import Person
@@ -385,3 +386,48 @@ class OCRJobRejectView(APIView):
         )
 
         return Response(_ocr_job_to_dict(job))
+
+
+class OCRQualityMetricsView(APIView):
+    """
+    GET /api/v1/ocr/quality-metrics — aggregated OCR quality metrics (spec §16.5).
+
+    Query params:
+        templateId   — required, the template_id to report on.
+        days         — optional lookback window in days (default 30).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from datetime import timedelta
+
+        template_id = request.query_params.get("templateId")
+        if not template_id:
+            return Response(
+                {"error": "templateId query parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        days = request.query_params.get("days", "30")
+        try:
+            days_int = int(days)
+            if days_int <= 0:
+                days_int = 30
+        except (ValueError, TypeError):
+            days_int = 30
+
+        report = get_quality_report(template_id, date_range=timedelta(days=days_int))
+
+        log_audit(
+            actor=request.user.username,
+            action="OCR_QUALITY_METRICS_VIEWED",
+            actor_role=request.user.system_role,
+            purpose="DIRECT_CARE",
+            metadata={
+                "templateId": template_id,
+                "days": days_int,
+                "totalFields": report.total_fields,
+            },
+        )
+
+        return Response(report.to_dict())

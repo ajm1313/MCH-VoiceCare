@@ -18,6 +18,8 @@ GET  /api/v1/telephony/prompt-packs/{language}
 import json
 import uuid
 
+from django.utils import timezone
+
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -25,8 +27,15 @@ from rest_framework.views import APIView
 
 from apps.core.telephony_models import PromptPack, TelephonySession, RemoteObservation
 from apps.core.telephony_service import (
-    RawWebhook, get_provider, get_available_providers,
+    RawWebhook, get_provider, get_available_providers, route_ussd_session,
 )
+from apps.core.telephony_audio import AudioAsset, AudioAssetManager, AudioUploadMetadata
+from apps.core.telephony_prompts import (
+    PromptPackBuilder, ensure_prompt_pack_consistency, validate_prompt_pack,
+    SUPPORTED_LANGUAGES, REQUIRED_PROMPT_IDS,
+)
+from apps.core.ussd_service import get_default_navigator
+from apps.core.permissions import user_can_write
 from apps.audit.services import log_audit
 from apps.clients.models import Person
 
@@ -268,3 +277,248 @@ class TelephonySessionListView(APIView):
         entries = [_session_to_dict(s) for s in sessions]
 
         return Response({"results": entries, "count": len(entries)})
+
+
+# ── USSD endpoint (spec §17.5) ──
+
+class USSDEndpointView(APIView):
+    """
+    POST /api/v1/telephony/ussd — USSD menu navigation endpoint (spec §17.5).
+
+    Accepts: sessionId, phoneNumber, text (concatenated input levels)
+    Returns: USSD response text (continue or end)
+
+    Integrates with USSDNavigator for menu tree navigation.
+    USSD providers (Africa's Talking, etc.) send callbacks with
+    concatenated input levels separated by '*'.
+    """
+    permission_classes = [AllowAny]  # USSD callbacks come from providers
+
+    def post(self, request):
+        session_id = request.data.get("sessionId", "")
+        phone_number = request.data.get("phoneNumber", "")
+        text = request.data.get("text", "")
+        language = request.data.get("language", "english")
+
+        if not session_id:
+            return Response(
+                {"error": "sessionId is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Route through the USSD navigator via the telephony service
+        response_text, is_end = route_ussd_session(
+            session_id, phone_number, text, language,
+        )
+
+        # Log the USSD interaction
+        log_audit(
+            actor=phone_number or "ussd",
+            action="USSD_SESSION_INPUT",
+            purpose="DIRECT_CARE",
+            metadata={
+                "sessionId": session_id,
+                "phoneNumber": phone_number,
+                "input": text,
+                "isEnd": is_end,
+            },
+        )
+
+        # Return in the format expected by USSD providers
+        # Africa's Talking expects: {"text": "...", "responseType": "END"|"CONTINUE"}
+        # Some providers expect plain text with "CON " or "END " prefix
+        response_type = "END" if is_end else "CONTINUE"
+        return Response({
+            "text": response_text,
+            "responseType": response_type,
+            "sessionId": session_id,
+        })
+
+
+# ── Prompt pack upload endpoint (admin only) ──
+
+class PromptPackUploadView(APIView):
+    """
+    POST /api/v1/telephony/prompt-packs — upload a new prompt pack (admin only, spec §17.2).
+
+    Accepts prompt pack configuration and builds a complete pack using
+    the PromptPackBuilder. Only admin users can upload new prompt packs.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Only admin users can upload prompt packs
+        if not user_can_write(request.user):
+            return Response(
+                {"error": "Only admin users can upload prompt packs"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        language = request.data.get("language", "")
+        if language not in SUPPORTED_LANGUAGES:
+            return Response(
+                {"error": f"Unsupported language. Supported: {SUPPORTED_LANGUAGES}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        prompts_config = request.data.get("promptsConfig")
+        approved_by = request.data.get("approvedBy", request.user.username)
+        back_translated = request.data.get("backTranslated", False)
+        comprehension_tested = request.data.get("comprehensionTested", False)
+
+        try:
+            pack = PromptPackBuilder.build_prompt_pack(language, prompts_config)
+            pack.approved_by = approved_by
+            pack.back_translated = back_translated
+            pack.comprehension_tested = comprehension_tested
+            if approved_by:
+                pack.approved_at = timezone.now()
+            pack.save(update_fields=[
+                "approved_by", "approved_at", "back_translated",
+                "comprehension_tested", "updated_at",
+            ])
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate consistency
+        missing = ensure_prompt_pack_consistency(pack)
+        is_valid, issues = validate_prompt_pack(pack)
+
+        log_audit(
+            actor=request.user.username,
+            action="PROMPT_PACK_UPLOADED",
+            actor_role=request.user.system_role,
+            purpose="SYSTEM_CONFIG",
+            metadata={
+                "packId": pack.pack_id,
+                "language": language,
+                "missingPrompts": missing,
+                "isValid": is_valid,
+            },
+        )
+
+        result = _prompt_pack_to_dict(pack)
+        result["missingPrompts"] = missing
+        result["validationIssues"] = issues
+        result["isValid"] = is_valid
+        return Response(result, status=status.HTTP_201_CREATED)
+
+
+# ── Audio asset serving endpoint ──
+
+class AudioAssetView(APIView):
+    """
+    GET /api/v1/telephony/audio/{asset_id} — serve audio file metadata/URL (spec §17.2).
+
+    Returns the audio asset metadata and storage URL. In production,
+    this would redirect to a signed S3 URL or stream the file.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, asset_id):
+        asset = AudioAssetManager.get_asset(asset_id)
+        if not asset:
+            return Response(
+                {"error": f"Audio asset not found: {asset_id}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response({
+            "audioAssetId": asset.audio_asset_id,
+            "language": asset.language,
+            "promptId": asset.prompt_id,
+            "contentType": asset.content_type,
+            "durationSeconds": asset.duration_seconds,
+            "fileSizeBytes": asset.file_size_bytes,
+            "storageUrl": asset.storage_url,
+            "recordedBy": asset.recorded_by,
+            "approvedBy": asset.approved_by,
+            "approvedAt": asset.approved_at.isoformat() if asset.approved_at else None,
+            "backTranslated": asset.back_translated,
+            "comprehensionTested": asset.comprehension_tested,
+            "checksumSha256": asset.checksum_sha256,
+            "version": asset.version,
+            "isActive": asset.is_active,
+        })
+
+
+class AudioAssetUploadView(APIView):
+    """
+    POST /api/v1/telephony/audio — upload a new audio asset (spec §17.2).
+
+    Accepts multipart file upload with metadata. Only admin users can upload.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not user_can_write(request.user):
+            return Response(
+                {"error": "Only admin users can upload audio assets"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        language = request.data.get("language", "")
+        prompt_id = request.data.get("promptId", "")
+        if not language or not prompt_id:
+            return Response(
+                {"error": "language and promptId are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if language not in SUPPORTED_LANGUAGES:
+            return Response(
+                {"error": f"Unsupported language. Supported: {SUPPORTED_LANGUAGES}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get file bytes from upload or raw body
+        file_obj = request.FILES.get("file")
+        if file_obj:
+            file_bytes = file_obj.read()
+            content_type = file_obj.content_type or "audio/mpeg"
+        else:
+            file_bytes = request.body or b""
+            content_type = "audio/mpeg"
+
+        if not file_bytes:
+            return Response(
+                {"error": "No audio file provided"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        metadata = AudioUploadMetadata(
+            language=language,
+            prompt_id=prompt_id,
+            recorded_by=request.data.get("recordedBy", request.user.username),
+            content_type=content_type,
+            duration_seconds=float(request.data.get("durationSeconds", 0)),
+            approved_by=request.data.get("approvedBy", ""),
+            back_translated=request.data.get("backTranslated", False),
+            comprehension_tested=request.data.get("comprehensionTested", False),
+            version=int(request.data.get("version", 1)),
+        )
+
+        asset = AudioAssetManager.upload_audio(file_bytes, metadata)
+
+        log_audit(
+            actor=request.user.username,
+            action="AUDIO_ASSET_UPLOADED",
+            actor_role=request.user.system_role,
+            purpose="SYSTEM_CONFIG",
+            metadata={
+                "audioAssetId": asset.audio_asset_id,
+                "language": language,
+                "promptId": prompt_id,
+                "version": asset.version,
+            },
+        )
+
+        return Response({
+            "audioAssetId": asset.audio_asset_id,
+            "language": asset.language,
+            "promptId": asset.prompt_id,
+            "checksumSha256": asset.checksum_sha256,
+            "fileSizeBytes": asset.file_size_bytes,
+            "version": asset.version,
+            "isActive": asset.is_active,
+        }, status=status.HTTP_201_CREATED)

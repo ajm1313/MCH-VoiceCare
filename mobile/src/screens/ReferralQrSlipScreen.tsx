@@ -9,9 +9,16 @@
  * If the backend has issued a signed QR token (via GET /referrals/{id}/qr/),
  * that token is preferred. Otherwise, a local fallback token is generated
  * from the referral ID and short code.
+ *
+ * Features:
+ * - QR code display (offline-first with online signed token fallback)
+ * - Pre-referral care instructions
+ * - Referring facility and clinician info
+ * - Destination facility name and contact
+ * - Print button (uses Share API as fallback if React Native Print not available)
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme} from 'react-native';
+import {ActivityIndicator, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View, useColorScheme} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -48,6 +55,47 @@ function buildOfflineQrPayload(referralId: string, shortCode: string): string {
   });
 }
 
+/**
+ * Attempt to print or share the referral slip.
+ * Uses React Native Print if available, otherwise falls back to the Share API.
+ */
+async function printOrShareSlip(
+  referralId: string,
+  shortCode: string,
+  patientName: string,
+  destination: string,
+): Promise<void> {
+  const slipText = [
+    'MCH VoiceCare — Referral Slip',
+    `Short Code: ${shortCode}`,
+    `Patient: ${patientName || '—'}`,
+    `Destination: ${destination || '—'}`,
+    `Referral ID: ${referralId}`,
+  ].join('\n');
+
+  // Try React Native Print (optional dependency)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Print = require('react-native-print');
+    if (Print && Print.print) {
+      await Print.print({html: slipText});
+      return;
+    }
+  } catch {
+    // react-native-print not installed — fall through to Share
+  }
+
+  // Fallback: use the Share API
+  try {
+    await Share.share({
+      message: slipText,
+      title: 'MCH VoiceCare Referral Slip',
+    });
+  } catch {
+    // Share cancelled or unavailable — silently ignore
+  }
+}
+
 export function ReferralQrSlipScreen({route, navigation}: Props) {
   const scheme = useColorScheme();
   const colors = scheme === 'dark' ? darkColors : lightColors;
@@ -58,6 +106,7 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
   const [shortCode, setShortCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchingQr, setFetchingQr] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const loadData = useCallback(() => {
     try {
@@ -109,6 +158,20 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
     }
   };
 
+  const handlePrint = async () => {
+    setPrinting(true);
+    try {
+      await printOrShareSlip(
+        referralId,
+        shortCode ?? '',
+        String(item?.patient_name ?? ''),
+        String(item?.destination_facility ?? ''),
+      );
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   if (loading) {
     return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.primary} /></View>;
   }
@@ -117,6 +180,13 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
 
   // The QR payload: prefer signed server token, fall back to offline-generated opaque payload
   const qrPayload = qrToken ?? (shortCode ? buildOfflineQrPayload(referralId, shortCode) : null);
+
+  // Pre-referral care instructions
+  const preReferralCare = String(item?.pre_referral_care ?? '');
+  // Referring clinician info
+  const referringClinician = String(item?.created_by ?? item?.referring_clinician ?? '—');
+  // Destination facility contact
+  const destContact = String(item?.destination_facility_contact ?? '');
 
   return (
     <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
@@ -137,8 +207,33 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
             </View>
             <Text style={[styles.patientName, {color: colors.textPrimary}]}>{String(item.patient_name)}</Text>
             <Text style={[styles.slipInfo, {color: colors.textSecondary}]}>Reason: {String(item.referral_reason ?? '—')}</Text>
-            <Text style={[styles.slipInfo, {color: colors.textSecondary}]}>From: {String(item.referring_facility ?? '—')}</Text>
-            <Text style={[styles.slipInfo, {color: colors.textSecondary}]}>To: {String(item.destination_facility ?? '—')}</Text>
+
+            {/* Referring facility and clinician info */}
+            <View style={styles.sectionDivider} />
+            <Text style={[styles.sectionLabel, {color: colors.textSecondary}]}>Referring Facility</Text>
+            <Text style={[styles.slipInfo, {color: colors.textPrimary}]}>{String(item.referring_facility ?? '—')}</Text>
+            <Text style={[styles.slipInfo, {color: colors.textSecondary}]}>Clinician: {referringClinician}</Text>
+
+            {/* Destination facility name and contact */}
+            <View style={styles.sectionDivider} />
+            <Text style={[styles.sectionLabel, {color: colors.textSecondary}]}>Destination Facility</Text>
+            <Text style={[styles.slipInfo, {color: colors.textPrimary}]}>{String(item.destination_facility ?? '—')}</Text>
+            {destContact && destContact !== '—' && (
+              <Pressable onPress={() => Linking.openURL(`tel:${destContact}`)}>
+                <Text style={[styles.contactLink, {color: colors.primary}]}>Call: {destContact}</Text>
+              </Pressable>
+            )}
+
+            {/* Pre-referral care instructions */}
+            {preReferralCare ? (
+              <>
+                <View style={styles.sectionDivider} />
+                <Text style={[styles.sectionLabel, {color: colors.textSecondary}]}>Pre-referral Care Instructions</Text>
+                <Text style={[styles.preReferralCare, {color: colors.textPrimary}]}>{preReferralCare}</Text>
+              </>
+            ) : null}
+
+            <View style={styles.sectionDivider} />
             <Text style={[styles.slipInfo, {color: colors.textSecondary}]}>Status: {String(item.status)}</Text>
 
             {shortCode && (
@@ -178,6 +273,20 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
                 )}
               </Pressable>
             )}
+
+            {/* Print / Share button */}
+            <Pressable
+              style={[styles.printBtn, {borderColor: colors.primary}]}
+              onPress={handlePrint}
+              disabled={printing}>
+              {printing ? (
+                <ActivityIndicator color={colors.primary} size="small" />
+              ) : (
+                <Text style={[styles.printBtnText, {color: colors.primary}]}>
+                  {Platform.OS === 'ios' ? 'Print / Share Slip' : 'Share Slip'}
+                </Text>
+              )}
+            </Pressable>
           </View>
         )}
       </ScrollView>
@@ -199,6 +308,10 @@ const styles = StyleSheet.create({
   badgeText: {color: '#fff', fontSize: 11, fontWeight: '700'},
   patientName: {fontSize: 20, fontWeight: '700', marginBottom: 8},
   slipInfo: {fontSize: 14, paddingVertical: 2},
+  sectionDivider: {height: 1, backgroundColor: '#E2E8F0', marginVertical: 8},
+  sectionLabel: {fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginBottom: 2},
+  preReferralCare: {fontSize: 14, paddingVertical: 2, lineHeight: 20},
+  contactLink: {fontSize: 14, paddingVertical: 2, fontWeight: '600'},
   shortCodeBox: {marginTop: 16, alignItems: 'center', padding: 12, borderWidth: 2, borderColor: '#E2E8F0', borderRadius: 12, borderStyle: 'dashed'},
   shortCodeLabel: {fontSize: 11, fontWeight: '600', textTransform: 'uppercase'},
   shortCode: {fontSize: 24, fontWeight: '800', letterSpacing: 2, marginTop: 4},
@@ -208,4 +321,6 @@ const styles = StyleSheet.create({
   qrHint: {fontSize: 11, marginTop: 8, textAlign: 'center'},
   fetchBtn: {padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 16},
   fetchBtnText: {color: '#fff', fontWeight: '700', fontSize: 15},
+  printBtn: {padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 12, borderWidth: 2},
+  printBtnText: {fontWeight: '700', fontSize: 15},
 });

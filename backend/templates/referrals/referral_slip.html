@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referral Slip — {{ slip.short_code|default:slip.referral_episode_id }}</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: #f5f5f5;
+    color: #1a1a1a;
+  }
+  .slip {
+    max-width: 600px;
+    margin: 0 auto;
+    background: #fff;
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 24px;
+  }
+  .header {
+    text-align: center;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: 22px;
+    margin: 0;
+    letter-spacing: 1px;
+  }
+  .header .subtitle {
+    font-size: 12px;
+    color: #666;
+    margin: 4px 0 0;
+  }
+  .urgency {
+    display: inline-block;
+    padding: 4px 20px;
+    border-radius: 4px;
+    font-weight: bold;
+    color: #fff;
+    margin-top: 8px;
+    font-size: 14px;
+  }
+  .urgency-EMERGENCY { background: #dc2626; }
+  .urgency-PRIORITY { background: #f59e0b; }
+  .urgency-ROUTINE { background: #6b7280; }
+  .urgency-ABSTAIN { background: #9ca3af; }
+  .section { margin-bottom: 14px; }
+  .label {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+  .value {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .value-mono {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    word-break: break-all;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .short-code-box {
+    text-align: center;
+    padding: 16px;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    margin: 16px 0;
+  }
+  .short-code {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: 4px;
+  }
+  .qr-box {
+    text-align: center;
+    margin: 16px 0;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+  }
+  .qr-token {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    word-break: break-all;
+    color: #444;
+  }
+  .signatures {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-top: 48px;
+  }
+  .sig-line {
+    border-top: 1px solid #333;
+    padding-top: 4px;
+    text-align: center;
+    font-size: 10px;
+    color: #666;
+  }
+  .contact-info {
+    font-size: 12px;
+    color: #555;
+    margin-top: 4px;
+  }
+  .no-print {
+    text-align: center;
+    margin-top: 16px;
+  }
+  .no-print button {
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff !important; margin: 0; padding: 10px; }
+    .slip { border: 1px solid #999; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="slip">
+  <div class="header">
+    <h1>REFERRAL SLIP</h1>
+    <p class="subtitle">MCH VoiceCare — Maternal &amp; Child Health</p>
+    <div class="urgency urgency-{{ slip.urgency_level|default:'ROUTINE' }}">{{ slip.urgency_level|default:'ROUTINE' }}</div>
+  </div>
+
+  <div class="grid">
+    <div class="section">
+      <div class="label">Short Code</div>
+      <div class="value">{{ slip.short_code|default:'—' }}</div>
+    </div>
+    <div class="section">
+      <div class="label">Date / Time</div>
+      <div class="value">{{ slip.created_at|default:'—' }}</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="section">
+      <div class="label">Patient Name</div>
+      <div class="value">{{ slip.patient_name|default:'—' }}</div>
+    </div>
+    <div class="section">
+      <div class="label">Patient ID</div>
+      <div class="value value-mono">{{ slip.patient_id|default:'—' }}</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="section">
+      <div class="label">Referral ID</div>
+      <div class="value value-mono">{{ slip.referral_episode_id|default:'—' }}</div>
+    </div>
+    <div class="section">
+      <div class="label">Pregnancy Episode</div>
+      <div class="value value-mono">{{ slip.pregnancy_episode_id|default:'—' }}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="label">Referral Reason</div>
+    <div class="value">{{ slip.referral_reason|default:'—' }}</div>
+  </div>
+
+  <div class="grid">
+    <div class="section">
+      <div class="label">From (Referring Facility)</div>
+      <div class="value">{{ slip.referring_facility_name|default:'—' }}</div>
+      {% if slip.referring_facility_contact %}
+      <div class="contact-info">Tel: {{ slip.referring_facility_contact }}</div>
+      {% endif %}
+    </div>
+    <div class="section">
+      <div class="label">To (Destination Facility)</div>
+      <div class="value">{{ slip.destination_facility_name|default:'—' }}</div>
+      {% if slip.destination_facility_contact %}
+      <div class="contact-info">Tel: {{ slip.destination_facility_contact }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="label">Pre-referral Care Given</div>
+    <div class="value">{{ slip.pre_referral_care|default:'—' }}</div>
+  </div>
+
+  <div class="section">
+    <div class="label">Referring Clinician</div>
+    <div class="value">{{ slip.referring_clinician_name|default:'—' }}</div>
+  </div>
+
+  <div class="short-code-box">
+    <div class="label">Short Code</div>
+    <div class="short-code">{{ slip.short_code|default:'—' }}</div>
+  </div>
+
+  <div class="qr-box">
+    <div class="label">QR Token (scan at receiving facility)</div>
+    <div class="qr-token">{{ slip.qr_token|default:'—' }}</div>
+  </div>
+
+  <div class="signatures">
+    <div class="sig-line">Referring Clinician Signature</div>
+    <div class="sig-line">Receiving Facility Stamp</div>
+  </div>
+</div>
+
+<div class="no-print">
+  <button onclick="window.print()">Print Slip</button>
+</div>
+</body>
+</html>

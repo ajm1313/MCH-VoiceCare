@@ -65,6 +65,9 @@ INSTALLED_APPS = [
     "apps.fhir",
     "apps.rules",
     "apps.tests",
+
+    # ML research infrastructure (spec §13, §14, §30)
+    "ml",
 ]
 
 MIDDLEWARE = [

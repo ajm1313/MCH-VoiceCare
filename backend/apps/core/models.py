@@ -35,3 +35,16 @@ class SyncedModel(UUIDModel):
 
     class Meta:
         abstract = True
+
+
+# Import concrete models from submodules so Django's app registry
+# discovers them for makemigrations and get_models().
+# These imports are at the end to avoid circular imports — the abstract
+# bases above are defined first.
+from apps.core.telephony_audio import AudioAsset  # noqa: F401, E402
+from apps.core.telephony_models import PromptPack, TelephonySession, RemoteObservation  # noqa: F401, E402
+from apps.core.ocr_models import *  # noqa: F401, E402, F403
+from apps.core.config_models import *  # noqa: F401, E402, F403
+from apps.core.signing_models import *  # noqa: F401, E402, F403
+from apps.core.package_models import *  # noqa: F401, E402, F403
+from apps.core.idempotency_models import *  # noqa: F401, E402, F403

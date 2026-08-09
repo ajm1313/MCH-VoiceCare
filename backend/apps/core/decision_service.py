@@ -14,6 +14,10 @@ from datetime import datetime
 
 from apps.core.enums import UrgencyLevel, ClinicalDisposition, MLMode
 from apps.core.config_models import SystemConfig
+from apps.core.engagement_service import (
+    EngagementRiskInput,
+    get_engagement_assessor,
+)
 
 
 def build_unified_decision(
@@ -24,6 +28,7 @@ def build_unified_decision(
     ml_result: dict = None,
     engagement_result: dict = None,
     missing_critical_fields: list = None,
+    engagement_input: EngagementRiskInput = None,
 ) -> dict:
     """
     Combine rule, ML, and engagement outputs into a unified decision.
@@ -36,14 +41,28 @@ def build_unified_decision(
         ml_result: Output from the clinical ML model (or None)
         engagement_result: Output from the engagement risk model (or None)
         missing_critical_fields: List of missing critical field names
+        engagement_input: Raw engagement input data — if engagement_result is
+            None but this is provided, the assessor is called (spec §14).
 
     Returns:
         Immutable unified decision dict per spec §15.
     """
     rule_result = rule_result or {}
     ml_result = ml_result or {}
-    engagement_result = engagement_result or {}
     missing_critical_fields = missing_critical_fields or []
+
+    # If no engagement result was passed but raw engagement input is available,
+    # call the engagement assessor (spec §14).
+    if engagement_result is None and engagement_input is not None:
+        try:
+            assessor = get_engagement_assessor()
+            engagement_result_obj = assessor.assess(engagement_input)
+            engagement_result = engagement_result_obj.to_dict()
+        except Exception:
+            # Engagement assessment failure must never break the decision
+            engagement_result = None
+
+    engagement_result = engagement_result or {}
 
     config = SystemConfig.get_config()
     ml_mode = config.clinical_ml_mode
@@ -84,8 +103,18 @@ def build_unified_decision(
             # ML MUST NOT de-escalate EMERGENCY_NOW or PRIORITY_REVIEW
             # This is the non-downgrade invariant (spec §3.1)
 
-    # Step 4: Engagement risk affects outreach only, not clinical disposition
-    engagement_risk_level = engagement_result.get("risk_level", "LOW") if engagement_result else "LOW"
+    # Step 4: Engagement risk affects outreach only, not clinical disposition (spec §14, §15)
+    # Engagement MUST NOT change clinicalDisposition — only outreach actions.
+    engagement_risk_level = "LOW"
+    engagement_risk_score = 0.0
+    engagement_recommended_actions = []
+    if engagement_result:
+        engagement_risk_level = engagement_result.get(
+            "riskLevel", engagement_result.get("risk_level", "LOW"))
+        engagement_risk_score = engagement_result.get(
+            "riskScore", engagement_result.get("risk_score", 0.0))
+        engagement_recommended_actions = engagement_result.get(
+            "recommendedActions", engagement_result.get("recommended_actions", []))
 
     # Step 5: Collect reasons from all sources
     reasons = []
@@ -106,6 +135,11 @@ def build_unified_decision(
         "ruleResult": rule_result,
         "clinicalRiskResult": ml_result if ml_mode != MLMode.RULES_ONLY else None,
         "engagementRiskResult": engagement_result if engagement_result else None,
+        "engagement_risk_result": {
+            "risk_level": engagement_risk_level,
+            "risk_score": engagement_risk_score,
+            "recommended_actions": engagement_recommended_actions,
+        } if engagement_result else None,
         "reasons": reasons,
         "missingCriticalFields": missing_critical_fields,
         "requiresHumanConfirmation": requires_human_confirmation,

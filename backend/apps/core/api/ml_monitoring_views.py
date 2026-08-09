@@ -96,6 +96,25 @@ class MLMonitoringView(APIView):
         # Prediction rate (per hour)
         prediction_rate_per_hour = total_predictions_24h / 24 if total_predictions_24h > 0 else 0
 
+        # --- Calibration drift (spec §27.2) ---
+        # Compare current calibration slope vs training baseline (1.0 = ideal).
+        # Without a stored baseline we use the risk-band distribution skew as a
+        # proxy: if HIGH band proportion deviates significantly from expected,
+        # flag as drift.
+        calibration_drift = self._compute_calibration_drift(
+            risk_bands_7d, total_predictions_7d, metadata)
+
+        # --- Missingness drift (spec §27.2) ---
+        # Compare current feature missingness (proxied by abstention rate)
+        # vs training baseline.
+        missingness_drift = self._compute_missingness_drift(
+            abstention_rate, metadata)
+
+        # --- Subgroup performance breakdown (spec §27.2, §13.6) ---
+        # Break down by region, age_group, parity using audit metadata.
+        subgroup_performance = self._compute_subgroup_performance(
+            ml_predictions_7d)
+
         return Response({
             "timestamp": now.isoformat(),
             "mlMode": ml_mode,
@@ -119,12 +138,112 @@ class MLMonitoringView(APIView):
                 "ml_overrides_7d": ml_overrides_7d,
             },
             "risk_band_distribution_7d": risk_bands_7d,
+            "calibration_drift": calibration_drift,
+            "missingness_drift": missingness_drift,
+            "subgroup_performance": subgroup_performance,
             "alerts": {
                 "ml_disabled": ml_mode == MLMode.RULES_ONLY,
                 "model_not_loaded": metadata.validation_status in (
                     "CATBOOST_NOT_INSTALLED", "MODEL_LOAD_FAILED", "N/A",
                 ),
                 "high_abstention_rate": abstention_rate > 50,
+                "calibration_drift_detected": calibration_drift.get("drift_detected", False),
+                "missingness_drift_detected": missingness_drift.get("drift_detected", False),
                 "message": "ML is operating in RULES_ONLY mode — no care-changing output." if ml_mode == MLMode.RULES_ONLY else None,
             },
         })
+
+    def _compute_calibration_drift(self, risk_bands_7d: dict,
+                                   total_predictions_7d: int,
+                                   metadata) -> dict:
+        """Compute calibration drift metric (spec §27.2).
+
+        Compares current calibration (proxied by risk-band distribution) vs
+        a training baseline. A well-calibrated model should have a stable
+        distribution. Significant skew in the HIGH band indicates drift.
+        """
+        if total_predictions_7d == 0:
+            return {
+                "current_high_band_pct": 0.0,
+                "baseline_high_band_pct": None,
+                "drift_detected": False,
+                "message": "No predictions in window",
+            }
+
+        high_count = risk_bands_7d.get("HIGH", 0)
+        current_high_pct = (high_count / total_predictions_7d) * 100
+
+        # Training baseline — in production this would be loaded from the
+        # model manifest. Without a stored baseline, we flag if HIGH band
+        # exceeds 30% (a heuristic threshold indicating possible over-alerting).
+        baseline_high_pct = 15.0  # default expected baseline
+        drift_threshold = 15.0  # percentage points
+        drift_detected = abs(current_high_pct - baseline_high_pct) > drift_threshold
+
+        return {
+            "current_high_band_pct": round(current_high_pct, 2),
+            "baseline_high_band_pct": baseline_high_pct,
+            "drift_magnitude_pct": round(abs(current_high_pct - baseline_high_pct), 2),
+            "drift_detected": drift_detected,
+            "calibration_status": metadata.calibration_status,
+        }
+
+    def _compute_missingness_drift(self, abstention_rate: float,
+                                   metadata) -> dict:
+        """Compute missingness drift metric (spec §27.2).
+
+        Compares current feature missingness (proxied by abstention rate)
+        vs a training baseline missingness rate.
+        """
+        # Training baseline abstention — in production loaded from manifest.
+        baseline_abstention_pct = 10.0  # default expected baseline
+        current_abstention_pct = abstention_rate
+        drift_threshold = 20.0  # percentage points
+        drift_detected = abs(current_abstention_pct - baseline_abstention_pct) > drift_threshold
+
+        return {
+            "current_abstention_pct": round(current_abstention_pct, 2),
+            "baseline_abstention_pct": baseline_abstention_pct,
+            "drift_magnitude_pct": round(abs(current_abstention_pct - baseline_abstention_pct), 2),
+            "drift_detected": drift_detected,
+        }
+
+    def _compute_subgroup_performance(self, ml_predictions_7d) -> dict:
+        """Compute subgroup performance breakdown (spec §27.2, §13.6).
+
+        Breaks down ML predictions by region, age_group, and parity using
+        audit event metadata.
+        """
+        subgroups = {"region": {}, "age_group": {}, "parity": {}}
+
+        for event in ml_predictions_7d:
+            meta = event.metadata or {}
+            region = meta.get("region", "unknown")
+            age_group = meta.get("ageGroup", "unknown")
+            parity = meta.get("parity", "unknown")
+            risk_band = meta.get("riskBand", "NOT_SHOWN")
+            abstained = meta.get("abstained", False)
+
+            for group_key, group_val in [("region", region), ("age_group", age_group), ("parity", parity)]:
+                if group_val not in subgroups[group_key]:
+                    subgroups[group_key][group_val] = {
+                        "count": 0,
+                        "abstained": 0,
+                        "high_risk": 0,
+                    }
+                subgroups[group_key][group_val]["count"] += 1
+                if abstained:
+                    subgroups[group_key][group_val]["abstained"] += 1
+                if risk_band == "HIGH":
+                    subgroups[group_key][group_val]["high_risk"] += 1
+
+        # Compute rates
+        for group_key in subgroups:
+            for val, stats in subgroups[group_key].items():
+                count = stats["count"]
+                stats["abstention_rate_pct"] = round(
+                    (stats["abstained"] / count * 100) if count > 0 else 0, 2)
+                stats["high_risk_rate_pct"] = round(
+                    (stats["high_risk"] / count * 100) if count > 0 else 0, 2)
+
+        return subgroups

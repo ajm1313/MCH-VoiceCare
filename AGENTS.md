@@ -79,3 +79,47 @@ cd mobile && npx react-native run-android
 - Safety-critical OCR fields MUST be human-confirmed.
 - No caller speech is recorded in the first release.
 - Remote DTMF/USSD events are central-first.
+
+## DevOps — Cron Jobs (spec §29.3, §25)
+
+The following management commands should be scheduled via cron on the production server:
+
+```bash
+# Daily database backup at 02:00 UTC (spec §29.3)
+# Dumps PostgreSQL to compressed SQL and uploads to S3 (or local storage).
+# Retains last 30 days of backups. Logs to audit trail.
+0 2 * * * cd /app && python manage.py backup_db >> /var/log/mch_backup.log 2>&1
+
+# Purge expired OCR scan images at 03:00 UTC (spec §25)
+# Deletes image files for OCR jobs past their purge-eligibility date.
+# Skips ALL purging if scan_retention_mode is LEGAL_RECORD.
+0 3 * * * cd /app && python manage.py purge_expired_scans >> /var/log/mch_purge.log 2>&1
+```
+
+### Database restore (manual)
+
+```bash
+# Restore from latest backup — requires --confirm to prevent accidental execution
+cd /app && python manage.py restore_db --confirm
+
+# Restore from a specific backup file
+cd /app && python manage.py restore_db --confirm --file db_backups/mch_voicecare_20250115_020000.sql.gz
+```
+
+### CI/CD Pipeline (spec §29.2)
+
+GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push to `main` and PRs:
+
+- **Backend job:** Python 3.12 + PostgreSQL 16 service container, runs `manage.py check`,
+  migration check, and full test suite with coverage.
+- **Mobile job:** Node 20 + JDK 17, runs TypeScript type check, Jest tests with coverage,
+  and debug APK build.
+- **Deploy job:** Only on `main` branch push — deploys backend to Railway via CLI
+  and uploads APK as artifact.
+
+### Environments
+
+- **Production:** `config.settings.production` — strict TLS, secure cookies, HSTS.
+- **Staging:** `config.settings.staging` — separate database (`RAILWAY_STAGING_DB_URL`),
+  relaxed rate limiting for QA testing. See `railway-staging.json` for Railway config.
+- **Development:** `config.settings.base` — SQLite, DEBUG=True.

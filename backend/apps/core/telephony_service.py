@@ -244,6 +244,62 @@ class AfricasTalkingGateway:
         return f"at-sms-{request.phone_number}"
 
 
+# --- USSD gateway integration (spec §17.5) ---
+
+def route_ussd_session(session_id: str, phone_number: str, text: str, language: str = "english"):
+    """
+    Route a USSD session through the USSD navigator (spec §17.5).
+
+    This integrates the telephony gateway with the USSD menu navigator.
+    Providers (Africa's Talking, etc.) send USSD callbacks with
+    concatenated input levels; this function parses them and delegates
+    to the USSDNavigator.
+
+    Args:
+        session_id: Provider session ID
+        phone_number: Caller phone number
+        text: Concatenated USSD input (levels separated by '*')
+        language: Preferred language
+
+    Returns:
+        (response_text, is_end) tuple
+    """
+    from apps.core.ussd_service import get_default_navigator
+
+    navigator = get_default_navigator()
+
+    # USSD providers (Africa's Talking, etc.) send the FULL accumulated text
+    # on each callback, not just the latest input. For example:
+    #   1st callback: text=""       → show main menu
+    #   2nd callback: text="3"      → user selected 3, show emergency menu
+    #   3rd callback: text="3*1"    → user selected 3 then 1, trigger bleeding
+    #
+    # To handle this correctly, we reset the session to the main menu and
+    # replay all inputs from the beginning each time.
+    navigator.end_session(session_id)
+    session = navigator.start_session(phone_number, language)
+
+    # Parse concatenated input — levels separated by '*'
+    levels = text.split("*") if text else []
+    response_text = ""
+    is_end = False
+
+    if not levels or (len(levels) == 1 and levels[0] == ""):
+        # Initial request — show main menu
+        response_text, is_end = navigator.handle_input(session, "")
+    else:
+        # Process each level of input from the beginning
+        for level in levels:
+            response_text, is_end = navigator.handle_input(session, level)
+            if is_end:
+                break
+
+    if is_end:
+        navigator.end_session(session_id)
+
+    return response_text, is_end
+
+
 # --- Provider registry ---
 
 _providers: dict[str, TelephonyGateway] = {

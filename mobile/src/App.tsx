@@ -22,6 +22,7 @@ import {setRulePackageGetFunction} from './core/sync/rulePackageSync';
 import {useAuthStore} from './core/auth/authStore';
 import {useAutoLock} from './core/auth/useAutoLock';
 import {provisionDevice} from './core/auth/deviceProvision';
+import {LanguageProvider} from './core/i18n/LanguageProvider';
 import type {RootStackParamList} from './core/navigation/types';
 
 import {LoginScreen} from './screens/LoginScreen';
@@ -129,20 +130,23 @@ export default function App(): React.JSX.Element {
   if (!ready) {
     return (
       <SafeAreaProvider>
-        <StatusBar
-          barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={colors.background}
-        />
+        <LanguageProvider>
+          <StatusBar
+            barStyle={isDark ? 'light-content' : 'dark-content'}
+            backgroundColor={colors.background}
+          />
+        </LanguageProvider>
       </SafeAreaProvider>
     );
   }
 
   return (
     <SafeAreaProvider>
-      <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={colors.background}
-      />
+      <LanguageProvider>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={colors.background}
+        />
       <NavigationContainer
         theme={{
           dark: isDark,
@@ -385,6 +389,7 @@ export default function App(): React.JSX.Element {
           )}
         </Stack.Navigator>
       </NavigationContainer>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }
