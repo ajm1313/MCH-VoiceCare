@@ -1,21 +1,44 @@
-Fix mobile app: rule package caching, missing modules, premium UI
+Remove 26 old admin screens not in spec (clean up legacy platform code)
 
-Root causes fixed:
-1. Rule package never cached: setRulePackageGetFunction() was never called
-   in App.tsx, so syncRulePackage() silently returned false without fetching.
-   This caused the persistent "No rule package cached" warning.
-2. Dashboard only showed Pregnancy module: careStages array only had one
-   entry. Added Newborn Care, Child Health (Immunisation, Growth, Defaulter
-   Tracing, CWC Sessions), Referrals, and Quick Capture (OCR, Voice) stages.
-3. BottomTabBar only had 3 tabs (Home, Pregnancy, Tasks): expanded to 5 tabs
-   adding Newborn and Immunise for quick access to all clinical modules.
-4. Premium UI improvements: added shadows/elevation to cards, stage headers
-   with colored left borders, module icons, rounded pill logout button,
-   better visual hierarchy with consistent spacing and typography.
-5. Fixed 2 pre-existing screen test failures (LoginScreen title text
-   matching, PregnancyRegisterScreen step title text extraction).
+The mobile app was built on top of a generic community health platform
+that included admin/management screens not required by the MCH VoiceCare
+implementation spec. These belong in the backend Django admin, not the
+mobile facility app.
 
-All 202 tests now pass (was 199 passing before).
+Deleted screens (26):
+- Campaigns: CampaignList, CampaignDetail, CampaignForm
+- Templates: TemplateList, TemplateForm, TemplateDetail
+- Households: HouseholdList, HouseholdForm
+- Integrations: IntegrationList, IntegrationForm
+- OrgUnits: OrgUnitList, OrgUnitForm, OrgUnitDelete
+- Users: UserList, UserForm, RoleScopeAssign
+- Reports: ReportList, ReportDetail, ReportGenerate, ScheduledReportForm
+- Profiles: ProfileList, ProfileDetail, ProfileGenerate
+- Capabilities: CapabilityList, CapabilityForm
+- Monitoring: MonitoringScreen
+
+Cleaned up:
+- navigation/types.ts: removed 26 old route types
+- App.tsx: removed 26 old imports and Stack.Screen registrations
+- DashboardScreen: removed old admin entries from supportModules,
+  removed Profiling module (was referencing deleted ProfileList)
+- ReferralListScreen: removed "Capabilities" button (was navigating
+  to deleted CapabilityList)
+
+Remaining screens (41) are all spec-required clinical features:
+- Login, Dashboard, SyncStatus, AuditList
+- Person (list, detail, form)
+- Pregnancy (list, register, detail, observe, assessment, close, transfer)
+- Newborn (list, register, detail, observe, close, transfer)
+- Immunisation (list, register, child detail, record dose)
+- Defaulter (list, detail, trace), CWC (session, detail)
+- Growth (list, detail, record, chart)
+- OCR (scan, confirm)
+- Referral (list, detail, create, QR slip)
+- TaskList, NotificationDetail
+- ClinicianOverride, VoiceRecord
+
+All 202 tests pass.
 
 Generated with [Devin](https://devin.ai)
 

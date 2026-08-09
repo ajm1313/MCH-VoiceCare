@@ -130,7 +130,6 @@ export function DashboardScreen({navigation}: Props) {
       color: brand.teal,
       modules: [
         {label: 'Pregnancy', desc: 'Active episodes & assessments', target: 'PregnancyList' as const, icon: '🤰'},
-        {label: 'Profiling', desc: 'Pregnancy risk profiling', target: 'ProfileList' as const, icon: '📊'},
       ],
     },
     {
@@ -178,16 +177,8 @@ export function DashboardScreen({navigation}: Props) {
   const supportModules = [
     {label: 'Tasks', desc: 'Open notifications & action items', target: 'TaskList' as const, adminOnly: false, icon: '📋'},
     {label: 'Clients', desc: 'Persons & households', target: 'PersonList' as const, adminOnly: false, icon: '👤'},
-    {label: 'Households', desc: 'Household registry', target: 'HouseholdList' as const, adminOnly: false, icon: '🏠'},
-    {label: 'Reports', desc: 'Report generation & viewing', target: 'ReportList' as const, adminOnly: false, icon: '📄'},
     {label: 'Sync Status', desc: 'Last sync, queue & conflicts', target: 'SyncStatus' as const, adminOnly: false, icon: '⟳'},
-    {label: 'Campaigns', desc: 'Communication campaigns', target: 'CampaignList' as const, adminOnly: true, icon: '📢'},
-    {label: 'Templates', desc: 'Message templates', target: 'TemplateList' as const, adminOnly: true, icon: '📝'},
-    {label: 'Integrations', desc: 'External system configs', target: 'IntegrationList' as const, superAdminOnly: true, icon: '🔌'},
-    {label: 'Org Units', desc: 'Organisation structure', target: 'OrgUnitList' as const, adminOnly: true, icon: '🏛️'},
-    {label: 'Users', desc: 'User account management', target: 'UserList' as const, superAdminOnly: true, icon: '👥'},
     {label: 'Audit Log', desc: 'System audit trail', target: 'AuditList' as const, superAdminOnly: true, icon: '🔒'},
-    {label: 'Monitoring', desc: 'System health & clinical safety', target: 'Monitoring' as const, adminOnly: true, icon: '📡'},
   ].filter(m => {
     if (m.superAdminOnly) return isSuperAdmin;
     if (m.adminOnly) return isAdmin;

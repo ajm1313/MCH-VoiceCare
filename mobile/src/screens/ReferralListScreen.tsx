@@ -70,9 +70,6 @@ export function ReferralListScreen() {
           <Pressable style={[styles.createBtn, {backgroundColor: colors.primary}]} onPress={() => navigation.navigate('ReferralCreate')}>
             <Text style={styles.createBtnText}>+ New Referral</Text>
           </Pressable>
-          <Pressable style={[styles.secondaryBtn, {borderColor: colors.primary}]} onPress={() => navigation.navigate('CapabilityList')}>
-            <Text style={[styles.secondaryBtnText, {color: colors.primary}]}>Capabilities</Text>
-          </Pressable>
         </View>
       }
       ListEmptyComponent={<View style={styles.center}><Text style={[styles.empty, {color: colors.textSecondary}]}>No referrals</Text></View>}

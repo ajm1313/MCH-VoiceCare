@@ -1,18 +1,22 @@
 /**
  * Navigation route param types for the native-stack navigator.
+ *
+ * Only spec-required clinical screens are included (spec §10).
+ * Old admin/management screens have been removed — those are
+ * backend Django admin functions, not mobile app screens.
  */
 export type RootStackParamList = {
   Login: undefined;
   Dashboard: undefined;
-  // Pregnancy
+  // Pregnancy (spec §10)
   PregnancyList: undefined;
   PregnancyRegister: undefined;
   PregnancyDetail: { episodeId: string };
   PregnancyObserve: { episodeId: string };
-  VoiceRecord: { episodeId: string };
   PregnancyAssessment: { assessmentId: string };
   PregnancyClose: { episodeId: string };
   PregnancyTransfer: { episodeId: string };
+  VoiceRecord: { episodeId: string };
   // Newborn
   NewbornList: undefined;
   NewbornRegister: undefined;
@@ -35,51 +39,21 @@ export type RootStackParamList = {
   GrowthDetail: { childId: string };
   GrowthRecord: { childId: string };
   GrowthChart: { childId: string };
-  // Notifications
+  // Notifications / Worklist (spec §10)
   TaskList: undefined;
   NotificationDetail: { notificationId: string };
-  // Referrals
+  // Referrals (spec §18)
   ReferralList: undefined;
   ReferralDetail: { referralId: string };
   ReferralCreate: { pregnancyEpisodeId?: string; newbornEpisodeId?: string } | undefined;
   ReferralQrSlip: { referralId: string };
-  CapabilityList: undefined;
-  CapabilityForm: { capabilityId?: string };
-  // Profiling
-  ProfileList: undefined;
-  ProfileDetail: { profileId: string };
-  ProfileGenerate: undefined;
-  // Clients
+  // Clients / Patients (spec §10)
   PersonList: undefined;
   PersonDetail: { personId: string };
   PersonForm: { personId?: string };
-  HouseholdList: undefined;
-  HouseholdForm: { householdId?: string };
-  // Communications
-  CampaignList: undefined;
-  CampaignDetail: { campaignId: string };
-  CampaignForm: { campaignId?: string };
-  TemplateList: undefined;
-  TemplateForm: { templateId?: string };
-  TemplateDetail: { templateId: string };
-  // Reporting
-  ReportList: undefined;
-  ReportDetail: { reportId: string };
-  ReportGenerate: undefined;
-  ScheduledReportForm: { scheduledId?: string };
-  // Admin
-  IntegrationList: undefined;
-  IntegrationForm: { integrationId?: string };
-  OrgUnitList: undefined;
-  OrgUnitForm: { orgUnitId?: string };
-  OrgUnitDelete: { orgUnitId: string };
-  UserList: undefined;
-  UserForm: { userId?: string };
-  RoleScopeAssign: { userId: string };
-  AuditList: undefined;
   // System
   SyncStatus: undefined;
-  Monitoring: undefined;
+  AuditList: undefined;
   ClinicianOverride: { episodeId: string; episodeType: string; priorRecommendation: string };
   // OCR (spec §16)
   OCRScan: { patientId: string; episode?: string };

@@ -30,11 +30,16 @@ import {PregnancyListScreen} from './screens/PregnancyListScreen';
 import {PregnancyRegisterScreen} from './screens/PregnancyRegisterScreen';
 import {PregnancyDetailScreen} from './screens/PregnancyDetailScreen';
 import {PregnancyObserveScreen} from './screens/PregnancyObserveScreen';
+import {PregnancyAssessmentScreen} from './screens/PregnancyAssessmentScreen';
+import {PregnancyCloseScreen} from './screens/PregnancyCloseScreen';
+import {PregnancyTransferScreen} from './screens/PregnancyTransferScreen';
 import {VoiceRecordScreen} from './screens/VoiceRecordScreen';
 import {NewbornListScreen} from './screens/NewbornListScreen';
 import {NewbornRegisterScreen} from './screens/NewbornRegisterScreen';
 import {NewbornDetailScreen} from './screens/NewbornDetailScreen';
 import {NewbornObserveScreen} from './screens/NewbornObserveScreen';
+import {NewbornCloseScreen} from './screens/NewbornCloseScreen';
+import {NewbornTransferScreen} from './screens/NewbornTransferScreen';
 import {ImmunisationListScreen} from './screens/ImmunisationListScreen';
 import {ImmunisationRegisterScreen} from './screens/ImmunisationRegisterScreen';
 import {ImmunisationChildDetailScreen} from './screens/ImmunisationChildDetailScreen';
@@ -48,11 +53,6 @@ import {NotificationDetailScreen} from './screens/NotificationDetailScreen';
 import {CWCSessionScreen} from './screens/CWCSessionScreen';
 import {CWCDetailScreen} from './screens/CWCDetailScreen';
 import {SyncStatusScreen} from './screens/SyncStatusScreen';
-import {PregnancyAssessmentScreen} from './screens/PregnancyAssessmentScreen';
-import {PregnancyCloseScreen} from './screens/PregnancyCloseScreen';
-import {PregnancyTransferScreen} from './screens/PregnancyTransferScreen';
-import {NewbornCloseScreen} from './screens/NewbornCloseScreen';
-import {NewbornTransferScreen} from './screens/NewbornTransferScreen';
 import {DefaulterListScreen} from './screens/DefaulterListScreen';
 import {DefaulterDetailScreen} from './screens/DefaulterDetailScreen';
 import {DefaulterTraceScreen} from './screens/DefaulterTraceScreen';
@@ -61,38 +61,12 @@ import {ReferralCreateScreen} from './screens/ReferralCreateScreen';
 import {ReferralDetailScreen} from './screens/ReferralDetailScreen';
 import {ReferralQrSlipScreen} from './screens/ReferralQrSlipScreen';
 import {ClinicianOverrideScreen} from './screens/ClinicianOverrideScreen';
-import {MonitoringScreen} from './screens/MonitoringScreen';
 import {OCRScanScreen} from './screens/OCRScanScreen';
 import {OCRConfirmScreen} from './screens/OCRConfirmScreen';
-import {ProfileListScreen} from './screens/ProfileListScreen';
-import {ProfileDetailScreen} from './screens/ProfileDetailScreen';
 import {PersonListScreen} from './screens/PersonListScreen';
 import {PersonDetailScreen} from './screens/PersonDetailScreen';
-import {HouseholdListScreen} from './screens/HouseholdListScreen';
-import {CampaignListScreen} from './screens/CampaignListScreen';
-import {CampaignDetailScreen} from './screens/CampaignDetailScreen';
-import {TemplateListScreen} from './screens/TemplateListScreen';
-import {ReportListScreen} from './screens/ReportListScreen';
-import {ReportDetailScreen} from './screens/ReportDetailScreen';
-import {IntegrationListScreen} from './screens/IntegrationListScreen';
-import {OrgUnitListScreen} from './screens/OrgUnitListScreen';
-import {UserListScreen} from './screens/UserListScreen';
-import {AuditListScreen} from './screens/AuditListScreen';
-import {CapabilityListScreen} from './screens/CapabilityListScreen';
-import {CapabilityFormScreen} from './screens/CapabilityFormScreen';
-import {ProfileGenerateScreen} from './screens/ProfileGenerateScreen';
 import {PersonFormScreen} from './screens/PersonFormScreen';
-import {HouseholdFormScreen} from './screens/HouseholdFormScreen';
-import {CampaignFormScreen} from './screens/CampaignFormScreen';
-import {TemplateFormScreen} from './screens/TemplateFormScreen';
-import {TemplateDetailScreen} from './screens/TemplateDetailScreen';
-import {ReportGenerateScreen} from './screens/ReportGenerateScreen';
-import {ScheduledReportFormScreen} from './screens/ScheduledReportFormScreen';
-import {IntegrationFormScreen} from './screens/IntegrationFormScreen';
-import {OrgUnitFormScreen} from './screens/OrgUnitFormScreen';
-import {UserFormScreen} from './screens/UserFormScreen';
-import {RoleScopeAssignScreen} from './screens/RoleScopeAssignScreen';
-import {OrgUnitDeleteScreen} from './screens/OrgUnitDeleteScreen';
+import {AuditListScreen} from './screens/AuditListScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -387,99 +361,25 @@ export default function App(): React.JSX.Element {
                 options={{title: 'Confirm OCR Results'}}
               />
               <Stack.Screen
-                name="ProfileList"
-                component={ProfileListScreen}
-                options={{title: 'Profiles'}}
-              />
-              <Stack.Screen
-                name="ProfileDetail"
-                component={ProfileDetailScreen}
-                options={{title: 'Profile'}}
-              />
-              <Stack.Screen
                 name="PersonList"
                 component={PersonListScreen}
-                options={{title: 'Persons'}}
+                options={{title: 'Clients'}}
               />
               <Stack.Screen
                 name="PersonDetail"
                 component={PersonDetailScreen}
-                options={{title: 'Person'}}
+                options={{title: 'Client'}}
               />
-              <Stack.Screen
-                name="HouseholdList"
-                component={HouseholdListScreen}
-                options={{title: 'Households'}}
-              />
-              <Stack.Screen
-                name="CampaignList"
-                component={CampaignListScreen}
-                options={{title: 'Campaigns'}}
-              />
-              <Stack.Screen
-                name="CampaignDetail"
-                component={CampaignDetailScreen}
-                options={{title: 'Campaign'}}
-              />
-              <Stack.Screen
-                name="TemplateList"
-                component={TemplateListScreen}
-                options={{title: 'Templates'}}
-              />
-              <Stack.Screen
-                name="ReportList"
-                component={ReportListScreen}
-                options={{title: 'Reports'}}
-              />
-              <Stack.Screen
-                name="ReportDetail"
-                component={ReportDetailScreen}
-                options={{title: 'Report'}}
-              />
-              <Stack.Screen
-                name="IntegrationList"
-                component={IntegrationListScreen}
-                options={{title: 'Integrations'}}
-              />
-              <Stack.Screen
-                name="OrgUnitList"
-                component={OrgUnitListScreen}
-                options={{title: 'Organisation Units'}}
-              />
-              <Stack.Screen
-                name="UserList"
-                component={UserListScreen}
-                options={{title: 'Users'}}
-              />
+              <Stack.Screen name="PersonForm" component={PersonFormScreen} options={{title: 'Client'}} />
               <Stack.Screen
                 name="AuditList"
                 component={AuditListScreen}
                 options={{title: 'Audit Log'}}
               />
-              <Stack.Screen name="CapabilityList" component={CapabilityListScreen} options={{title: 'Capabilities'}} />
-              <Stack.Screen name="CapabilityForm" component={CapabilityFormScreen} options={{title: 'Capability'}} />
-              <Stack.Screen name="ProfileGenerate" component={ProfileGenerateScreen} options={{title: 'Generate Profiles'}} />
-              <Stack.Screen name="PersonForm" component={PersonFormScreen} options={{title: 'Person'}} />
-              <Stack.Screen name="HouseholdForm" component={HouseholdFormScreen} options={{title: 'Household'}} />
-              <Stack.Screen name="CampaignForm" component={CampaignFormScreen} options={{title: 'Campaign'}} />
-              <Stack.Screen name="TemplateForm" component={TemplateFormScreen} options={{title: 'Template'}} />
-              <Stack.Screen name="TemplateDetail" component={TemplateDetailScreen} options={{title: 'Template Detail'}} />
-              <Stack.Screen name="ReportGenerate" component={ReportGenerateScreen} options={{title: 'Generate Report'}} />
-              <Stack.Screen name="ScheduledReportForm" component={ScheduledReportFormScreen} options={{title: 'Scheduled Report'}} />
-              <Stack.Screen name="IntegrationForm" component={IntegrationFormScreen} options={{title: 'Integration'}} />
-              <Stack.Screen name="OrgUnitForm" component={OrgUnitFormScreen} options={{title: 'Org Unit'}} />
-              <Stack.Screen name="OrgUnitDelete" component={OrgUnitDeleteScreen} options={{title: 'Delete Org Unit'}} />
-              <Stack.Screen name="UserForm" component={UserFormScreen} options={{title: 'User'}} />
-              <Stack.Screen name="RoleScopeAssign" component={RoleScopeAssignScreen} options={{title: 'Assign Role'}} />
               <Stack.Screen
                 name="SyncStatus"
                 component={SyncStatusScreen}
                 options={{title: 'Sync Status'}}
-              />
-              <Stack.Screen
-                name="Monitoring"
-                component={MonitoringScreen}
-                options={{title: 'System Health'}}
               />
             </>
           )}
