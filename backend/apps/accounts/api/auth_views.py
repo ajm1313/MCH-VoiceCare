@@ -92,7 +92,6 @@ def _user_profile_dict(user):
         "isSuperuser": user.is_superuser,
         "isSuperAdmin": user.is_super_admin,
         "isFacilityLevelOnly": user.is_facility_level_only,
-        "canViewReports": user.can_view_reports,
         "systemRole": user.system_role,
         "role": _user_role_data(user),
         "location": _user_location_data(user),

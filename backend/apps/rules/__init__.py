@@ -4,7 +4,6 @@ Production default is RULES_ONLY. All rules use GHS Safe Motherhood Protocol
 thresholds (2016) with WHO 2016 ANC recommendations where applicable.
 """
 from apps.core.enums import UrgencyLevel
-from apps.pregnancy.models import PregnancyEpisode, PregnancyObservation
 
 
 RULE_SET_VERSION = "ghs-smp-2016-v1"
@@ -27,7 +26,7 @@ def _make_rule(rule_id, severity, reason, code=""):
     }
 
 
-def run_pregnancy_assessment(episode: PregnancyEpisode) -> dict:
+def run_pregnancy_assessment(episode) -> dict:
     """
     Evaluate deterministic rules for a pregnancy episode.
     Returns dict with disposition, fired_rules, recommended_action.

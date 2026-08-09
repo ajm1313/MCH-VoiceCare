@@ -28,7 +28,6 @@
           <div class="flex justify-between"><span class="text-base-content/50">Org Unit</span><span>{{ user_obj.organisation_unit|default:"—" }}</span></div>
           <div class="flex justify-between"><span class="text-base-content/50">Active</span>{% if user_obj.is_active %}<span class="badge badge-success badge-sm">Yes</span>{% else %}<span class="badge badge-error badge-sm">No</span>{% endif %}</div>
           <div class="flex justify-between"><span class="text-base-content/50">Super Admin</span>{% if user_obj.is_super_admin %}<span class="badge badge-warning badge-sm">Yes</span>{% else %}No{% endif %}</div>
-          <div class="flex justify-between"><span class="text-base-content/50">Can View Reports</span>{% if user_obj.can_view_reports %}Yes{% else %}No{% endif %}</div>
         </div>
       </div>
     </div>

@@ -13,9 +13,7 @@ from apps.growth.models import GrowthMeasurement
 from apps.referrals.models import Referral, ReferralStateLog
 from apps.audit.models import AuditEvent
 from apps.notifications.models import Notification, ActionRecord
-from apps.communication.models import MessageTemplate, CommunicationCampaign, CommunicationLog
-from apps.reports.models import Report, ScheduledReport
-from apps.integrations.models import IntegrationConfig, ImportBatch, ImportRecord
+from apps.communication.models import MessageTemplate, CommunicationLog
 from apps.core.idempotency_models import IdempotencyRecord
 from apps.core.config_models import SystemConfig
 from apps.core.package_models import Package
@@ -215,49 +213,9 @@ class MessageTemplateAdmin(admin.ModelAdmin):
     list_filter = ("channel", "language", "status")
 
 
-@admin.register(CommunicationCampaign)
-class CommunicationCampaignAdmin(admin.ModelAdmin):
-    list_display = ("title", "channel", "status", "audience_count", "scheduled_at")
-    list_filter = ("channel", "status")
-
-
 @admin.register(CommunicationLog)
 class CommunicationLogAdmin(admin.ModelAdmin):
     list_display = ("campaign", "recipient", "status", "sent_at")
-    list_filter = ("status",)
-
-
-# ── Reports ──
-
-@admin.register(Report)
-class ReportAdmin(admin.ModelAdmin):
-    list_display = ("title", "report_type", "period_start", "period_end", "created_at")
-    list_filter = ("report_type",)
-
-
-@admin.register(ScheduledReport)
-class ScheduledReportAdmin(admin.ModelAdmin):
-    list_display = ("name", "report_type", "frequency", "next_run", "status")
-    list_filter = ("frequency", "status")
-
-
-# ── Integrations ──
-
-@admin.register(IntegrationConfig)
-class IntegrationConfigAdmin(admin.ModelAdmin):
-    list_display = ("config_type", "provider_name", "status", "base_url")
-    list_filter = ("config_type", "status")
-
-
-@admin.register(ImportBatch)
-class ImportBatchAdmin(admin.ModelAdmin):
-    list_display = ("file_name", "status", "total_records", "valid_records", "error_count", "created_at")
-    list_filter = ("status",)
-
-
-@admin.register(ImportRecord)
-class ImportRecordAdmin(admin.ModelAdmin):
-    list_display = ("batch", "row_number", "person_id", "status")
     list_filter = ("status",)
 
 

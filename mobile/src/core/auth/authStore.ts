@@ -41,7 +41,6 @@ export interface UserProfile {
   isSuperuser: boolean;
   isSuperAdmin: boolean;
   isFacilityLevelOnly: boolean;
-  canViewReports: boolean;
   systemRole: string;
   role: UserRole;
   location: UserLocation;

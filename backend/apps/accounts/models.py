@@ -17,7 +17,6 @@ class UserAccount(AbstractUser):
     full_name = models.CharField(max_length=200, blank=True)
     mobile_number = models.CharField(max_length=20, blank=True)
     is_super_admin = models.BooleanField(default=False)
-    can_view_reports = models.BooleanField(default=True)
 
     # System role (spec §21.2)
     system_role = models.CharField(

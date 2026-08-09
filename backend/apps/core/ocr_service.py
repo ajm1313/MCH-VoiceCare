@@ -43,8 +43,11 @@ class OCRResult:
     @property
     def has_low_confidence_fields(self) -> bool:
         """True if any safety-critical field has confidence below threshold."""
+        from apps.core.config_models import SystemConfig
+        thresholds = SystemConfig.get("ocr_confidence_thresholds", {}) or {}
         for f in self.fields:
-            if f.safety_critical and f.confidence < 0.85:
+            threshold = thresholds.get(f.key, 0.85)
+            if f.safety_critical and f.confidence < threshold:
                 return True
         return False
 
@@ -118,7 +121,12 @@ def validate_extracted_field(field_def: dict, extracted: ExtractedField) -> list
         errors.append(f"Field '{extracted.key}' is required but no value was extracted")
 
     # Check confidence threshold
-    threshold = field_def.get("confidence_threshold", 0.85)
+    from apps.core.config_models import SystemConfig
+    thresholds = SystemConfig.get("ocr_confidence_thresholds", {}) or {}
+    threshold = thresholds.get(
+        extracted.key,
+        field_def.get("confidence_threshold", 0.85),
+    )
     if extracted.confidence < threshold:
         errors.append(
             f"Field '{extracted.key}' confidence {extracted.confidence:.2f} "

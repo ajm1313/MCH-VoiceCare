@@ -44,10 +44,6 @@ export function purgeExpiredLocalData(retentionDays?: number): Record<string, nu
     'pregnancy_profiles',
     'cwc_sessions',
     'cwc_session_attendance',
-    'communication_campaigns',
-    'communication_logs',
-    'reports',
-    'scheduled_reports',
     'import_batches',
     'import_records',
     'voice_recordings',
@@ -65,9 +61,6 @@ export function purgeExpiredLocalData(retentionDays?: number): Record<string, nu
               CASE 
                 WHEN '${table}' = 'episodes' THEN updated_at
                 WHEN '${table}' = 'notifications' THEN created_at
-                WHEN '${table}' = 'communication_campaigns' THEN created_at
-                WHEN '${table}' = 'communication_logs' THEN COALESCE(sent_at, created_at)
-                WHEN '${table}' = 'reports' THEN COALESCE(generated_at, created_at)
                 WHEN '${table}' = 'import_batches' THEN created_at
                 WHEN '${table}' = 'voice_recordings' THEN created_at
                 WHEN '${table}' = 'pregnancy_profiles' THEN generated_at

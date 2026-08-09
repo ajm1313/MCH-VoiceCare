@@ -25,6 +25,7 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {darkColors, lightColors} from '../theme/colors';
 import {AppConfig} from '../config/appConfig';
 import {useAuthStore} from '../core/auth/authStore';
+import {getConfigNumber} from '../core/sync/configStore';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OCRConfirm'>;
@@ -208,6 +209,9 @@ export function OCRConfirmScreen({route, navigation}: Props) {
     );
   }
 
+  const safetyCriticalThreshold = getConfigNumber('OCR_CONFIDENCE_SAFETY_CRITICAL', 0.85);
+  const nonSafetyThreshold = getConfigNumber('OCR_CONFIDENCE_NON_SAFETY', 0.80);
+
   const safetyCriticalFields = job.extractedFields.filter(f => f.safety_critical);
   const nonSafetyFields = job.extractedFields.filter(f => !f.safety_critical);
 
@@ -250,7 +254,7 @@ export function OCRConfirmScreen({route, navigation}: Props) {
                     {field.key.replace(/_/g, ' ').toUpperCase()}
                   </Text>
                   <View style={[styles.confidenceBadge, {
-                    backgroundColor: field.confidence >= 0.85 ? '#16A34A' : '#EA580C',
+                    backgroundColor: field.confidence >= safetyCriticalThreshold ? '#16A34A' : '#EA580C',
                   }]}>
                     <Text style={styles.confidenceText}>
                       {(field.confidence * 100).toFixed(0)}%
@@ -303,7 +307,7 @@ export function OCRConfirmScreen({route, navigation}: Props) {
                     {field.key.replace(/_/g, ' ').toUpperCase()}
                   </Text>
                   <View style={[styles.confidenceBadge, {
-                    backgroundColor: field.confidence >= 0.80 ? '#16A34A' : '#EA580C',
+                    backgroundColor: field.confidence >= nonSafetyThreshold ? '#16A34A' : '#EA580C',
                   }]}>
                     <Text style={styles.confidenceText}>
                       {(field.confidence * 100).toFixed(0)}%

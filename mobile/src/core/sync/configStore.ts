@@ -133,6 +133,31 @@ export async function syncConfigValues(facilityId?: string): Promise<boolean> {
       };
     }
   }
+  // OCR confidence thresholds (spec §33) — defaults if not in clinical_thresholds
+  if (!configMap['OCR_CONFIDENCE_SAFETY_CRITICAL']) {
+    configMap['OCR_CONFIDENCE_SAFETY_CRITICAL'] = { key: 'OCR_CONFIDENCE_SAFETY_CRITICAL', value_string: null, value_number: 0.85, value_json: null, is_tbd: false, effective_from: null, effective_to: null, facility_id: null };
+  }
+  if (!configMap['OCR_CONFIDENCE_NON_SAFETY']) {
+    configMap['OCR_CONFIDENCE_NON_SAFETY'] = { key: 'OCR_CONFIDENCE_NON_SAFETY', value_string: null, value_number: 0.80, value_json: null, is_tbd: false, effective_from: null, effective_to: null, facility_id: null };
+  }
+
+  // Sync / retry / retention / auto-lock settings (spec §33) — defaults if not in clinical_thresholds
+  if (!configMap['SYNC_INTERVAL_MINUTES']) {
+    configMap['SYNC_INTERVAL_MINUTES'] = { key: 'SYNC_INTERVAL_MINUTES', value_string: null, value_number: 15, value_json: null, is_tbd: false, effective_from: null, effective_to: null, facility_id: null };
+  }
+  if (!configMap['SYNC_MAX_RETRY_ATTEMPTS']) {
+    configMap['SYNC_MAX_RETRY_ATTEMPTS'] = { key: 'SYNC_MAX_RETRY_ATTEMPTS', value_string: null, value_number: 5, value_json: null, is_tbd: false, effective_from: null, effective_to: null, facility_id: null };
+  }
+  if (!configMap['SYNC_RETRY_BACKOFF_BASE_MS']) {
+    configMap['SYNC_RETRY_BACKOFF_BASE_MS'] = { key: 'SYNC_RETRY_BACKOFF_BASE_MS', value_string: null, value_number: 2000, value_json: null, is_tbd: false, effective_from: null, effective_to: null, facility_id: null };
+  }
+  if (!configMap['SCAN_RETENTION_DAYS']) {
+    configMap['SCAN_RETENTION_DAYS'] = { key: 'SCAN_RETENTION_DAYS', value_string: null, value_number: 30, value_json: null, is_tbd: false, effective_from: null, effective_to: null, facility_id: null };
+  }
+  if (!configMap['APP_AUTO_LOCK_TIMEOUT_SECONDS']) {
+    configMap['APP_AUTO_LOCK_TIMEOUT_SECONDS'] = { key: 'APP_AUTO_LOCK_TIMEOUT_SECONDS', value_string: null, value_number: 300, value_json: null, is_tbd: false, effective_from: null, effective_to: null, facility_id: null };
+  }
+
   setCachedJSON('config_values', configMap, data.active_rule_bundle_version ?? '1', 48);
 
   return true;

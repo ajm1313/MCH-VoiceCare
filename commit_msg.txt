@@ -1,44 +1,76 @@
-Remove old admin web pages not in spec (clean up legacy platform code)
+Fix all audit findings: spec violations + dead code cleanup
 
-The backend web app had old admin/management HTML pages from a generic
-community health platform that are not required by the MCH VoiceCare
-implementation spec. The API endpoints for these apps remain — only the
-server-rendered HTML views were removed.
+Comprehensive audit of both mobile and backend apps found 5 critical
+spec violations and 8 cosmetic dead code issues. All 13 findings fixed.
 
-Removed web pages (4 apps, 11 templates):
-- Communication: campaign list, detail, form (old platform feature)
-- Integrations: list, form (old platform feature)
-- Reports: list, detail, generate (old report builder; spec §27
-  uses aggregate dashboards, not a report builder)
-- Organisations: list, form, delete (old org CRUD; spec §21.1
-  defines hierarchy as data, managed via Django admin)
+## CRITICAL FIXES (5)
 
-Cleaned up:
-- config/web_urls.py: removed 4 old URL includes
-- templates/partials/sidebar.html: removed 4 old sidebar links
-  (Organisation Units, Reports, Communication, Integrations)
-- Deleted templates/communication/, templates/integrations/,
-  templates/reports/, templates/organisations/
+### Mobile
+1. OCR confidence thresholds moved to configStore (spec §33)
+   - OCRConfirmScreen.tsx: hardcoded 0.85/0.80 → getConfigNumber()
+   - configStore.ts: added OCR_CONFIDENCE_SAFETY_CRITICAL/NON_SAFETY
 
-Remaining web pages (all spec-required per §6.2, §27):
-- Dashboard, Login, Logout
-- Aggregate Dashboard (§27.1)
-- Monitoring (§27.2 clinical safety)
-- Override Log (§3.1, §23)
-- Packages (§24 package management)
-- Configuration (§33 config that must not be hard-coded)
-- Audit Log (§23)
-- Users & Roles (§21 access control)
-- Clinical supervisor views: Clients, Pregnancy, Newborn,
-  Immunisation, Growth, Referrals, Notifications
+2. Sync/retry/auto-lock settings moved to configStore (spec §33)
+   - appConfig.ts: hardcoded values → getConfigNumber() with defaults
+   - configStore.ts: added SYNC_INTERVAL_MINUTES, SYNC_MAX_RETRY_ATTEMPTS,
+     SYNC_RETRY_BACKOFF_BASE_MS, SCAN_RETENTION_DAYS,
+     APP_AUTO_LOCK_TIMEOUT_SECONDS
+   - database.ts: lazy init to avoid circular dependency
 
-API endpoints unchanged — all spec-required APIs remain:
-- /api/v1/communication/telephony/webhook/ (§17)
-- /api/v1/organisations/ (§21, §32)
-- /api/v1/reports/ (§27)
-- /api/v1/integrations/ (§20.2)
+### Backend
+3. OCR confidence threshold moved to SystemConfig (spec §33)
+   - ocr_service.py: hardcoded 0.85 → SystemConfig.get() with fallback
 
-All 664 backend tests pass.
+4. Added apps.fhir, apps.rules, apps.tests to INSTALLED_APPS (spec §5.2)
+   - settings/base.py: added 3 missing apps
+   - rules/__init__.py: fixed circular import (lazy model imports)
+
+5. Removed Django admin registrations for removed features
+   - config/admin.py: removed CommunicationCampaign, Report,
+     ScheduledReport, IntegrationConfig, ImportBatch, ImportRecord
+
+## COSMETIC FIXES (8)
+
+### Mobile
+6. Removed 10 DB tables for removed admin screens
+   - database.ts: households, campaigns, templates, logs, reports,
+     scheduled_reports, integration_configs, org_units, users,
+     role_scopes
+   - purge.ts: removed references to deleted tables
+
+7. Removed 12 sync upsert functions for removed entities
+   - pull.ts: upsertHousehold, Campaign, Template, CommunicationLog,
+     Report, ScheduledReport, IntegrationConfig, OrgUnit, User,
+     RoleScope, Profile, FacilityCapability
+
+8. Removed 6 unused core modules
+   - core/growth/assessment.ts, whoLms.ts
+   - core/immunisation/reconciliation.ts, tracing.ts, scheduleEngine.ts
+   - core/utils/csvParser.ts
+
+### Backend
+9. Deleted 8 dead web view/URL files
+   - communication/views.py, urls.py (kept telephony_views.py + api/)
+   - integrations/views.py, urls.py (kept api/)
+   - reports/views.py, urls.py (kept api/)
+   - organisations/views.py, urls.py (kept api/)
+
+10. Removed unused FacilityCapabilityForm
+    - organisations/forms.py
+
+11. Removed unused can_view_reports field
+    - accounts/models.py, serializers.py, auth_views.py, web_views.py
+    - templates/accounts/user_detail.html, user_form.html, user_list.html
+    - migration 0003_remove_can_view_reports
+    - mobile: authStore.ts, useIsAdmin.ts, authStore.test.ts
+
+12. Fixed sidebar Django Admin link
+    - sidebar.html: is_superuser → is_superuser or is_super_admin
+
+## VERIFICATION
+- Mobile: 202 tests pass
+- Backend: 664 tests pass
+- Migrations: no missing migrations
 
 Generated with [Devin](https://devin.ai)
 

@@ -114,24 +114,12 @@ function upsertRecords(
       upsertReferral(record);
     } else if (entityType === 'persons') {
       upsertPerson(record);
-    } else if (entityType === 'households') {
-      upsertHousehold(record);
     } else if (entityType === 'vaccine_doses') {
       upsertVaccineDose(record);
     } else if (entityType === 'pregnancy_observations') {
       upsertPregnancyObservation(record);
     } else if (entityType === 'newborn_observations') {
       upsertNewbornObservation(record);
-    } else if (entityType === 'communication_campaigns') {
-      upsertCampaign(record);
-    } else if (entityType === 'message_templates') {
-      upsertTemplate(record);
-    } else if (entityType === 'communication_logs') {
-      upsertCommunicationLog(record);
-    } else if (entityType === 'reports') {
-      upsertReport(record);
-    } else if (entityType === 'scheduled_reports') {
-      upsertScheduledReport(record);
     } else if (entityType === 'defaulter_episodes') {
       upsertDefaulter(record);
     } else if (entityType === 'cwc_sessions') {
@@ -142,16 +130,6 @@ function upsertRecords(
       upsertImportRecord(record);
     } else if (entityType === 'import_batches') {
       upsertImportBatch(record);
-    } else if (entityType === 'integration_configs') {
-      upsertIntegrationConfig(record);
-    } else if (entityType === 'org_units') {
-      upsertOrgUnit(record);
-    } else if (entityType === 'facility_capabilities') {
-      upsertFacilityCapability(record);
-    } else if (entityType === 'users') {
-      upsertUser(record);
-    } else if (entityType === 'role_scopes') {
-      upsertRoleScope(record);
     } else if (entityType === 'audit_events') {
       upsertAuditEvent(record);
     } else if (entityType === 'notifications') {
@@ -160,8 +138,6 @@ function upsertRecords(
       upsertActionRecord(record);
     } else if (entityType === 'risk_assessments') {
       upsertRiskAssessment(record);
-    } else if (entityType === 'pregnancy_profiles') {
-      upsertProfile(record);
     } else if (entityType === 'pregnancy_assessments') {
       upsertPregnancyAssessment(record);
     } else if (entityType === 'newborn_assessments') {
@@ -324,26 +300,6 @@ function upsertReferral(record: Record<string, unknown>): void {
   );
 }
 
-function upsertProfile(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO pregnancy_profiles
-     (id, episode_id, woman_name, profile_month, risk_level, status, profile_data, generated_at, finalised_at, sync_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.episode_id as string) ?? null,
-      (record.woman_name as string) ?? '',
-      (record.profile_month as string) ?? null,
-      (record.risk_level as string) ?? 'GREY',
-      (record.status as string) ?? 'DRAFT',
-      JSON.stringify(record.profile_data ?? {}),
-      (record.generated_at as string) ?? new Date().toISOString(),
-      (record.finalised_at as string) ?? null,
-    ],
-  );
-}
-
 function upsertPerson(record: Record<string, unknown>): void {
   const db = getDb();
   db.execute(
@@ -359,75 +315,6 @@ function upsertPerson(record: Record<string, unknown>): void {
       (record.sensitive_content_consent as number) ?? 1,
       (record.communication_opt_out as number) ?? 0,
       (record.national_id as string) ?? null,
-    ],
-  );
-}
-
-function upsertHousehold(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO households (id, household_name, location, phone, sync_status)
-     VALUES (?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.household_name as string) ?? '',
-      (record.location as string) ?? null,
-      (record.phone as string) ?? null,
-    ],
-  );
-}
-
-function upsertCampaign(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO communication_campaigns
-     (id, title, channel, status, template_name, audience_count, created_at, scheduled_at, sync_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.title as string) ?? '',
-      (record.channel as string) ?? 'SMS',
-      (record.status as string) ?? 'DRAFT',
-      (record.template_name as string) ?? null,
-      (record.audience_count as number) ?? 0,
-      (record.created_at as string) ?? new Date().toISOString(),
-      (record.scheduled_at as string) ?? null,
-    ],
-  );
-}
-
-function upsertTemplate(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO message_templates
-     (id, name, channel, language, content, status, sync_status)
-     VALUES (?, ?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.name as string) ?? '',
-      (record.channel as string) ?? 'SMS',
-      (record.language as string) ?? 'en',
-      (record.content as string) ?? '',
-      (record.status as string) ?? 'DRAFT',
-    ],
-  );
-}
-
-function upsertReport(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO reports
-     (id, title, report_type, period_start, period_end, status, generated_at, data_snapshot, sync_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.title as string) ?? '',
-      (record.report_type as string) ?? '',
-      (record.period_start as string) ?? null,
-      (record.period_end as string) ?? null,
-      (record.status as string) ?? 'PENDING',
-      (record.generated_at as string) ?? null,
-      JSON.stringify(record.data_snapshot ?? {}),
     ],
   );
 }
@@ -453,36 +340,6 @@ function upsertRiskAssessment(record: Record<string, unknown>): void {
       (record.model_version as string) ?? '',
       (record.recommended_action_code as string) ?? '',
       (record.created_at as string) ?? new Date().toISOString(),
-    ],
-  );
-}
-
-function upsertOrgUnit(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO org_units (id, name, unit_type, parent_name, status, sync_status)
-     VALUES (?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.name as string) ?? '',
-      (record.unit_type as string) ?? '',
-      (record.parent_name as string) ?? null,
-      (record.status as string) ?? 'ACTIVE',
-    ],
-  );
-}
-
-function upsertUser(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO user_accounts (id, username, full_name, system_role, status, sync_status)
-     VALUES (?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.username as string) ?? '',
-      (record.full_name as string) ?? '',
-      (record.system_role as string) ?? null,
-      (record.status as string) ?? 'ACTIVE',
     ],
   );
 }
@@ -523,25 +380,6 @@ function upsertImportRecord(record: Record<string, unknown>): void {
       (record.status as string) ?? 'COMMITTED',
       (record.error_message as string) ?? null,
       record.raw_data ? JSON.stringify(record.raw_data) : null,
-    ],
-  );
-}
-
-function upsertRoleScope(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO user_role_scopes
-     (id, user_id, role_code, scope_unit_id, scope_unit_name, status, effective_from, effective_to, sync_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.user_id as string) ?? (record.user as string) ?? '',
-      (record.role_code as string) ?? '',
-      (record.scope_unit_id as string) ?? (record.scope_unit as string) ?? null,
-      (record.scope_unit_name as string) ?? null,
-      (record.status as string) ?? 'ACTIVE',
-      (record.effective_from as string) ?? null,
-      (record.effective_to as string) ?? null,
     ],
   );
 }
@@ -623,43 +461,6 @@ function upsertNewbornObservation(record: Record<string, unknown>): void {
   );
 }
 
-function upsertCommunicationLog(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO communication_logs
-     (id, campaign_id, recipient, channel, status, sent_at, delivered_at, error_message, sync_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.campaign_id as string) ?? (record.campaign as string) ?? null,
-      (record.recipient as string) ?? '',
-      (record.channel as string) ?? 'SMS',
-      (record.status as string) ?? 'PENDING',
-      (record.sent_at as string) ?? null,
-      (record.delivered_at as string) ?? null,
-      (record.error_message as string) ?? null,
-    ],
-  );
-}
-
-function upsertScheduledReport(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO scheduled_reports
-     (id, name, report_type, frequency, next_run_at, last_run_at, status, sync_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.name as string) ?? '',
-      (record.report_type as string) ?? '',
-      (record.frequency as string) ?? 'MONTHLY',
-      (record.next_run_at as string) ?? null,
-      (record.last_run_at as string) ?? null,
-      (record.status as string) ?? 'ACTIVE',
-    ],
-  );
-}
-
 function upsertImportBatch(record: Record<string, unknown>): void {
   const db = getDb();
   db.execute(
@@ -674,41 +475,6 @@ function upsertImportBatch(record: Record<string, unknown>): void {
       (record.committed_records as number) ?? 0,
       (record.error_records as number) ?? 0,
       (record.created_at as string) ?? new Date().toISOString(),
-    ],
-  );
-}
-
-function upsertIntegrationConfig(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO integration_configs
-     (id, config_type, provider_name, status, endpoint_url, api_key_ref, last_sync_at, sync_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.config_type as string) ?? '',
-      (record.provider_name as string) ?? '',
-      (record.status as string) ?? 'ACTIVE',
-      (record.endpoint_url as string) ?? null,
-      (record.api_key_ref as string) ?? null,
-      (record.last_sync_at as string) ?? null,
-    ],
-  );
-}
-
-function upsertFacilityCapability(record: Record<string, unknown>): void {
-  const db = getDb();
-  db.execute(
-    `INSERT OR REPLACE INTO facility_capabilities
-     (id, facility_id, capability_type, capability_value, verified_at, verification_expires_at, sync_status)
-     VALUES (?, ?, ?, ?, ?, ?, 'SYNCED')`,
-    [
-      record.id as string,
-      (record.facility_id as string) ?? (record.facility as string) ?? '',
-      (record.capability_type as string) ?? '',
-      (record.capability_value as string) ?? '',
-      (record.verified_at as string) ?? null,
-      (record.verification_expires_at as string) ?? null,
     ],
   );
 }

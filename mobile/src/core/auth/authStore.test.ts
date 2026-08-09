@@ -44,7 +44,7 @@ describe('authStore — login', () => {
         user: {
           id: 'u1', username: 'worker', fullName: 'Test Worker',
           isActive: true, isStaff: false, isSuperuser: false,
-          isSuperAdmin: false, isFacilityLevelOnly: true, canViewReports: false,
+          isSuperAdmin: false, isFacilityLevelOnly: true,
           systemRole: 'FACILITY_CLINICAL_USER',
           role: { code: 'FACILITY_CLINICAL_USER', name: 'Facility Clinical User', level: 4 },
           location: { region_id: null, region_name: null, district_id: null, district_name: null, subdistrict_id: null, subdistrict_name: null, facility_id: 'f1', facility_name: 'Clinic A', facility_type: 'CHPS' },
@@ -73,7 +73,7 @@ describe('authStore — login', () => {
         user: {
           id: 'u1', username: 'w', fullName: 'W',
           isActive: true, isStaff: false, isSuperuser: false,
-          isSuperAdmin: false, isFacilityLevelOnly: false, canViewReports: true,
+          isSuperAdmin: false, isFacilityLevelOnly: false,
           systemRole: 'R',
           role: { code: 'R', name: 'R', level: 1 },
           location: { region_id: null, region_name: null, district_id: null, district_name: null, subdistrict_id: null, subdistrict_name: null, facility_id: null, facility_name: null, facility_type: null },
@@ -129,7 +129,7 @@ describe('authStore — restoreSession', () => {
         expiresAt: '2025-01-01T12:00:00Z',
         user: { id: 'u1', username: 'worker', fullName: 'W',
           isActive: true, isStaff: false, isSuperuser: false,
-          isSuperAdmin: false, isFacilityLevelOnly: false, canViewReports: true,
+          isSuperAdmin: false, isFacilityLevelOnly: false,
           systemRole: 'R',
           role: { code: 'R', name: 'R', level: 1 },
           location: { region_id: null, region_name: null, district_id: null, district_name: null, subdistrict_id: null, subdistrict_name: null, facility_id: null, facility_name: null, facility_type: null },
@@ -159,7 +159,7 @@ describe('authStore — logout', () => {
     useAuthStore.setState({
       user: { id: 'u1', username: 'w', fullName: 'W',
         isActive: true, isStaff: false, isSuperuser: false,
-        isSuperAdmin: false, isFacilityLevelOnly: false, canViewReports: true,
+        isSuperAdmin: false, isFacilityLevelOnly: false,
         systemRole: 'R',
         role: { code: 'R', name: 'R', level: 1 },
         location: { region_id: null, region_name: null, district_id: null, district_name: null, subdistrict_id: null, subdistrict_name: null, facility_id: null, facility_name: null, facility_type: null },

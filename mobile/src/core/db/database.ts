@@ -11,8 +11,23 @@ import { Platform } from 'react-native';
 
 import { AppConfig } from '../../config/appConfig';
 
-const DB_NAME = AppConfig.offline.databaseName;
-const ENC_CONFIG = AppConfig.offline.encryption;
+// Lazy-initialized to avoid circular dependency:
+// appConfig → configStore → contentCache → database → appConfig
+let _dbName: string | null = null;
+function getDbName(): string {
+  if (_dbName === null) {
+    _dbName = AppConfig.offline.databaseName;
+  }
+  return _dbName;
+}
+
+let _encConfig: typeof AppConfig.offline.encryption | null = null;
+function getEncConfig(): typeof AppConfig.offline.encryption {
+  if (_encConfig === null) {
+    _encConfig = AppConfig.offline.encryption;
+  }
+  return _encConfig;
+}
 
 let _db: ReturnType<typeof NitroSQLite.open> | null = null;
 let _encryptionApplied = false;
@@ -23,15 +38,15 @@ let _encryptionApplied = false;
  * react-native-keychain (OFF-002).
  */
 async function getOrCreateEncryptionKey(): Promise<string> {
-  if (!ENC_CONFIG.enabled) {
+  if (!getEncConfig().enabled) {
     return '';
   }
 
   // Lazy import to avoid crash on platforms without keychain
   const Keychain = await import('react-native-keychain');
 
-  const service = ENC_CONFIG.keychainService;
-  const account = ENC_CONFIG.keychainAccount;
+  const service = getEncConfig().keychainService;
+  const account = getEncConfig().keychainAccount;
 
   try {
     const creds = await Keychain.getInternetCredentials(service);
@@ -75,7 +90,7 @@ function generateRandomKey(hexLength: number): string {
  * support, encryption activates automatically.
  */
 function applyEncryptionPragmas(db: ReturnType<typeof NitroSQLite.open>, key: string): void {
-  if (!ENC_CONFIG.enabled || !key) {
+  if (!getEncConfig().enabled || !key) {
     return;
   }
 
@@ -83,9 +98,9 @@ function applyEncryptionPragmas(db: ReturnType<typeof NitroSQLite.open>, key: st
   db.execute(`PRAGMA key = '${key}'`);
 
   // Additional SQLCipher parameters for hardened encryption
-  db.execute(`PRAGMA cipher_page_size = ${ENC_CONFIG.cipherPageSize}`);
-  db.execute(`PRAGMA kdf_iter = ${ENC_CONFIG.kdfIterations}`);
-  db.execute(`PRAGMA cipher_hmac_algorithm = ${ENC_CONFIG.cipherHmacAlgorithm}`);
+  db.execute(`PRAGMA cipher_page_size = ${getEncConfig().cipherPageSize}`);
+  db.execute(`PRAGMA kdf_iter = ${getEncConfig().kdfIterations}`);
+  db.execute(`PRAGMA cipher_hmac_algorithm = ${getEncConfig().cipherHmacAlgorithm}`);
 
   // Enable foreign keys and WAL mode for performance
   db.execute('PRAGMA foreign_keys = ON');
@@ -96,12 +111,12 @@ function applyEncryptionPragmas(db: ReturnType<typeof NitroSQLite.open>, key: st
 
 function getDb() {
   if (!_db) {
-    _db = NitroSQLite.open({ name: DB_NAME });
+    _db = NitroSQLite.open({ name: getDbName() });
 
     // Apply encryption synchronously using a key from keychain.
     // On first launch the keychain call may fail; the DB will open
     // unencrypted and re-encrypt on next launch after key is stored.
-    if (ENC_CONFIG.enabled) {
+    if (getEncConfig().enabled) {
       try {
         // Synchronous key retrieval — uses the stored key if available
         // from a previous async init. Otherwise skip (will be applied
@@ -128,9 +143,9 @@ export async function initDatabaseEncrypted(): Promise<void> {
     return; // Already initialised
   }
 
-  _db = NitroSQLite.open({ name: DB_NAME });
+  _db = NitroSQLite.open({ name: getDbName() });
 
-  if (ENC_CONFIG.enabled) {
+  if (getEncConfig().enabled) {
     const key = await getOrCreateEncryptionKey();
     applyEncryptionPragmas(_db, key);
   } else {
@@ -493,76 +508,6 @@ CREATE TABLE IF NOT EXISTS pregnancy_profiles (
 );
 CREATE INDEX IF NOT EXISTS idx_profiles_episode ON pregnancy_profiles(episode_id);
 
-CREATE TABLE IF NOT EXISTS households (
-  id              TEXT PRIMARY KEY,
-  household_name  TEXT NOT NULL,
-  head_person_name TEXT,
-  location        TEXT,
-  location_description TEXT,
-  latitude        REAL,
-  longitude       REAL,
-  phone           TEXT,
-  sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
-);
-
-CREATE TABLE IF NOT EXISTS communication_campaigns (
-  id              TEXT PRIMARY KEY,
-  title           TEXT NOT NULL,
-  channel         TEXT NOT NULL DEFAULT 'SMS',
-  status          TEXT NOT NULL DEFAULT 'DRAFT',
-  template_name   TEXT,
-  audience_count  INTEGER DEFAULT 0,
-  created_at      TEXT NOT NULL,
-  scheduled_at    TEXT,
-  sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
-);
-CREATE INDEX IF NOT EXISTS idx_campaigns_status ON communication_campaigns(status);
-
-CREATE TABLE IF NOT EXISTS message_templates (
-  id              TEXT PRIMARY KEY,
-  name            TEXT NOT NULL,
-  channel         TEXT NOT NULL DEFAULT 'SMS',
-  language        TEXT DEFAULT 'en',
-  content         TEXT NOT NULL,
-  status          TEXT NOT NULL DEFAULT 'DRAFT',
-  sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
-);
-
-CREATE TABLE IF NOT EXISTS communication_logs (
-  id              TEXT PRIMARY KEY,
-  campaign_id     TEXT,
-  recipient       TEXT NOT NULL,
-  channel         TEXT NOT NULL,
-  status          TEXT NOT NULL DEFAULT 'PENDING',
-  sent_at         TEXT,
-  delivered_at    TEXT,
-  sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
-);
-CREATE INDEX IF NOT EXISTS idx_comm_logs_campaign ON communication_logs(campaign_id);
-
-CREATE TABLE IF NOT EXISTS reports (
-  id              TEXT PRIMARY KEY,
-  title           TEXT NOT NULL,
-  report_type     TEXT NOT NULL,
-  period_start    TEXT,
-  period_end      TEXT,
-  status          TEXT NOT NULL DEFAULT 'PENDING',
-  generated_at    TEXT,
-  data_snapshot   TEXT DEFAULT '{}',
-  sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
-);
-
-CREATE TABLE IF NOT EXISTS scheduled_reports (
-  id              TEXT PRIMARY KEY,
-  name            TEXT NOT NULL,
-  report_type     TEXT NOT NULL,
-  frequency       TEXT NOT NULL DEFAULT 'MONTHLY',
-  next_run        TEXT,
-  last_run        TEXT,
-  status          TEXT NOT NULL DEFAULT 'ACTIVE',
-  sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
-);
-
 CREATE TABLE IF NOT EXISTS import_batches (
   id              TEXT PRIMARY KEY,
   file_name       TEXT NOT NULL,
@@ -573,50 +518,6 @@ CREATE TABLE IF NOT EXISTS import_batches (
   created_at      TEXT NOT NULL,
   sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
 );
-
-CREATE TABLE IF NOT EXISTS integration_configs (
-  id              TEXT PRIMARY KEY,
-  config_type     TEXT NOT NULL,
-  provider_name   TEXT NOT NULL,
-  status          TEXT NOT NULL DEFAULT 'ACTIVE',
-  base_url        TEXT,
-  sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
-);
-
-CREATE TABLE IF NOT EXISTS org_units (
-  id              TEXT PRIMARY KEY,
-  name            TEXT NOT NULL,
-  code            TEXT,
-  unit_type       TEXT NOT NULL,
-  parent_name     TEXT,
-  facility_type   TEXT,
-  latitude        REAL,
-  longitude       REAL,
-  status          TEXT NOT NULL DEFAULT 'ACTIVE',
-  sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
-);
-
-CREATE TABLE IF NOT EXISTS user_accounts (
-  id              TEXT PRIMARY KEY,
-  username        TEXT NOT NULL,
-  full_name       TEXT NOT NULL,
-  system_role     TEXT,
-  status          TEXT NOT NULL DEFAULT 'ACTIVE',
-  sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
-);
-
-CREATE TABLE IF NOT EXISTS user_role_scopes (
-  id              TEXT PRIMARY KEY,
-  user_id         TEXT NOT NULL,
-  role_code       TEXT NOT NULL,
-  scope_unit_id   TEXT,
-  scope_unit_name TEXT,
-  status          TEXT NOT NULL DEFAULT 'ACTIVE',
-  effective_from  TEXT,
-  effective_to    TEXT,
-  sync_status     TEXT NOT NULL DEFAULT 'SYNCED'
-);
-CREATE INDEX IF NOT EXISTS idx_role_scopes_user ON user_role_scopes(user_id);
 
 CREATE TABLE IF NOT EXISTS import_records (
   id              TEXT PRIMARY KEY,
@@ -753,18 +654,8 @@ export function clearDatabase(): void {
   db.execute('DELETE FROM referrals');
   db.execute('DELETE FROM facility_capabilities');
   db.execute('DELETE FROM pregnancy_profiles');
-  db.execute('DELETE FROM households');
-  db.execute('DELETE FROM communication_campaigns');
-  db.execute('DELETE FROM message_templates');
-  db.execute('DELETE FROM communication_logs');
-  db.execute('DELETE FROM reports');
-  db.execute('DELETE FROM scheduled_reports');
   db.execute('DELETE FROM import_batches');
   db.execute('DELETE FROM import_records');
-  db.execute('DELETE FROM integration_configs');
-  db.execute('DELETE FROM org_units');
-  db.execute('DELETE FROM user_accounts');
-  db.execute('DELETE FROM user_role_scopes');
   db.execute('DELETE FROM audit_events');
   db.execute('DELETE FROM voice_recordings');
   db.execute('DELETE FROM risk_assessments');

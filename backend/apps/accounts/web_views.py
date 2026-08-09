@@ -53,7 +53,7 @@ class UserCreateView(LoginRequiredMixin, CreateView):
     fields = [
         "username", "full_name", "mobile_number", "email",
         "system_role", "organisation_unit",
-        "is_active", "is_super_admin", "can_view_reports",
+        "is_active", "is_super_admin",
     ]
     login_url = "/login/"
     success_url = reverse_lazy("user_list")
@@ -91,7 +91,7 @@ class UserEditView(LoginRequiredMixin, UpdateView):
     fields = [
         "username", "full_name", "mobile_number", "email",
         "system_role", "organisation_unit",
-        "is_active", "is_super_admin", "can_view_reports",
+        "is_active", "is_super_admin",
     ]
     login_url = "/login/"
     success_url = reverse_lazy("user_list")

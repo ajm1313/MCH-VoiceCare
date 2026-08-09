@@ -1,7 +1,7 @@
 """Organisation forms."""
 from django import forms
 
-from apps.organisations.models import OrganisationUnit, FacilityCapability
+from apps.organisations.models import OrganisationUnit
 
 
 class OrganisationUnitForm(forms.ModelForm):
@@ -20,22 +20,4 @@ class OrganisationUnitForm(forms.ModelForm):
             "latitude": forms.NumberInput(attrs={"class": "input input-bordered w-full", "step": "0.0000001"}),
             "longitude": forms.NumberInput(attrs={"class": "input input-bordered w-full", "step": "0.0000001"}),
             "status": forms.Select(attrs={"class": "select select-bordered w-full"}),
-        }
-
-
-class FacilityCapabilityForm(forms.ModelForm):
-    class Meta:
-        model = FacilityCapability
-        fields = [
-            "facility", "maternity_triage_24_7", "bemonc", "cemonc",
-            "theatre", "blood", "specialist_obstetrics", "newborn_support",
-            "primary_referral_destination", "backup_referral_destination",
-            "verified_at", "verification_expires_at",
-        ]
-        widgets = {
-            "facility": forms.Select(attrs={"class": "select select-bordered w-full"}),
-            "primary_referral_destination": forms.Select(attrs={"class": "select select-bordered w-full"}),
-            "backup_referral_destination": forms.Select(attrs={"class": "select select-bordered w-full"}),
-            "verified_at": forms.DateTimeInput(attrs={"class": "input input-bordered w-full", "type": "datetime-local"}),
-            "verification_expires_at": forms.DateTimeInput(attrs={"class": "input input-bordered w-full", "type": "datetime-local"}),
         }

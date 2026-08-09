@@ -7,7 +7,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     fullName = serializers.CharField(source="full_name", required=False)
     mobileNumber = serializers.CharField(source="mobile_number", required=False)
     isSuperAdmin = serializers.BooleanField(source="is_super_admin", required=False)
-    canViewReports = serializers.BooleanField(source="can_view_reports", required=False)
     systemRole = serializers.CharField(source="system_role", required=False)
     organisationUnit = serializers.UUIDField(
         source="organisation_unit_id", required=False, allow_null=True
@@ -17,7 +16,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserAccount
         fields = [
             "id", "username", "fullName", "email", "mobileNumber",
-            "is_active", "is_staff", "isSuperAdmin", "canViewReports",
+            "is_active", "is_staff", "isSuperAdmin",
             "systemRole", "organisationUnit", "date_joined",
         ]
         read_only_fields = ["id", "date_joined"]
@@ -33,7 +32,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
         fields = [
             "id", "username", "fullName", "email", "mobileNumber",
             "password", "system_role", "organisation_unit",
-            "is_active", "is_staff", "is_super_admin", "can_view_reports",
+            "is_active", "is_staff", "is_super_admin",
         ]
         read_only_fields = ["id"]
 

@@ -62,6 +62,9 @@ INSTALLED_APPS = [
     "apps.communication",
     "apps.reports",
     "apps.integrations",
+    "apps.fhir",
+    "apps.rules",
+    "apps.tests",
 ]
 
 MIDDLEWARE = [

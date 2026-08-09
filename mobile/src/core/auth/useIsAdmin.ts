@@ -14,12 +14,6 @@ export function useIsAdmin(): boolean {
   return user.isSuperuser || user.isStaff || user.isSuperAdmin || user.isFacilityLevelOnly === false;
 }
 
-export function useCanViewReports(): boolean {
-  const { user } = useAuthStore();
-  if (!user) return false;
-  return user.canViewReports;
-}
-
 export function isAdminUser(user: UserProfile | null): boolean {
   if (!user) return false;
   return user.isSuperuser || user.isStaff || user.isSuperAdmin || user.isFacilityLevelOnly === false;
