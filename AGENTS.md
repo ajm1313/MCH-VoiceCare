@@ -61,7 +61,7 @@ cd mobile && npx react-native run-android
 ## Test Count
 
 - Backend: 664 tests (all passing)
-- Mobile: 204 tests (all passing)
+- Mobile: 206 tests (all passing)
 
 ## Implementation Phases
 
