@@ -105,6 +105,7 @@ export const CACHE_KEYS = {
   CWC_MANIFEST: 'cwc_manifest',
   FACILITY_CAPABILITIES: 'facility_capabilities',
   RULE_SET: 'rule_set',
+  RULE_SET_PREVIOUS: 'rule_set_previous', // spec §24: known-good rollback version
   LANGUAGE_PACK: 'language_pack',
   REFERRAL_DIRECTORY: 'referral_directory',
   DEVICE_CONFIG: 'device_config',

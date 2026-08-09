@@ -10,6 +10,7 @@ import { useAuthStore } from '../auth/authStore';
 import { setCachedJSON, getCachedJSON, getCacheVersion, CACHE_KEYS } from './contentCache';
 import { verifyPackage, type SigningKeyInfo } from '../rules/signatureVerify';
 import { getCachedSigningKeys } from './configStore';
+import { logLocalAudit } from '../utils/audit';
 
 export interface SerialisedRule {
   rule_id: string;
@@ -146,10 +147,67 @@ export async function syncRulePackage(): Promise<boolean> {
     immunisation_schedule_version: '',
   };
 
+  // --- Rollback retention (spec §24) ---
+  // Before replacing the active package, save the current one as the
+  // known-good rollback version. This ensures we can revert if the new
+  // package causes issues.
+  const currentPackage = getCachedJSON<RulePackage>(CACHE_KEYS.RULE_SET);
+  if (currentPackage) {
+    setCachedJSON(CACHE_KEYS.RULE_SET_PREVIOUS, currentPackage, currentPackage.rule_set_version, 24 * 90); // 90 days
+  }
+
   // Cache with 72-hour TTL (rule packages don't change frequently)
   setCachedJSON(CACHE_KEYS.RULE_SET, data, data.rule_set_version, 72);
 
+  logLocalAudit({
+    action: 'PACKAGE_ACTIVATED',
+    entityType: 'rule_package',
+    entityId: data.rule_set_version,
+    metadata: {
+      bundle_id: serverData.bundleId,
+      previous_version: currentPackage?.rule_set_version ?? null,
+    },
+  });
+
   return true;
+}
+
+/**
+ * Rollback to the previously cached rule package (spec §24).
+ * If there is no previous version cached, returns false.
+ */
+export function rollbackRulePackage(): boolean {
+  const previous = getCachedJSON<RulePackage>(CACHE_KEYS.RULE_SET_PREVIOUS);
+  if (!previous) {
+    return false;
+  }
+
+  // Save current as the new "previous" (in case rollback needs to be undone)
+  const current = getCachedJSON<RulePackage>(CACHE_KEYS.RULE_SET);
+  if (current) {
+    setCachedJSON(CACHE_KEYS.RULE_SET_PREVIOUS, current, current.rule_set_version, 24 * 90);
+  }
+
+  // Restore the previous version as active
+  setCachedJSON(CACHE_KEYS.RULE_SET, previous, previous.rule_set_version, 72);
+
+  logLocalAudit({
+    action: 'PACKAGE_ROLLBACK',
+    entityType: 'rule_package',
+    entityId: previous.rule_set_version,
+    metadata: {
+      rolled_back_from: current?.rule_set_version ?? null,
+    },
+  });
+
+  return true;
+}
+
+/**
+ * Get the previously cached (rollback) rule package, or null if none exists.
+ */
+export function getRollbackRulePackage(): RulePackage | null {
+  return getCachedJSON<RulePackage>(CACHE_KEYS.RULE_SET_PREVIOUS);
 }
 
 /**

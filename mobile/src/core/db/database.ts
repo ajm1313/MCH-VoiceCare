@@ -633,10 +633,17 @@ CREATE INDEX IF NOT EXISTS idx_import_records_batch ON import_records(batch_id);
 CREATE TABLE IF NOT EXISTS audit_events (
   id              TEXT PRIMARY KEY,
   actor           TEXT NOT NULL,
+  actor_role      TEXT NOT NULL DEFAULT '',
   action          TEXT NOT NULL,
-  entity_type     TEXT,
-  entity_id       TEXT,
+  entity_type     TEXT NOT NULL DEFAULT '',
+  entity_id       TEXT NOT NULL DEFAULT '',
+  patient_id      TEXT,
+  pregnancy_episode_id TEXT,
+  referral_episode_id  TEXT,
+  device_id       TEXT NOT NULL DEFAULT '',
+  facility_id     TEXT,
   timestamp       TEXT NOT NULL,
+  purpose         TEXT NOT NULL DEFAULT 'DIRECT_CARE',
   details         TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);
@@ -703,6 +710,24 @@ export function initDatabase(): void {
     .filter(s => s.trim().length > 0)
     .map(sql => ({ query: sql.trim() }));
   db.executeBatch(commands);
+
+  // Migrations: add columns to existing tables (safe — ALTER TABLE ADD COLUMN
+  // is idempotent via the try/catch in executeBatch)
+  const migrations: BatchQueryCommand[] = [
+    // audit_events: add spec §23 columns for existing DBs
+    { query: 'ALTER TABLE audit_events ADD COLUMN actor_role TEXT NOT NULL DEFAULT ""' },
+    { query: 'ALTER TABLE audit_events ADD COLUMN patient_id TEXT' },
+    { query: 'ALTER TABLE audit_events ADD COLUMN pregnancy_episode_id TEXT' },
+    { query: 'ALTER TABLE audit_events ADD COLUMN referral_episode_id TEXT' },
+    { query: 'ALTER TABLE audit_events ADD COLUMN device_id TEXT NOT NULL DEFAULT ""' },
+    { query: 'ALTER TABLE audit_events ADD COLUMN facility_id TEXT' },
+    { query: 'ALTER TABLE audit_events ADD COLUMN purpose TEXT NOT NULL DEFAULT "DIRECT_CARE"' },
+  ];
+  try {
+    db.executeBatch(migrations);
+  } catch {
+    // Columns already exist — expected on fresh installs
+  }
 }
 
 export function clearDatabase(): void {

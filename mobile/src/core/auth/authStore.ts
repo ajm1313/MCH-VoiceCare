@@ -7,6 +7,7 @@
  */
 import { create } from 'zustand';
 import * as Keychain from 'react-native-keychain';
+import { logLocalAudit } from '../utils/audit';
 
 import { AppConfig } from '../../config/appConfig';
 import { getQueueDepth } from '../sync/outbox';
@@ -111,6 +112,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         refreshToken: data.refreshToken,
         expiresAt: data.expiresAt,
         isLoading: false,
+      });
+      logLocalAudit({
+        action: 'LOGIN',
+        entityType: 'UserAccount',
+        entityId: data.user.id,
+        purpose: 'ADMIN',
       });
       return true;
     } catch (err) {
@@ -241,6 +248,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
     await Keychain.resetGenericPassword({ service: KEYCHAIN_SERVICE });
+    logLocalAudit({
+      action: 'LOGOUT',
+      entityType: 'UserAccount',
+      entityId: get().user?.id ?? '',
+      purpose: 'ADMIN',
+    });
     set({ user: null, token: null, refreshToken: null, expiresAt: null });
   },
 }));

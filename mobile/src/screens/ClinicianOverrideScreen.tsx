@@ -11,6 +11,7 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {darkColors, lightColors} from '../theme/colors';
 import {submitClinicianOverride, type OverrideAction} from '../core/services/clinicianOverride';
+import {logLocalAudit} from '../core/utils/audit';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ClinicianOverride'>;
@@ -56,6 +57,17 @@ export function ClinicianOverrideScreen({route, navigation}: Props) {
     setSubmitting(false);
 
     if (result.ok && result.data) {
+      logLocalAudit({
+        action: 'CLINICIAN_OVERRIDE',
+        entityType: episodeType,
+        entityId: episodeId,
+        metadata: {
+          override_id: result.data.override_id,
+          prior_recommendation: priorRecommendation,
+          resulting_action: action,
+          override_reason: reason,
+        },
+      });
       Alert.alert('Override Recorded', result.data.description, [
         {text: 'OK', onPress: () => navigation.goBack()},
       ]);

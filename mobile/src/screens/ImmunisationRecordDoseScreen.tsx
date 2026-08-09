@@ -17,6 +17,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {darkColors, lightColors} from '../theme/colors';
 import {enqueue} from '../core/sync/outbox';
+import {withProvenance} from '../core/utils/provenance';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -39,8 +40,7 @@ export function ImmunisationRecordDoseScreen() {
 
   const handleSave = () => {
     setSaving(true);
-    enqueue(
-      'vaccine_dose',
+    const payload = withProvenance(
       {
         child: childId,
         vaccine_code: vaccineCode,
@@ -49,9 +49,14 @@ export function ImmunisationRecordDoseScreen() {
         batch_lot: batchLot,
         product_name: productName,
         route_site: routeSite,
-        source_type: 'WORKER_APP',
       },
-      'device-001',
+      'ImmunisationRecordDoseScreen',
+      'MANUAL',
+    );
+    enqueue(
+      'vaccine_dose',
+      payload,
+      payload.device_id,
       'GHS-EPI-2026-DRAFT-v1.1',
     );
     setSaving(false);

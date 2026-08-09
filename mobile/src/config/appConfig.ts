@@ -33,4 +33,11 @@ export const AppConfig = {
       cipherHmacAlgorithm: 'HMAC_SHA512',
     },
   },
+
+  // Security: app auto-lock after inactivity (spec §22.2).
+  // The app locks (returns to login) after this many seconds without user interaction.
+  // Default: 5 minutes (300s). Can be overridden by server config CFG_AUTO_LOCK_TIMEOUT_SECONDS.
+  security: {
+    autoLockTimeoutSeconds: 300,
+  },
 } as const;

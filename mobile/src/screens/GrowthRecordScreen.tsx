@@ -18,6 +18,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {darkColors, lightColors} from '../theme/colors';
 import {enqueue} from '../core/sync/outbox';
+import {withProvenance} from '../core/utils/provenance';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -44,8 +45,7 @@ export function GrowthRecordScreen() {
 
   const handleSave = () => {
     setSaving(true);
-    enqueue(
-      'growth_measurement',
+    const payload = withProvenance(
       {
         child: childId,
         measurement_date: new Date().toISOString().split('T')[0],
@@ -61,9 +61,14 @@ export function GrowthRecordScreen() {
         scale_id: scaleId,
         length_board_id: lengthBoardId,
         standard_used: 'WHO_2006',
-        source_type: 'WORKER_APP',
       },
-      'device-001',
+      'GrowthRecordScreen',
+      'MANUAL',
+    );
+    enqueue(
+      'growth_measurement',
+      payload,
+      payload.device_id,
       'GMP-WHO-2006-v1',
     );
     setSaving(false);

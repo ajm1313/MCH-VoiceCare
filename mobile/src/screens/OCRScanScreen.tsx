@@ -22,6 +22,7 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {darkColors, lightColors} from '../theme/colors';
 import {AppConfig} from '../config/appConfig';
 import {useAuthStore} from '../core/auth/authStore';
+import {getCachedDeviceConfig} from '../core/auth/deviceProvision';
 import {isOcrEnabled} from '../core/auth/featureFlags';
 import {setCachedJSON, getCachedJSON} from '../core/sync/contentCache';
 import type {RootStackParamList} from '../core/navigation/types';
@@ -124,7 +125,7 @@ export function OCRScanScreen({route, navigation}: Props) {
           imagePath: `/tmp/scan_${Date.now()}.jpg`,
           imageHash: 'placeholder_hash',
           capturedBy: useAuthStore.getState().user?.username || 'unknown',
-          deviceId: 'mobile-device',
+          deviceId: getCachedDeviceConfig()?.deviceId ?? 'mobile-device-local',
         }),
       });
 

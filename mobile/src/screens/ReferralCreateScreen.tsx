@@ -10,6 +10,9 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {getDb} from '../core/db/database';
+import {enqueue} from '../core/sync/outbox';
+import {withProvenance} from '../core/utils/provenance';
+import {logLocalAudit} from '../core/utils/audit';
 import {brand, lightColors, urgency} from '../theme/colors';
 import {toBackendUrgency, type OfflineUrgency} from '../core/utils/urgencyMapping';
 import type {RootStackParamList} from '../core/navigation/types';
@@ -58,6 +61,31 @@ export function ReferralCreateScreen({route, navigation}: Props) {
         now, now,
       ],
     );
+    // Also enqueue to outbox with provenance for server sync (spec §9, §18)
+    const payload = withProvenance(
+      {
+        id,
+        patient_name: patientName,
+        referral_reason: reason,
+        referring_facility: referringFacility,
+        destination_facility: destinationFacility,
+        urgency: toBackendUrgency(urgencyLevel),
+        pre_referral_care: preReferralCare || null,
+        transport_mode: transportMode || null,
+        estimated_transport_time_minutes: estimatedTransportMinutes ? parseInt(estimatedTransportMinutes, 10) : null,
+        pregnancy_episode_id: pregnancyEpisodeId || null,
+        newborn_episode_id: newbornEpisodeId || null,
+      },
+      'ReferralCreateScreen',
+      'MANUAL',
+    );
+    enqueue('referral', payload, payload.device_id, 'REFERRAL-v1');
+    logLocalAudit({
+      action: 'REFERRAL_CREATED',
+      entityType: 'referral',
+      entityId: id,
+      referralEpisodeId: id,
+    });
     navigation.goBack();
   };
 

@@ -20,6 +20,8 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {darkColors, lightColors} from '../theme/colors';
 import {enqueue} from '../core/sync/outbox';
+import {withProvenance} from '../core/utils/provenance';
+import {logLocalAudit} from '../core/utils/audit';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -89,8 +91,7 @@ export function NewbornObserveScreen() {
 
   const handleSave = async () => {
     setSaving(true);
-    enqueue(
-      'newborn_observation',
+    const payload = withProvenance(
       {
         newborn: episodeId,
         temperature_c: temperature ? parseFloat(temperature) : null,
@@ -130,11 +131,22 @@ export function NewbornObserveScreen() {
         caregiver_uncontactable: caregiverUncontactable,
         worker_judgement_critical: workerJudgementCritical,
         worker_judgement_rationale: rationale,
-        source_type: 'WORKER_APP',
       },
-      'device-001',
+      'NewbornObserveScreen',
+      'MANUAL',
+    );
+    enqueue(
+      'newborn_observation',
+      payload,
+      payload.device_id,
       'NEO-RULES-v1.1',
     );
+    logLocalAudit({
+      action: 'RECORD_CREATE',
+      entityType: 'newborn_observation',
+      entityId: payload.device_id,
+      pregnancyEpisodeId: episodeId,
+    });
     setSaving(false);
     navigation.goBack();
   };

@@ -5,7 +5,7 @@
  * All screens function without connectivity; the outbox queue drains
  * when network becomes available (SYNC-001..SYNC-010).
  */
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {StatusBar, useColorScheme} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {NavigationContainer} from '@react-navigation/native';
@@ -19,6 +19,7 @@ import {setConfigGetFunction} from './core/sync/configStore';
 import {setDashboardGetFunction} from './core/sync/dashboardSync';
 import {setWorklistGetFunction} from './core/sync/worklistSync';
 import {useAuthStore} from './core/auth/authStore';
+import {useAutoLock} from './core/auth/useAutoLock';
 import {provisionDevice} from './core/auth/deviceProvision';
 import type {RootStackParamList} from './core/navigation/types';
 
@@ -99,8 +100,14 @@ export default function App(): React.JSX.Element {
   const isDark = scheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
 
-  const {user, restoreSession} = useAuthStore();
+  const {user, restoreSession, logout} = useAuthStore();
   const [ready, setReady] = useState(false);
+
+  // Auto-lock the app after configured inactivity timeout (spec §22.2)
+  const handleAutoLock = useCallback(() => {
+    logout(true).catch(() => {});
+  }, [logout]);
+  useAutoLock(handleAutoLock, !!user);
 
   useEffect(() => {
     (async () => {

@@ -9,6 +9,7 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {darkColors, lightColors} from '../theme/colors';
 import {query} from '../core/db/database';
+import {logLocalAudit} from '../core/utils/audit';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PersonDetail'>;
@@ -33,7 +34,15 @@ export function PersonDetailScreen({route}: Props) {
     }
   }, [personId]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+    logLocalAudit({
+      action: 'PATIENT_VIEW',
+      entityType: 'person',
+      entityId: personId,
+      patientId: personId,
+    });
+  }, [loadData, personId]);
 
   if (loading) {
     return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.primary} /></View>;

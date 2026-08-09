@@ -19,6 +19,8 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {enqueue} from '../core/sync/outbox';
+import {withProvenance} from '../core/utils/provenance';
+import {logLocalAudit} from '../core/utils/audit';
 import {brand, lightColors} from '../theme/colors';
 import type {RootStackParamList} from '../core/navigation/types';
 
@@ -131,10 +133,21 @@ export function PregnancyObserveScreen({route, navigation}: Props) {
       client_uncontactable: clientUncontactable,
       worker_judgement_critical: judgement,
       worker_judgement_rationale: rationale,
-      source_type: 'WORKER_APP',
     };
 
-    enqueue('pregnancy_observation', payload, 'device-001', 'PREG-RULES-v1.1');
+    const payloadWithProvenance = withProvenance(
+      payload,
+      'PregnancyObserveScreen',
+      'MANUAL',
+    );
+
+    enqueue('pregnancy_observation', payloadWithProvenance, payloadWithProvenance.device_id, 'PREG-RULES-v1.1');
+    logLocalAudit({
+      action: 'RECORD_CREATE',
+      entityType: 'pregnancy_observation',
+      entityId: payloadWithProvenance.device_id,
+      pregnancyEpisodeId: episodeId,
+    });
     setSaved(true);
     setTimeout(() => navigation.goBack(), 800);
   };

@@ -1,12 +1,19 @@
 /**
- * ReferralQrSlipScreen — displays a QR code for a referral slip.
+ * ReferralQrSlipScreen — displays a QR code for a referral slip (spec §18.5).
  *
- * The backend generates a QR token at GET /api/v1/referrals/{id}/qr/
- * which encodes referral details for scanning at the receiving facility.
+ * The QR code is generated ON-DEVICE from the referral data so it works
+ * offline. The QR payload is an opaque lookup token (referral ID + short
+ * code), NOT clinical details (spec §18.5: "Do not place unnecessary
+ * clinical details in the QR payload").
+ *
+ * If the backend has issued a signed QR token (via GET /referrals/{id}/qr/),
+ * that token is preferred. Otherwise, a local fallback token is generated
+ * from the referral ID and short code.
  */
 import React, {useCallback, useEffect, useState} from 'react';
 import {ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import QRCode from 'react-native-qrcode-svg';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {darkColors, lightColors, urgency} from '../theme/colors';
@@ -14,9 +21,32 @@ import {query, getDb} from '../core/db/database';
 import {toOfflineUrgency} from '../core/utils/urgencyMapping';
 import {AppConfig} from '../config/appConfig';
 import {useAuthStore} from '../core/auth/authStore';
+import {logLocalAudit} from '../core/utils/audit';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReferralQrSlip'>;
+
+/**
+ * Generate a short human-readable code from the referral ID.
+ * Format: first 6 chars of the referral ID, uppercased.
+ */
+function generateShortCode(referralId: string): string {
+  const clean = referralId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  return clean.slice(0, 6) || 'REF000';
+}
+
+/**
+ * Build an opaque QR payload that encodes only the referral ID and short code.
+ * This avoids placing clinical details in the QR (spec §18.5).
+ */
+function buildOfflineQrPayload(referralId: string, shortCode: string): string {
+  return JSON.stringify({
+    type: 'MCH_REFERRAL',
+    rid: referralId,
+    sc: shortCode,
+    v: 1,
+  });
+}
 
 export function ReferralQrSlipScreen({route, navigation}: Props) {
   const scheme = useColorScheme();
@@ -35,7 +65,9 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
       if (rows.length > 0) {
         const r = rows[0] as any;
         setItem(r);
-        setShortCode(r.short_code ?? null);
+        // Use stored short code/QR token if available, otherwise generate locally
+        const sc = r.short_code ?? generateShortCode(referralId);
+        setShortCode(sc);
         setQrToken(r.qr_token ?? null);
       }
     } finally {
@@ -43,7 +75,15 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
     }
   }, [referralId]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+    logLocalAudit({
+      action: 'PATIENT_VIEW',
+      entityType: 'referral_slip',
+      entityId: referralId,
+      referralEpisodeId: referralId,
+    });
+  }, [loadData, referralId]);
 
   const fetchQrFromServer = async () => {
     setFetchingQr(true);
@@ -63,7 +103,7 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
         [data.qr_token, data.short_code, referralId],
       );
     } catch {
-      // Best-effort
+      // Best-effort — offline QR is already available as fallback
     } finally {
       setFetchingQr(false);
     }
@@ -74,6 +114,9 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
   }
 
   const urgencyColor = item ? urgency[toOfflineUrgency(item.urgency as string) as keyof typeof urgency] || urgency.GREY : urgency.GREY;
+
+  // The QR payload: prefer signed server token, fall back to offline-generated opaque payload
+  const qrPayload = qrToken ?? (shortCode ? buildOfflineQrPayload(referralId, shortCode) : null);
 
   return (
     <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
@@ -105,17 +148,33 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
               </View>
             )}
 
-            {qrToken ? (
+            {qrPayload && (
               <View style={styles.qrBox}>
-                <Text style={[styles.qrLabel, {color: colors.textSecondary}]}>QR Token</Text>
-                <Text style={[styles.qrValue, {color: colors.textPrimary}]}>{qrToken}</Text>
+                <Text style={[styles.qrLabel, {color: colors.textSecondary}]}>QR Code</Text>
+                <View style={styles.qrImageContainer}>
+                  <QRCode
+                    value={qrPayload}
+                    size={200}
+                    color={colors.textPrimary}
+                    backgroundColor={colors.surface}
+                    logoSize={0}
+                  />
+                </View>
+                {!qrToken && (
+                  <Text style={[styles.qrHint, {color: colors.textSecondary}]}>
+                    Offline QR — scan at receiving facility to look up referral
+                  </Text>
+                )}
               </View>
-            ) : (
+            )}
+
+            {/* Allow fetching a signed server token when online */}
+            {!qrToken && (
               <Pressable style={[styles.fetchBtn, {backgroundColor: colors.primary}]} onPress={fetchQrFromServer} disabled={fetchingQr}>
                 {fetchingQr ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.fetchBtnText}>Generate QR Code</Text>
+                  <Text style={styles.fetchBtnText}>Get Signed QR (Online)</Text>
                 )}
               </Pressable>
             )}
@@ -143,9 +202,10 @@ const styles = StyleSheet.create({
   shortCodeBox: {marginTop: 16, alignItems: 'center', padding: 12, borderWidth: 2, borderColor: '#E2E8F0', borderRadius: 12, borderStyle: 'dashed'},
   shortCodeLabel: {fontSize: 11, fontWeight: '600', textTransform: 'uppercase'},
   shortCode: {fontSize: 24, fontWeight: '800', letterSpacing: 2, marginTop: 4},
-  qrBox: {marginTop: 16, padding: 12, backgroundColor: '#F8FAFC', borderRadius: 12},
-  qrLabel: {fontSize: 11, fontWeight: '600', textTransform: 'uppercase'},
-  qrValue: {fontSize: 12, fontFamily: 'monospace', marginTop: 4},
+  qrBox: {marginTop: 16, padding: 12, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center'},
+  qrLabel: {fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginBottom: 8},
+  qrImageContainer: {padding: 8, backgroundColor: '#FFFFFF', borderRadius: 8},
+  qrHint: {fontSize: 11, marginTop: 8, textAlign: 'center'},
   fetchBtn: {padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 16},
   fetchBtnText: {color: '#fff', fontWeight: '700', fontSize: 15},
 });
