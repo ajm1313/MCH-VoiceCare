@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 from apps.growth.models import GrowthMeasurement
 from apps.growth.api.serializers import GrowthMeasurementSerializer
 from apps.core.mixins import RelatedOrgScopedViewSet
@@ -11,6 +12,7 @@ from apps.audit.services import log_rule_evaluation
 from apps.notifications.services import process_rule_assessment
 
 
+@extend_schema(tags=["growth"])
 class GrowthMeasurementViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = GrowthMeasurement.objects.all().select_related("child")
     serializer_class = GrowthMeasurementSerializer

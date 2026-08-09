@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 
 from apps.notifications.models import Notification, ActionRecord
 from apps.notifications.api.serializers import NotificationSerializer, ActionRecordSerializer
@@ -11,6 +12,7 @@ from apps.core.mixins import ReadOnlyUnlessWriterMixin
 from apps.audit.services import log_audit
 
 
+@extend_schema(tags=["notifications"])
 class NotificationViewSet(ReadOnlyUnlessWriterMixin, viewsets.ModelViewSet):
     queryset = Notification.objects.all()
     serializer_class = NotificationSerializer
@@ -105,6 +107,7 @@ class NotificationViewSet(ReadOnlyUnlessWriterMixin, viewsets.ModelViewSet):
         return Response(NotificationSerializer(notification).data, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=["notifications"])
 class ActionRecordViewSet(viewsets.ModelViewSet):
     queryset = ActionRecord.objects.all()
     serializer_class = ActionRecordSerializer

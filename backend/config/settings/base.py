@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "django_filters",
+    "drf_spectacular",
 
     # Local apps
     "apps.core",
@@ -154,6 +155,46 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# ── OpenAPI schema generation (drf-spectacular) ──
+SPECTACULAR_SETTINGS = {
+    "TITLE": "MCH VoiceCare API",
+    "DESCRIPTION": (
+        "Maternal and Child Health VoiceCare platform API for Northern Ghana. "
+        "Supports offline-first clinical capture, danger-sign rules, closed-loop "
+        "referrals, FHIR R4 interoperability, OCR scanning, telephony (IVR/USSD), "
+        "and server-side clinical ML."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "CONTACT": {
+        "name": "MCH VoiceCare Team",
+        "url": "https://github.com/ajm1313/MCH-VoiceCare",
+    },
+    "LICENSE": {
+        "name": "Proprietary",
+    },
+    "TAGS": [
+        {"name": "auth", "description": "Authentication and MFA"},
+        {"name": "organisations", "description": "Organisation units and facilities"},
+        {"name": "clients", "description": "Patient (Person) records"},
+        {"name": "pregnancy", "description": "Pregnancy episodes and ANC visits"},
+        {"name": "newborn", "description": "Newborn episodes and care"},
+        {"name": "immunisation", "description": "Immunisation records"},
+        {"name": "growth", "description": "Growth monitoring"},
+        {"name": "referrals", "description": "Referral workflow and slips"},
+        {"name": "ocr", "description": "OCR scanning and templates"},
+        {"name": "telephony", "description": "IVR, USSD, and audio assets"},
+        {"name": "ml", "description": "ML inference and monitoring"},
+        {"name": "core", "description": "Config, rule packages, monitoring"},
+        {"name": "audit", "description": "Audit trail events"},
+        {"name": "fhir", "description": "FHIR R4 resources"},
+    ],
+    "SECURITY": [{"jwtAuth": []}, {"cookieAuth": []}],
+    "AUTHENTICATION_WHITELIST": [],
 }
 
 # ── JWT ──

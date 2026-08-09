@@ -6,6 +6,11 @@
  *   - Blanks the content in the recent-apps switcher
  *   - Prevents content from appearing in screen mirroring
  *
+ * The native module `ScreenSecurityModule` (Kotlin) is registered in
+ * MainApplication.kt and exposes:
+ *   - setFlagSecure(enabled: boolean, promise: Promise<boolean>)
+ *   - isFlagSecureSet(promise: Promise<boolean>)
+ *
  * On iOS, this would use a similar blur-on-background approach (not implemented
  * in this first release which targets Android only).
  *
@@ -14,30 +19,67 @@
 import {useEffect, useRef, useCallback} from 'react';
 import {Platform, AppState, AppStateStatus, NativeModules} from 'react-native';
 
-// Native module bridge — if a native module exposes setFlagSecure, use it.
-// Otherwise fall back to a no-op so the app doesn't crash on platforms
-// without the native bridge.
+// Native module bridge — registered via ScreenSecurityPackage in MainApplication.kt
 const ScreenSecurityNative = NativeModules.ScreenSecurity
   ? NativeModules.ScreenSecurity
   : null;
 
 /**
  * Apply FLAG_SECURE to the current Android activity window.
- * Returns true if successful, false if the native module is unavailable.
+ * Returns a promise that resolves to true if successful, false if the
+ * native module is unavailable or the platform is not Android.
  */
-export function setFlagSecure(enabled: boolean): boolean {
+export async function setFlagSecure(enabled: boolean): Promise<boolean> {
   if (Platform.OS !== 'android') {
     return false;
   }
   if (ScreenSecurityNative && typeof ScreenSecurityNative.setFlagSecure === 'function') {
     try {
+      return await ScreenSecurityNative.setFlagSecure(enabled);
+    } catch {
+      return false;
+    }
+  }
+  // Native module not available — FLAG_SECURE is still set at startup
+  // in MainActivity.kt as a fallback, but dynamic toggling is not available.
+  return false;
+}
+
+/**
+ * Synchronous version of setFlagSecure for use in hooks where we can't await.
+ * Returns true if the call was dispatched (does not wait for result).
+ */
+export function setFlagSecureSync(enabled: boolean): boolean {
+  if (Platform.OS !== 'android') {
+    return false;
+  }
+  if (ScreenSecurityNative && typeof ScreenSecurityNative.setFlagSecure === 'function') {
+    try {
+      // Fire and forget — the native method runs on UI thread
       ScreenSecurityNative.setFlagSecure(enabled);
       return true;
     } catch {
       return false;
     }
   }
-  // Native module not available — no-op (app still works, just less secure)
+  return false;
+}
+
+/**
+ * Check whether FLAG_SECURE is currently set on the activity window.
+ * Returns a promise that resolves to true/false.
+ */
+export async function isFlagSecureSet(): Promise<boolean> {
+  if (Platform.OS !== 'android') {
+    return false;
+  }
+  if (ScreenSecurityNative && typeof ScreenSecurityNative.isFlagSecureSet === 'function') {
+    try {
+      return await ScreenSecurityNative.isFlagSecureSet();
+    } catch {
+      return false;
+    }
+  }
   return false;
 }
 
@@ -56,14 +98,14 @@ export function useScreenSecurity(): void {
 
   const enableSecure = useCallback(() => {
     if (!isSecureRef.current) {
-      setFlagSecure(true);
+      setFlagSecureSync(true);
       isSecureRef.current = true;
     }
   }, []);
 
   const disableSecure = useCallback(() => {
     if (isSecureRef.current) {
-      setFlagSecure(false);
+      setFlagSecureSync(false);
       isSecureRef.current = false;
     }
   }, []);

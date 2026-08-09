@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 
 from apps.referrals.models import Referral, ReferralStateLog
 from apps.referrals.api.serializers import ReferralSerializer, ReferralStateLogSerializer
@@ -21,6 +22,7 @@ from apps.audit.services import log_patient_view
 from apps.notifications.services import create_referral_notification
 
 
+@extend_schema(tags=["referrals"])
 class ReferralViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = Referral.objects.all().select_related("patient", "destination_facility")
     serializer_class = ReferralSerializer
@@ -243,6 +245,7 @@ class ReferralViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
         })
 
 
+@extend_schema(tags=["referrals"])
 class ReferralStateLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ReferralStateLog.objects.all().select_related("referral")
     serializer_class = ReferralStateLogSerializer

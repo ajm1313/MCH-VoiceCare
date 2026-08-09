@@ -4,8 +4,10 @@ from rest_framework.permissions import IsAuthenticated
 from apps.reports.models import Report, ScheduledReport
 from apps.reports.api.serializers import ReportSerializer, ScheduledReportSerializer
 from apps.core.mixins import ReadOnlyUnlessWriterMixin
+from drf_spectacular.utils import extend_schema
 
 
+@extend_schema(tags=["reports"])
 class ReportViewSet(ReadOnlyUnlessWriterMixin, viewsets.ModelViewSet):
     queryset = Report.objects.all()
     serializer_class = ReportSerializer
@@ -13,6 +15,7 @@ class ReportViewSet(ReadOnlyUnlessWriterMixin, viewsets.ModelViewSet):
     filterset_fields = ["report_type", "status"]
 
 
+@extend_schema(tags=["reports"])
 class ScheduledReportViewSet(ReadOnlyUnlessWriterMixin, viewsets.ModelViewSet):
     queryset = ScheduledReport.objects.all()
     serializer_class = ScheduledReportSerializer

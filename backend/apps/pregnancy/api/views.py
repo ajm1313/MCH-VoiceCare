@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 
 from apps.pregnancy.models import PregnancyEpisode, PregnancyObservation, PregnancyAssessment
 from apps.pregnancy.api.serializers import (
@@ -14,6 +15,7 @@ from apps.audit.services import log_rule_evaluation
 from apps.notifications.services import process_rule_assessment
 
 
+@extend_schema(tags=["pregnancy"])
 class PregnancyEpisodeViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = PregnancyEpisode.objects.all().select_related("woman")
     serializer_class = PregnancyEpisodeSerializer
@@ -64,6 +66,7 @@ class PregnancyEpisodeViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=["pregnancy"])
 class PregnancyObservationViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = PregnancyObservation.objects.all().select_related("episode")
     serializer_class = PregnancyObservationSerializer
@@ -72,6 +75,7 @@ class PregnancyObservationViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet
     org_lookup = "episode__woman__organisation_unit"
 
 
+@extend_schema(tags=["pregnancy"])
 class PregnancyAssessmentViewSet(RelatedOrgScopedViewSet, viewsets.ReadOnlyModelViewSet):
     queryset = PregnancyAssessment.objects.all().select_related("episode")
     serializer_class = PregnancyAssessmentSerializer

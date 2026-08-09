@@ -13,8 +13,9 @@
 5. [Mobile App Setup (React Native)](#mobile-app-setup-react-native)
 6. [Running the Full Stack](#running-the-full-stack)
 7. [Testing](#testing)
-8. [Deployment](#deployment)
-9. [Project Documentation](#project-documentation)
+8. [API Documentation](#api-documentation)
+9. [Deployment](#deployment)
+10. [Project Documentation](#project-documentation)
 
 ---
 
@@ -277,7 +278,36 @@ Change the `BASE_URL` to point to your backend (e.g., `http://10.0.2.2:8000` for
 
 ## Running the Full Stack
 
-You need **three terminals** running:
+### Option A: Docker Compose (recommended)
+
+One-command setup with PostgreSQL + Redis + Django:
+
+```bash
+# Start all backend services
+docker compose up -d
+
+# Run migrations and create superuser
+docker compose exec backend python manage.py createsuperuser
+
+# Tail backend logs
+docker compose logs -f backend
+
+# Run tests inside the container
+docker compose exec backend python manage.py test apps.tests --noinput
+
+# Stop everything
+docker compose down
+```
+
+Then start the mobile app separately:
+
+| Terminal | Command | Purpose |
+|----------|---------|---------|
+| 1 | `docker compose up -d` | Backend (PostgreSQL + Redis + Django) |
+| 2 | `cd mobile && npx react-native start` | Metro bundler |
+| 3 | `cd mobile && npx react-native run-android` | Build & install app |
+
+### Option B: Manual (three terminals)
 
 | Terminal | Command | Purpose |
 |----------|---------|---------|
@@ -325,6 +355,30 @@ cd backend && python manage.py test apps.tests --noinput
 # Mobile
 cd mobile && npx jest --no-coverage
 ```
+
+---
+
+## API Documentation
+
+The backend exposes auto-generated OpenAPI 3 documentation via [drf-spectacular](https://drf-spectacular.readthedocs.io/).
+
+### Interactive Docs
+
+| Endpoint | Description |
+|---|---|
+| `/api/schema/` | OpenAPI 3 schema (YAML) |
+| `/api/schema/swagger/` | Swagger UI — interactive API explorer |
+| `/api/schema/redoc/` | ReDoc — clean read-only API docs |
+
+### Generating a Static Schema
+
+```bash
+cd backend && python manage.py spectacular --file openapi-schema.yaml
+```
+
+### API Tags
+
+Endpoints are organized by domain tag: `auth`, `organisations`, `clients`, `pregnancy`, `newborn`, `immunisation`, `growth`, `referrals`, `ocr`, `telephony`, `ml`, `core`, `audit`, `fhir`.
 
 ---
 

@@ -10,8 +10,9 @@ class MainActivity : ReactActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(null)
-        // FLAG_SECURE prevents clinical data from appearing in recent-app
-        // previews and blocks screenshots (spec §22.2).
+        // Set FLAG_SECURE at startup as a default security measure (spec §22.2).
+        // The JS ScreenSecurity module can toggle this dynamically via the
+        // ScreenSecurityModule native bridge.
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE

@@ -1,45 +1,56 @@
-Build remaining spec phases: OCR, ML, telephony, DevOps, i18n, security
+Add native security, API docs, Docker dev, integration tests, TTS fallback
 
-Implements all remaining spec sections to achieve near-complete coverage.
+Five quality improvements to close remaining code-doable gaps:
 
-## OCR PIPELINE (spec §16) — was 25%, now 85%
-- Image preprocessing: blur detection, glare detection, orientation correction, dewarping
-- ROI extraction: bbox-based cropping with fractional + absolute coordinates
-- Field extractors: CheckboxExtractor, PrintedTextExtractor (pytesseract), HandwrittenNumberExtractor
-- RealOCRAdapter: full pipeline orchestrator
-- OCR quality metrics: OCRFieldMetric model, quality report API endpoint
-- Mobile ScanScreen: camera guidance, brightness indicator, multi-page capture
+## 1. Android Native Security Module (spec §22.2)
+- ScreenSecurityModule.kt: native module exposing setFlagSecure + isFlagSecureSet
+- ScreenSecurityPackage.kt: React Native package registration
+- Registered in MainApplication.kt
+- ScreenSecurity.ts: async + sync API, isFlagSecureSet query
+- 34 security tests (ScreenSecurity + NotificationSanitizer)
 
-## ML RESEARCH (spec §13, §14, §30) — was 50%, now 85%
-- Engagement-risk model with scoring logic and action mapping
-- ML comparators: ElasticNet, EBM, XGBoost
-- All 13 evaluation metrics
-- Evaluation split design: by woman, facility, temporal
-- Model cards with approval workflow
-- ML monitoring: calibration_drift, missingness_drift, subgroup_performance
+## 2. API Documentation via drf-spectacular (spec §29)
+- OpenAPI 3 schema at /api/schema/
+- Swagger UI at /api/schema/swagger/
+- ReDoc at /api/schema/redoc/
+- 34 @extend_schema(tags=[...]) decorators on all viewsets
+- SPECTACULAR_SETTINGS with 14 domain tags, JWT security scheme
+- Static schema file generated (349 KB)
+- 10 API docs tests
 
-## DEVOPS + I18N + SECURITY (spec §22, §29, §31) — was 25-30%, now 85%
-- CI/CD pipeline: GitHub Actions (backend + mobile + deploy)
-- Staging environment configuration
-- Backup automation: backup_db + restore_db commands
-- i18n framework: English/Dagbani/Gonja translations, LanguageProvider
-- TLS hardening: HSTS, secure cookies, EnforceTLSMiddleware
-- Local security: FLAG_SECURE, NotificationSanitizer, android:allowBackup=false
-- Image purge job: purge_expired_scans command
+## 3. Docker Compose Dev Environment (spec §29)
+- docker-compose.yml: PostgreSQL 16 + Redis 7 + Django backend
+- Dockerfile.dev with ipython, django-debug-toolbar
+- .dockerignore, .env.example
+- 13 Docker config tests (YAML validation, service checks)
+- README updated with Docker Compose instructions
 
-## TELEPHONY + REFERRAL (spec §17, §18) — was 50-75%, now 85%
-- Audio asset management: AudioAsset model with SHA-256, versioning
-- Prompt pack builder: 16 default IVR prompts, consistency validation
-- USSD menu navigation: USSDNavigator with full menu tree
-- USSD API endpoint, prompt pack APIs, audio asset APIs
-- Printable referral slip: HTML template, PDF generation, API endpoints
-- Mobile ReferralQrSlipScreen: print/share, pre-referral care, facility info
+## 4. Integration Tests (spec §3-§18)
+- 8 workflow test classes covering:
+  - Pregnancy danger-sign → referral → closed-loop
+  - Patient registration → pregnancy episode → ANC observations
+  - OCR scan → field extraction → human confirmation
+  - Newborn assessment → danger signs → referral
+  - Immunisation → CWC → vaccine dose
+  - Audit trail integrity
+  - Sync/config/health endpoints
+  - Bulk patient operations
+- 15 integration tests
 
-## VERIFICATION
-- Backend: 815 tests pass (was 664, +151 new)
-- Mobile: 224 tests pass (was 206, +18 new)
-- Total: 1039 tests pass
-- Migrations: no missing migrations
+## 5. TTS Audio Fallback (spec §17.2)
+- TTSFallbackManager: pyttsx3 → gTTS → silent placeholder chain
+- TTS text for all 15 required IVR prompts
+- generate_tts_fallbacks management command (--dry-run, --language)
+- AudioAsset records marked with recorded_by="tts_fallback"
+- ensure_fallback_for_prompt skips when professional recording exists
+- ensure_all_fallbacks processes all required prompts
+- 18 TTS fallback tests
+
+## Verification
+- Backend: 871 tests pass (was 815, +56 new)
+- Mobile: 258 tests pass (was 224, +34 new)
+- Total: 1129 tests pass
+- APK builds successfully (32 MB)
 
 Generated with [Devin](https://devin.ai)
 

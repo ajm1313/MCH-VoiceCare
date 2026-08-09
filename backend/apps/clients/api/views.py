@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 
 from apps.clients.models import Person, Household, CaregiverLink, PatientReconciliationQueue
 from apps.clients.api.serializers import (
@@ -14,6 +15,7 @@ from apps.core.mixins import OrgScopedViewSet
 from apps.audit.services import log_audit
 
 
+@extend_schema(tags=["clients"])
 class PersonViewSet(OrgScopedViewSet, viewsets.ModelViewSet):
     queryset = Person.objects.all().select_related("household", "organisation_unit")
     serializer_class = PersonSerializer
@@ -120,6 +122,7 @@ class PersonViewSet(OrgScopedViewSet, viewsets.ModelViewSet):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=["clients"])
 class HouseholdViewSet(OrgScopedViewSet, viewsets.ModelViewSet):
     queryset = Household.objects.all().select_related("organisation_unit")
     serializer_class = HouseholdSerializer
@@ -128,6 +131,7 @@ class HouseholdViewSet(OrgScopedViewSet, viewsets.ModelViewSet):
     org_field = "organisation_unit"
 
 
+@extend_schema(tags=["clients"])
 class CaregiverLinkViewSet(viewsets.ModelViewSet):
     queryset = CaregiverLink.objects.all().select_related("child", "caregiver")
     serializer_class = CaregiverLinkSerializer
@@ -135,6 +139,7 @@ class CaregiverLinkViewSet(viewsets.ModelViewSet):
     filterset_fields = ["child", "caregiver", "is_primary"]
 
 
+@extend_schema(tags=["clients"])
 class PatientReconciliationQueueViewSet(viewsets.ReadOnlyModelViewSet):
     """
     View and resolve patient identity reconciliation queue items (spec §19.4).

@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 
 from apps.newborn.models import BirthEpisode, NewbornEpisode, NewbornObservation, NewbornAssessment
 from apps.newborn.api.serializers import (
@@ -15,6 +16,7 @@ from apps.audit.services import log_rule_evaluation
 from apps.notifications.services import process_rule_assessment
 
 
+@extend_schema(tags=["newborn"])
 class BirthEpisodeViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = BirthEpisode.objects.all().select_related("mother", "pregnancy")
     serializer_class = BirthEpisodeSerializer
@@ -23,6 +25,7 @@ class BirthEpisodeViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     org_lookup = "mother__organisation_unit"
 
 
+@extend_schema(tags=["newborn"])
 class NewbornEpisodeViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = NewbornEpisode.objects.all().select_related("child", "mother")
     serializer_class = NewbornEpisodeSerializer
@@ -73,6 +76,7 @@ class NewbornEpisodeViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=["newborn"])
 class NewbornObservationViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = NewbornObservation.objects.all().select_related("newborn")
     serializer_class = NewbornObservationSerializer
@@ -81,6 +85,7 @@ class NewbornObservationViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     org_lookup = "newborn__child__organisation_unit"
 
 
+@extend_schema(tags=["newborn"])
 class NewbornAssessmentViewSet(RelatedOrgScopedViewSet, viewsets.ReadOnlyModelViewSet):
     queryset = NewbornAssessment.objects.all().select_related("episode")
     serializer_class = NewbornAssessmentSerializer

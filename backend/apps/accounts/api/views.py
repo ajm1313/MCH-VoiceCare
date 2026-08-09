@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 
 from apps.accounts.models import UserAccount, UserRoleScope
 from apps.accounts.api.serializers import (
@@ -12,6 +13,7 @@ from apps.audit.services import log_permission_change
 from apps.core.permissions import user_can_manage_users
 
 
+@extend_schema(tags=["auth"])
 class UserAccountViewSet(viewsets.ModelViewSet):
     """CRUD for user accounts."""
     queryset = UserAccount.objects.all().order_by("-date_joined")
@@ -88,6 +90,7 @@ class UserAccountViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(tags=["auth"])
 class UserRoleScopeViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only viewset for role scopes."""
     queryset = UserRoleScope.objects.all().order_by("-assigned_at")

@@ -5,6 +5,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 
 from apps.organisations.models import OrganisationUnit, FacilityCapability
 from apps.organisations.api.serializers import (
@@ -15,6 +16,7 @@ from apps.core.permissions import user_can_manage_users
 from apps.audit.services import log_audit
 
 
+@extend_schema(tags=["organisations"])
 class OrganisationUnitViewSet(viewsets.ModelViewSet):
     queryset = OrganisationUnit.objects.all().select_related("parent")
     serializer_class = OrganisationUnitSerializer
@@ -202,6 +204,7 @@ class OrganisationUnitViewSet(viewsets.ModelViewSet):
         })
 
 
+@extend_schema(tags=["organisations"])
 class FacilityCapabilityViewSet(viewsets.ModelViewSet):
     queryset = FacilityCapability.objects.all().select_related("facility")
     serializer_class = FacilityCapabilitySerializer

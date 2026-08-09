@@ -4,6 +4,11 @@ from django.urls import include, path
 from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularSwaggerView,
+    SpectacularRedocView,
+)
 
 # Import admin registrations so all models appear in the Django admin
 import config.admin  # noqa: F401
@@ -23,6 +28,18 @@ urlpatterns = [
         "api/v1/facilities/<uuid:pk>/referral-options",
         OrganisationUnitViewSet.as_view({"get": "referral_options"}),
         name="facility-referral-options",
+    ),
+    # ── OpenAPI schema and interactive docs (drf-spectacular) ──
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path(
+        "api/schema/swagger/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
+    ),
+    path(
+        "api/schema/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc",
     ),
 ]
 

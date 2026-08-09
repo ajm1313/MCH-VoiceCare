@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/db.sqlite3
+backend/media/
+backend/staticfiles/
+
+# Node / Mobile
+mobile/node_modules/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/.expo/
+
+# Docker
+docker-compose.yml
+Dockerfile*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docs
+*.md
+!AGENTS.md
+openapi-schema.yaml
+
+# OS
+.DS_Store
+Thumbs.db

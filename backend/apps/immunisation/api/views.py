@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 
 from apps.immunisation.models import (
     ChildImmunisationRecord, VaccineDose, CWCSession, CWCSessionAttendance, DefaulterEpisode,
@@ -17,6 +18,7 @@ from apps.audit.services import log_audit
 from apps.notifications.services import create_defaulter_notification
 
 
+@extend_schema(tags=["immunisation"])
 class ChildImmunisationRecordViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = ChildImmunisationRecord.objects.all().select_related("child")
     serializer_class = ChildImmunisationRecordSerializer
@@ -62,6 +64,7 @@ class ChildImmunisationRecordViewSet(RelatedOrgScopedViewSet, viewsets.ModelView
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=["immunisation"])
 class VaccineDoseViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = VaccineDose.objects.all().select_related("child_record")
     serializer_class = VaccineDoseSerializer
@@ -70,6 +73,7 @@ class VaccineDoseViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     org_lookup = "child_record__child__organisation_unit"
 
 
+@extend_schema(tags=["immunisation"])
 class CWCSessionViewSet(viewsets.ModelViewSet):
     queryset = CWCSession.objects.all()
     serializer_class = CWCSessionSerializer
@@ -77,6 +81,7 @@ class CWCSessionViewSet(viewsets.ModelViewSet):
     filterset_fields = ["status", "session_type"]
 
 
+@extend_schema(tags=["immunisation"])
 class CWCSessionAttendanceViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = CWCSessionAttendance.objects.all().select_related("session", "child")
     serializer_class = CWCSessionAttendanceSerializer
@@ -85,6 +90,7 @@ class CWCSessionAttendanceViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet
     org_lookup = "child__organisation_unit"
 
 
+@extend_schema(tags=["immunisation"])
 class DefaulterEpisodeViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
     queryset = DefaulterEpisode.objects.all().select_related("child_record")
     serializer_class = DefaulterEpisodeSerializer

@@ -1,0 +1,72 @@
+# MCH VoiceCare — Local Development Environment
+#
+# One-command dev environment with PostgreSQL + Django backend + Redis.
+#
+# Usage:
+#   docker compose up -d              # Start all services
+#   docker compose logs -f backend    # Tail backend logs
+#   docker compose exec backend python manage.py createsuperuser
+#   docker compose exec backend python manage.py test apps.tests --noinput
+#   docker compose down               # Stop all services
+#   docker compose down -v            # Stop and delete database volumes
+
+services:
+  # ── PostgreSQL Database ──
+  db:
+    image: postgres:16-alpine
+    container_name: mch-db
+    environment:
+      POSTGRES_DB: mchvoicecare
+      POSTGRES_USER: mch
+      POSTGRES_PASSWORD: mch_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - mch_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mch -d mchvoicecare"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (for caching and future task queue) ──
+  redis:
+    image: redis:7-alpine
+    container_name: mch-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Django Backend ──
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    container_name: mch-backend
+    environment:
+      DATABASE_URL: postgres://mch:mch_dev_password@db:5432/mchvoicecare
+      DJANGO_SETTINGS_MODULE: config.settings.base
+      DJANGO_DEBUG: "True"
+      SECRET_KEY: dev-secret-key-not-for-production
+      REDIS_URL: redis://redis:6379/0
+      CORS_ALLOWED_ORIGINS: http://localhost:8081,http://localhost:19006
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for hot reload during development
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+volumes:
+  mch_pgdata:
