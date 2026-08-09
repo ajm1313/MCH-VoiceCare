@@ -34,28 +34,61 @@ class ClinicalRiskInput:
 
 @dataclass
 class ClinicalRiskPrediction:
-    """Output of clinical risk prediction (spec §13.4)."""
+    """Output of clinical risk prediction (spec §13.4).
+
+    Spec §13.4 requires 12 fields: modelId, modelVersion, featureContractVersion,
+    mode, probability, thresholdId, riskBand, reasonCodes, missingCriticalFields,
+    outOfDistribution, abstained, evaluatedAt.
+
+    Legacy field names (risk_score, model_name, feature_contributions, computed_at)
+    are kept as aliases for backward compatibility.
+    """
     prediction_id: str
     risk_band: str  # NOT_SHOWN, LOW, PRIORITY, HIGH
-    risk_score: float  # 0.0 to 1.0
     abstained: bool  # True if model abstained (insufficient data)
-    abstain_reason: Optional[str] = None
+
+    # Spec §13.4 fields
+    model_id: str = ""  # renamed from model_name
     model_version: str = ""
-    model_name: str = ""
-    feature_contributions: dict = field(default_factory=dict)
-    computed_at: str = ""
+    feature_contract_version: str = "1.0.0"
+    mode: str = "CORE_ANC"
+    probability: float = 0.0  # 0.0 to 1.0 (renamed from risk_score)
+    threshold_id: str = ""
+    reason_codes: list = field(default_factory=list)  # renamed from feature_contributions
+    missing_critical_fields: list = field(default_factory=list)
+    out_of_distribution: bool = False
+    evaluated_at: str = ""  # renamed from computed_at
+
+    # Legacy / extra fields
+    abstain_reason: Optional[str] = None
+    # Aliases kept for backward compatibility with existing code/tests
+    risk_score: float = 0.0  # alias for probability
+    model_name: str = ""  # alias for model_id
+    feature_contributions: dict = field(default_factory=dict)  # alias for reason_codes
+    computed_at: str = ""  # alias for evaluated_at
 
     def to_dict(self) -> dict:
         return {
-            "predictionId": self.prediction_id,
-            "riskBand": self.risk_band,
-            "riskScore": self.risk_score,
-            "abstained": self.abstained,
-            "abstainReason": self.abstain_reason,
+            # Spec §13.4 — 12 required fields (camelCase)
+            "modelId": self.model_id,
             "modelVersion": self.model_version,
-            "modelName": self.model_name,
-            "featureContributions": self.feature_contributions,
-            "computedAt": self.computed_at,
+            "featureContractVersion": self.feature_contract_version,
+            "mode": self.mode,
+            "probability": self.probability,
+            "thresholdId": self.threshold_id,
+            "riskBand": self.risk_band,
+            "reasonCodes": self.reason_codes,
+            "missingCriticalFields": self.missing_critical_fields,
+            "outOfDistribution": self.out_of_distribution,
+            "abstained": self.abstained,
+            "evaluatedAt": self.evaluated_at,
+            # Legacy fields for backward compatibility
+            "predictionId": self.prediction_id,
+            "riskScore": self.probability,  # alias
+            "abstainReason": self.abstain_reason,
+            "featureContributions": self.reason_codes,  # alias
+            "computedAt": self.evaluated_at,  # alias
+            "modelName": self.model_id,  # alias
         }
 
 
@@ -99,16 +132,28 @@ class StubClinicalRiskInference:
     """
 
     def predict(self, input: ClinicalRiskInput) -> ClinicalRiskPrediction:
+        now = datetime.utcnow().isoformat() + "Z"
         return ClinicalRiskPrediction(
             prediction_id=str(uuid.uuid4()),
             risk_band="NOT_SHOWN",
-            risk_score=0.0,
             abstained=True,
             abstain_reason="No ML model loaded (stub adapter)",
+            # Spec §13.4 fields
+            model_id="StubInference",
             model_version="stub-v0",
+            feature_contract_version="1.0.0",
+            mode="CORE_ANC",
+            probability=0.0,
+            threshold_id="",
+            reason_codes=[],
+            missing_critical_fields=[],
+            out_of_distribution=False,
+            evaluated_at=now,
+            # Legacy aliases
+            risk_score=0.0,
             model_name="StubInference",
             feature_contributions={},
-            computed_at=datetime.utcnow().isoformat() + "Z",
+            computed_at=now,
         )
 
     def model_metadata(self) -> ModelMetadata:
@@ -184,17 +229,30 @@ class CatBoostClinicalRiskInference:
 
     def predict(self, input: ClinicalRiskInput) -> ClinicalRiskPrediction:
         """Run CatBoost inference on clinical facts."""
+        now = datetime.utcnow().isoformat() + "Z"
         if self._model is None:
             # Model not loaded — abstain (spec §29.6: CatBoost package missing/corrupt -> rules continue)
             return ClinicalRiskPrediction(
                 prediction_id=str(uuid.uuid4()),
                 risk_band="NOT_SHOWN",
-                risk_score=0.0,
                 abstained=True,
                 abstain_reason="CatBoost model not loaded",
+                # Spec §13.4 fields
+                model_id="CatBoostClinicalRisk",
                 model_version=self.model_version,
+                feature_contract_version="1.0.0",
+                mode="CORE_ANC",
+                probability=0.0,
+                threshold_id="",
+                reason_codes=[],
+                missing_critical_fields=[],
+                out_of_distribution=False,
+                evaluated_at=now,
+                # Legacy aliases
+                risk_score=0.0,
                 model_name="CatBoostClinicalRisk",
-                computed_at=datetime.utcnow().isoformat() + "Z",
+                feature_contributions={},
+                computed_at=now,
             )
 
         # Extract features from clinical facts
@@ -206,12 +264,24 @@ class CatBoostClinicalRiskInference:
             return ClinicalRiskPrediction(
                 prediction_id=str(uuid.uuid4()),
                 risk_band="NOT_SHOWN",
-                risk_score=0.0,
                 abstained=True,
                 abstain_reason=f"Missing required features: {', '.join(missing[:5])}",
+                # Spec §13.4 fields
+                model_id="CatBoostClinicalRisk",
                 model_version=self.model_version,
+                feature_contract_version="1.0.0",
+                mode="CORE_ANC",
+                probability=0.0,
+                threshold_id="",
+                reason_codes=[],
+                missing_critical_fields=missing,
+                out_of_distribution=False,
+                evaluated_at=now,
+                # Legacy aliases
+                risk_score=0.0,
                 model_name="CatBoostClinicalRisk",
-                computed_at=datetime.utcnow().isoformat() + "Z",
+                feature_contributions={},
+                computed_at=now,
             )
 
         # Run prediction
@@ -232,23 +302,46 @@ class CatBoostClinicalRiskInference:
             return ClinicalRiskPrediction(
                 prediction_id=str(uuid.uuid4()),
                 risk_band=risk_band,
-                risk_score=risk_score,
                 abstained=False,
+                # Spec §13.4 fields
+                model_id="CatBoostClinicalRisk",
                 model_version=self.model_version,
+                feature_contract_version="1.0.0",
+                mode="CORE_ANC",
+                probability=risk_score,
+                threshold_id="",
+                reason_codes=[],  # Would use SHAP values in production
+                missing_critical_fields=[],
+                out_of_distribution=False,
+                evaluated_at=now,
+                # Legacy aliases
+                risk_score=risk_score,
                 model_name="CatBoostClinicalRisk",
                 feature_contributions={},  # Would use SHAP values in production
-                computed_at=datetime.utcnow().isoformat() + "Z",
+                computed_at=now,
             )
         except Exception as e:
             return ClinicalRiskPrediction(
                 prediction_id=str(uuid.uuid4()),
                 risk_band="NOT_SHOWN",
-                risk_score=0.0,
                 abstained=True,
                 abstain_reason=f"Prediction error: {str(e)}",
+                # Spec §13.4 fields
+                model_id="CatBoostClinicalRisk",
                 model_version=self.model_version,
+                feature_contract_version="1.0.0",
+                mode="CORE_ANC",
+                probability=0.0,
+                threshold_id="",
+                reason_codes=[],
+                missing_critical_fields=[],
+                out_of_distribution=False,
+                evaluated_at=now,
+                # Legacy aliases
+                risk_score=0.0,
                 model_name="CatBoostClinicalRisk",
-                computed_at=datetime.utcnow().isoformat() + "Z",
+                feature_contributions={},
+                computed_at=now,
             )
 
     def model_metadata(self) -> ModelMetadata:

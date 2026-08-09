@@ -148,6 +148,7 @@ class ReferralViewSet(RelatedOrgScopedViewSet, viewsets.ModelViewSet):
             "referral_id": str(referral.id),
             "urgency": referral.urgency,
             "status": referral.status,
+            "pregnancy_episode_id": str(referral.pregnancy_episode_id) if referral.pregnancy_episode_id else None,
             "patient": {
                 "full_name": patient.full_name,
                 "age_years": getattr(patient, "age_years", None),

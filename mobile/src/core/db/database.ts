@@ -178,7 +178,10 @@ CREATE TABLE IF NOT EXISTS outbox (
   sync_status      TEXT NOT NULL DEFAULT 'NOT_SYNCED',
   attempts         INTEGER NOT NULL DEFAULT 0,
   last_error       TEXT,
-  last_attempt_at  TEXT
+  last_attempt_at  TEXT,
+  entity_id        TEXT,
+  operation        TEXT NOT NULL DEFAULT 'UPSERT',
+  local_version    INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS episodes (
@@ -258,6 +261,7 @@ CREATE TABLE IF NOT EXISTS newborn_episodes (
 CREATE TABLE IF NOT EXISTS newborn_observations (
   id                        TEXT PRIMARY KEY,
   newborn_id                TEXT NOT NULL,
+  correction_of_id          TEXT,
   temperature_c             REAL,
   respiratory_rate_min      INTEGER,
   severe_chest_indrawing    INTEGER,
@@ -413,6 +417,7 @@ CREATE INDEX IF NOT EXISTS idx_content_cache_key ON content_cache(cache_key);
 CREATE TABLE IF NOT EXISTS pregnancy_observations (
   id                TEXT PRIMARY KEY,
   episode_id        TEXT NOT NULL,
+  correction_of_id  TEXT,
   bp_systolic       INTEGER,
   bp_diastolic      INTEGER,
   temperature_c     REAL,
@@ -623,6 +628,13 @@ export function initDatabase(): void {
     { query: 'ALTER TABLE audit_events ADD COLUMN device_id TEXT NOT NULL DEFAULT ""' },
     { query: 'ALTER TABLE audit_events ADD COLUMN facility_id TEXT' },
     { query: 'ALTER TABLE audit_events ADD COLUMN purpose TEXT NOT NULL DEFAULT "DIRECT_CARE"' },
+    // outbox: add spec §19.2 columns for existing DBs
+    { query: 'ALTER TABLE outbox ADD COLUMN entity_id TEXT' },
+    { query: 'ALTER TABLE outbox ADD COLUMN operation TEXT NOT NULL DEFAULT "UPSERT"' },
+    { query: 'ALTER TABLE outbox ADD COLUMN local_version INTEGER NOT NULL DEFAULT 1' },
+    // Append-only correction tracking (spec §9, SYNC-003)
+    { query: 'ALTER TABLE pregnancy_observations ADD COLUMN correction_of_id TEXT' },
+    { query: 'ALTER TABLE newborn_observations ADD COLUMN correction_of_id TEXT' },
   ];
   try {
     db.executeBatch(migrations);
@@ -661,6 +673,85 @@ export function clearDatabase(): void {
   db.execute('DELETE FROM risk_assessments');
   db.execute('DELETE FROM referral_state_logs');
   db.execute('DELETE FROM caregiver_links');
+}
+
+/**
+ * Append-only enforcement for clinical observation tables (spec §9, SYNC-003).
+ *
+ * Clinical observations (pregnancy_observations, newborn_observations) are
+ * append-only: corrections MUST create a new superseding row with
+ * `correction_of_id` pointing to the original record, never UPDATE or DELETE
+ * the existing row. This preserves the full audit trail required by spec §9.
+ *
+ * The main enforcement is in the sync layer (backend rejects UPDATE payloads
+ * for observation tables). This helper provides the application-level
+ * pattern for creating correction records locally.
+ *
+ * Usage:
+ *   insertCorrection('pregnancy_observations', originalId, {
+ *     episode_id: 'ep-1',
+ *     bp_systolic: 140,
+ *     bp_diastolic: 90,
+ *     recorded_at: new Date().toISOString(),
+ *   });
+ */
+const APPEND_ONLY_TABLES = new Set([
+  'pregnancy_observations',
+  'newborn_observations',
+]);
+
+/**
+ * Create a correction record that supersedes an existing observation.
+ * The original record is left intact; the new record references it via
+ * `correction_of_id` so the full history is preserved (spec §9, SYNC-003).
+ *
+ * @param table     The observation table name (must be in APPEND_ONLY_TABLES)
+ * @param originalId  The id of the record being corrected
+ * @param newData    Column-value pairs for the correction record
+ * @returns          The id of the newly inserted correction record
+ */
+export function insertCorrection(
+  table: string,
+  originalId: string,
+  newData: Record<string, boolean | number | string | null>,
+): string {
+  if (!APPEND_ONLY_TABLES.has(table)) {
+    throw new Error(
+      `insertCorrection: table "${table}" is not an append-only observation table. ` +
+      `Only ${Array.from(APPEND_ONLY_TABLES).join(', ')} are supported.`,
+    );
+  }
+
+  const db = getDb();
+  const correctionId = `corr-${originalId}-${Date.now()}`;
+  const now = new Date().toISOString();
+
+  // Build INSERT with correction_of_id referencing the original
+  const columns = ['id', 'correction_of_id', 'sync_status'];
+  const placeholders = ['?', '?', '?'];
+  const values: (boolean | number | string | null)[] = [
+    correctionId,
+    originalId,
+    'NOT_SYNCED',
+  ];
+
+  for (const [key, value] of Object.entries(newData)) {
+    columns.push(key);
+    placeholders.push('?');
+    values.push(value);
+  }
+
+  // Ensure recorded_at is set if not provided
+  if (!('recorded_at' in newData)) {
+    columns.push('recorded_at');
+    placeholders.push('?');
+    values.push(now);
+  }
+
+  const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`;
+  db.execute(sql, values as any);
+
+  return correctionId;
 }
 
 export { getDb, query };

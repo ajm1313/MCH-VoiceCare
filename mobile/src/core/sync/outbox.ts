@@ -17,20 +17,34 @@ export interface OutboxRecord extends OfflineEnvelope<unknown> {
   lastAttemptAt?: string | null;
 }
 
+export interface EnqueueOptions {
+  /** The UUID of the entity being synced (spec §19.2). */
+  entityId?: string;
+  /** Whether this is an UPSERT or DELETE (spec §19.2). Defaults to 'UPSERT'. */
+  operation?: 'UPSERT' | 'DELETE';
+  /** Incremental version counter for optimistic concurrency (spec §19.2). Defaults to 1. */
+  localVersion?: number;
+}
+
 export function enqueue<TPayload>(
   entityType: string,
   payload: TPayload,
   deviceId: string,
   ruleSetVersion: string,
+  options?: EnqueueOptions,
 ): string {
   const clientId = uuidv4();
   const idempotencyKey = `${clientId}:${Date.now()}`;
   const now = new Date().toISOString();
 
+  const entityId = options?.entityId ?? null;
+  const operation = options?.operation ?? 'UPSERT';
+  const localVersion = options?.localVersion ?? 1;
+
   const db = getDb();
   db.execute(
-    `INSERT INTO ${TABLE} (client_id, idempotency_key, entity_type, payload, created_at_local, device_id, rule_set_version, sync_status, attempts)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'NOT_SYNCED', 0)`,
+    `INSERT INTO ${TABLE} (client_id, idempotency_key, entity_type, payload, created_at_local, device_id, rule_set_version, sync_status, attempts, entity_id, operation, local_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'NOT_SYNCED', 0, ?, ?, ?)`,
     [
       clientId,
       idempotencyKey,
@@ -39,6 +53,9 @@ export function enqueue<TPayload>(
       now,
       deviceId,
       ruleSetVersion,
+      entityId,
+      operation,
+      localVersion,
     ],
   );
 
@@ -94,5 +111,8 @@ function rowToRecord(row: Record<string, unknown>): OutboxRecord {
     attempts: row.attempts as number,
     lastError: (row.last_error as string) ?? null,
     lastAttemptAt: (row.last_attempt_at as string) ?? null,
+    entityId: (row.entity_id as string) ?? undefined,
+    operation: (row.operation as 'UPSERT' | 'DELETE') ?? 'UPSERT',
+    localVersion: (row.local_version as number) ?? 1,
   };
 }

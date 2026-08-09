@@ -25,6 +25,12 @@ export interface OfflineEnvelope<TPayload> {
   ruleSetVersion: string; // OFF-003
   syncStatus: SyncStatus;
   attempts: number;
+  /** The UUID of the entity being synced (spec §19.2). */
+  entityId?: string;
+  /** Whether this is an UPSERT or DELETE (spec §19.2). Defaults to 'UPSERT'. */
+  operation?: 'UPSERT' | 'DELETE';
+  /** Incremental version counter for optimistic concurrency (spec §19.2). Defaults to 1. */
+  localVersion?: number;
 }
 
 /** SYNC-002: per-record server acknowledgement. */

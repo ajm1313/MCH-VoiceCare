@@ -41,6 +41,64 @@ class VersionConflict(Exception):
     pass
 
 
+class SafetyCriticalOCRConflict(Exception):
+    """Raised when unconfirmed OCR safety-critical fields are synced (spec §16.3)."""
+    pass
+
+
+# Safety-critical field names for observation types (spec §16.3).
+# These are the clinical fields that feed into the rule engine and MUST be
+# human-confirmed before entering clinical scoring when captured via OCR.
+_SAFETY_CRITICAL_PREGNANCY_FIELDS = {
+    "bp_systolic", "bp_diastolic", "hb_g_dl", "temperature_c",
+    "respiratory_rate_min", "weight_kg", "fundal_height_cm", "fhr_bpm",
+    "urine_protein", "urine_glucose", "oedema",
+    "vaginal_bleeding", "fluid_leakage", "contractions",
+    "severe_headache", "visual_disturbance", "epigastric_pain",
+    "convulsion_or_unconsciousness", "severe_abdominal_pain",
+    "fever_or_severe_illness", "suspected_shock_or_collapse",
+    "severe_breathing_difficulty", "suspected_cord_prolapse",
+    "persistent_vomiting_dehydration", "jaundice_or_liver_symptoms",
+    "offensive_discharge_with_fever_pain", "anaemia_symptoms",
+}
+
+_SAFETY_CRITICAL_NEWBORN_FIELDS = {
+    "temperature_c", "respiratory_rate_min", "current_weight_g",
+    "severe_chest_indrawing", "convulsions", "grunting",
+    "apnoea_or_gasping", "central_cyanosis", "bulging_fontanelle",
+    "abdominal_distension", "yellow_palms_soles",
+}
+
+_SAFETY_CRITICAL_FIELDS_BY_ENTITY = {
+    "pregnancy_observations": _SAFETY_CRITICAL_PREGNANCY_FIELDS,
+    "newborn_observations": _SAFETY_CRITICAL_NEWBORN_FIELDS,
+}
+
+
+def _has_unconfirmed_safety_critical_ocr(entity_type, item):
+    """Check if an OCR observation has unconfirmed safety-critical fields (spec §16.3).
+
+    Returns True if the observation has ``capture_route == 'OCR'``,
+    ``human_confirmed == False``, and at least one safety-critical field
+    is populated with a non-default value.
+    """
+    if entity_type not in _SAFETY_CRITICAL_FIELDS_BY_ENTITY:
+        return False
+    capture_route = item.get("capture_route", "")
+    if capture_route != "OCR":
+        return False
+    if item.get("human_confirmed", True):
+        return False
+    safety_fields = _SAFETY_CRITICAL_FIELDS_BY_ENTITY[entity_type]
+    for field_name in safety_fields:
+        if field_name in item:
+            val = item[field_name]
+            # Skip None / empty string / False (default) values
+            if val is not None and val != "" and val is not False:
+                return True
+    return False
+
+
 def _prepare_observation_correction(item, existing_obs):
     """Build correction data for an append-only observation update (spec §19.4).
 
@@ -113,6 +171,13 @@ class SyncViewSet(viewsets.ViewSet):
             for item in items:
                 item_id = item.get("id")
                 try:
+                    # Safety-critical OCR fields MUST be human-confirmed before
+                    # entering clinical scoring (spec §16.3).
+                    if _has_unconfirmed_safety_critical_ocr(entity_type, item):
+                        raise SafetyCriticalOCRConflict(
+                            "Safety-critical OCR fields must be human-confirmed before sync"
+                        )
+
                     # Append-only observations (spec §19.4) — corrections create
                     # a new record rather than overwriting the original.
                     if entity_type == "pregnancy_observations" and item_id:
@@ -173,6 +238,13 @@ class SyncViewSet(viewsets.ViewSet):
                         "id": item_id,
                         "status": "conflict",
                         "error": str(e),
+                    })
+                except SafetyCriticalOCRConflict as e:
+                    entity_results.append({
+                        "id": item_id,
+                        "status": "error",
+                        "error": str(e),
+                        "code": "UNCONFIRMED_SAFETY_CRITICAL_OCR",
                     })
                 except Exception as e:
                     entity_results.append({
@@ -305,6 +377,13 @@ class SyncViewSet(viewsets.ViewSet):
             try:
                 item_id = resource.get("id")
 
+                # Safety-critical OCR fields MUST be human-confirmed before
+                # entering clinical scoring (spec §16.3).
+                if _has_unconfirmed_safety_critical_ocr(entity_type, resource):
+                    raise SafetyCriticalOCRConflict(
+                        "Safety-critical OCR fields must be human-confirmed before sync"
+                    )
+
                 # Append-only observations (spec §19.4)
                 if entity_type == "pregnancy_observations" and item_id:
                     existing_obs = model.objects.filter(id=item_id).first()
@@ -356,6 +435,12 @@ class SyncViewSet(viewsets.ViewSet):
                 rejected.append({
                     "eventId": event_id,
                     "code": "VERSION_CONFLICT",
+                    "message": str(e),
+                })
+            except SafetyCriticalOCRConflict as e:
+                rejected.append({
+                    "eventId": event_id,
+                    "code": "UNCONFIRMED_SAFETY_CRITICAL_OCR",
                     "message": str(e),
                 })
             except Exception as e:

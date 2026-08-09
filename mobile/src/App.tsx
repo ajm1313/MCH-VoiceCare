@@ -61,7 +61,7 @@ import {ReferralCreateScreen} from './screens/ReferralCreateScreen';
 import {ReferralDetailScreen} from './screens/ReferralDetailScreen';
 import {ReferralQrSlipScreen} from './screens/ReferralQrSlipScreen';
 import {ClinicianOverrideScreen} from './screens/ClinicianOverrideScreen';
-import {OCRScanScreen} from './screens/OCRScanScreen';
+import {ScanScreen} from './screens/ScanScreen';
 import {OCRConfirmScreen} from './screens/OCRConfirmScreen';
 import {PersonListScreen} from './screens/PersonListScreen';
 import {PersonDetailScreen} from './screens/PersonDetailScreen';
@@ -351,8 +351,8 @@ export default function App(): React.JSX.Element {
                 options={{title: 'Clinical Override'}}
               />
               <Stack.Screen
-                name="OCRScan"
-                component={OCRScanScreen}
+                name="Scan"
+                component={ScanScreen}
                 options={{title: 'Scan Document'}}
               />
               <Stack.Screen

@@ -111,4 +111,15 @@ export const CACHE_KEYS = {
   DEVICE_CONFIG: 'device_config',
   DASHBOARD_AGGREGATE: 'dashboard_aggregate',
   WORKLIST: 'worklist',
+  // Package-type cache keys with rollback support (spec §24)
+  ML_MODEL: 'ml_model',
+  ML_MODEL_PREVIOUS: 'ml_model_previous',
+  ENGAGEMENT_PACK: 'engagement_pack',
+  ENGAGEMENT_PACK_PREVIOUS: 'engagement_pack_previous',
+  OCR_TEMPLATE: 'ocr_template',
+  OCR_TEMPLATE_PREVIOUS: 'ocr_template_previous',
+  TELEPHONY_PACK: 'telephony_pack',
+  TELEPHONY_PACK_PREVIOUS: 'telephony_pack_previous',
+  APP_CONFIG: 'app_config',
+  APP_CONFIG_PREVIOUS: 'app_config_previous',
 } as const;

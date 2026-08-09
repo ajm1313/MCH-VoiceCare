@@ -8,6 +8,7 @@ import uuid
 
 from django.db import models
 from django.core.cache import cache
+from django.utils import timezone
 
 from apps.core.enums import MLMode
 from apps.core.models import TimeStampedModel
@@ -100,3 +101,53 @@ class SystemConfig(TimeStampedModel):
     def is_feature_enabled(cls, flag: str) -> bool:
         """Check if a feature flag is enabled."""
         return cls.get(flag, False)
+
+
+class RoleContact(TimeStampedModel):
+    """Dedicated model for role-based facility contacts with time-bounded
+    verification (spec §18.2).
+
+    Replaces the JSON-based role_contact_numbers in SystemConfig for
+    proper validation and expiry enforcement.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    facility = models.ForeignKey(
+        "organisations.OrganisationUnit",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="Facility this contact belongs to. Null = system-wide.",
+    )
+    role = models.CharField(
+        max_length=50,
+        help_text="Role key, e.g. MIDWIFE, CHO, FACILITY_ADMIN",
+    )
+    phone_number = models.CharField(max_length=20)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["facility", "role"]
+        unique_together = ["facility", "role"]
+        verbose_name = "Role Contact"
+        verbose_name_plural = "Role Contacts"
+
+    def __str__(self):
+        return f"{self.role} @ {self.facility or 'system'}: {self.phone_number}"
+
+    @classmethod
+    def get_active_contact(cls, facility_id, role):
+        """Get the active, non-expired contact for a given facility and role.
+
+        Returns the phone number string or None if not found.
+        """
+        now = timezone.now()
+        contact = cls.objects.filter(
+            facility_id=facility_id,
+            role=role,
+            is_active=True,
+        ).filter(
+            models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=now),
+        ).first()
+        return contact.phone_number if contact else None

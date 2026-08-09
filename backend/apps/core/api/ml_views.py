@@ -86,9 +86,11 @@ class MLPredictView(APIView):
                 "mlMode": ml_mode,
                 "module": module,
                 "riskBand": prediction.risk_band,
-                "riskScore": prediction.risk_score,
+                "riskScore": prediction.probability,
+                "probability": prediction.probability,
                 "abstained": prediction.abstained,
                 "modelVersion": prediction.model_version,
+                "modelId": prediction.model_id,
                 "ruleDisposition": rule_disposition,
             },
         )

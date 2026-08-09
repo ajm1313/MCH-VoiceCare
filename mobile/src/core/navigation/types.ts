@@ -55,7 +55,7 @@ export type RootStackParamList = {
   SyncStatus: undefined;
   AuditList: undefined;
   ClinicianOverride: { episodeId: string; episodeType: string; priorRecommendation: string };
-  // OCR (spec §16)
-  OCRScan: { patientId: string; episode?: string };
+  // OCR (spec §16, §10 — screen named "ScanScreen")
+  Scan: { patientId: string; episode?: string };
   OCRConfirm: { jobId: string };
 };

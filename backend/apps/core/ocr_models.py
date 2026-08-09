@@ -29,12 +29,39 @@ class DocumentTemplate(TimeStampedModel):
     status = models.CharField(max_length=20, default="ACTIVE")
     description = models.TextField(blank=True)
 
-    # Field definitions: list of {key, label, type, unit, required, safety_critical,
-    # confidence_threshold, range_min, range_max}
-    field_definitions = models.JSONField(default=list)
+    # Field definitions: list of dicts, each containing:
+    #   - key: field identifier
+    #   - label: human-readable label
+    #   - type: "text" | "number" | "decimal" | "date" | "checkbox"
+    #   - unit: optional unit string
+    #   - required: bool
+    #   - safety_critical: bool
+    #   - confidence_threshold: float (0.0-1.0)
+    #   - range_min: optional numeric minimum
+    #   - range_max: optional numeric maximum
+    #   - bbox: [x, y, width, height] — region coordinates for ROI extraction
+    #   - recognizer: "printed" | "handwritten_numeric" | "handwritten_text" | "checkbox"
+    #     — which OCR engine to use for this field
+    field_definitions = models.JSONField(
+        default=list,
+        help_text=(
+            "List of field definition dicts. Each dict should include: "
+            "key, label, type, unit, required, safety_critical, "
+            "confidence_threshold, range_min, range_max, "
+            "bbox ([x, y, width, height] for ROI extraction), and "
+            "recognizer ('printed' | 'handwritten_numeric' | "
+            "'handwritten_text' | 'checkbox')."
+        ),
+    )
 
     # Template image reference for geometric alignment (spec §16.3)
     reference_image_url = models.CharField(max_length=500, blank=True)
+
+    # Page dimensions for geometric alignment (e.g., "A4", "210x297mm")
+    page_dimensions = models.CharField(max_length=100, blank=True)
+
+    # Date from which this template version is active (spec §16.4)
+    active_from = models.DateField(null=True, blank=True)
 
     activated_at = models.DateTimeField(null=True, blank=True)
     retired_at = models.DateTimeField(null=True, blank=True)

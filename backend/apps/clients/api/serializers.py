@@ -1,6 +1,6 @@
 """Client API serializers."""
 from rest_framework import serializers
-from apps.clients.models import Person, Household, CaregiverLink
+from apps.clients.models import Person, Household, CaregiverLink, PatientReconciliationQueue
 
 
 class PersonSerializer(serializers.ModelSerializer):
@@ -42,3 +42,17 @@ class CaregiverLinkSerializer(serializers.ModelSerializer):
             "relationship", "is_primary", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class PatientReconciliationQueueSerializer(serializers.ModelSerializer):
+    person_a_name = serializers.CharField(source="person_a.full_name", read_only=True)
+    person_b_name = serializers.CharField(source="person_b.full_name", read_only=True)
+
+    class Meta:
+        model = PatientReconciliationQueue
+        fields = [
+            "id", "person_a", "person_a_name", "person_b", "person_b_name",
+            "reason", "match_score", "status", "resolved_by", "resolved_at",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]

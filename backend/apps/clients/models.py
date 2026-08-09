@@ -118,3 +118,42 @@ class CaregiverLink(TimeStampedModel):
 
     def __str__(self):
         return f"{self.caregiver.full_name} → {self.child.full_name}"
+
+
+class PatientReconciliationQueue(TimeStampedModel):
+    """
+    Reconciliation queue for potential duplicate patient identities
+    (spec §19.4). Patient identity conflicts are NEVER auto-merged —
+    they are placed in this queue for manual review.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    person_a = models.ForeignKey(
+        Person, on_delete=models.CASCADE, related_name="reconciliation_as_a",
+    )
+    person_b = models.ForeignKey(
+        Person, on_delete=models.CASCADE, related_name="reconciliation_as_b",
+    )
+    reason = models.CharField(
+        max_length=200, help_text="Why these records may be duplicates",
+    )
+    match_score = models.FloatField(
+        default=0.0, help_text="Similarity score 0-1",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("PENDING", "Pending"),
+            ("RESOLVED_MERGE", "Resolved - Merged"),
+            ("RESOLVED_KEEP_BOTH", "Resolved - Keep Both"),
+            ("RESOLVED_REJECT", "Resolved - Rejected"),
+        ],
+        default="PENDING",
+    )
+    resolved_by = models.CharField(max_length=200, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-match_score", "-created_at"]
+
+    def __str__(self):
+        return f"Reconciliation: {self.person_a.full_name} ↔ {self.person_b.full_name} ({self.status})"

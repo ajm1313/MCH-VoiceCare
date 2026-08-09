@@ -74,6 +74,19 @@ class OCRAdapter:
         """
         raise NotImplementedError
 
+    def detect_template(self, image_path: str) -> Optional[str]:
+        """
+        Detect the document template from an image (spec §16.4).
+
+        Args:
+            image_path: Path to the image file
+
+        Returns:
+            The detected template_id, or None if no template could be
+            identified (in which case manual entry is required).
+        """
+        raise NotImplementedError
+
 
 class StubOCRAdapter(OCRAdapter):
     """
@@ -91,6 +104,10 @@ class StubOCRAdapter(OCRAdapter):
             error=None,
             page_quality_score=None,
         )
+
+    def detect_template(self, image_path: str) -> Optional[str]:
+        """Stub template detection — always returns None (no detection in stub mode)."""
+        return None
 
 
 # Singleton adapter instance — replace with PP-OCRv5 adapter when ready

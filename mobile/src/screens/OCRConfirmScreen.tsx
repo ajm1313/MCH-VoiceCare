@@ -61,6 +61,7 @@ export function OCRConfirmScreen({route, navigation}: Props) {
   const [confirming, setConfirming] = useState(false);
   const [corrections, setCorrections] = useState<Record<string, string>>({});
   const [fieldConfirmations, setFieldConfirmations] = useState<Record<string, boolean>>({});
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     loadJob();
@@ -82,11 +83,20 @@ export function OCRConfirmScreen({route, navigation}: Props) {
           }
         }
         setFieldConfirmations(initConf);
+      } else {
+        // Server returned an error — likely offline or job unavailable
+        setLoadFailed(true);
       }
     } catch {
-      Alert.alert('Error', 'Failed to load OCR results.');
+      // Network error — cannot load OCR results offline (spec §10.2)
+      setLoadFailed(true);
     }
     setLoading(false);
+  }
+
+  function enterManually() {
+    // Navigate to manual observation entry
+    navigation.navigate('PregnancyObserve', {episodeId: ''});
   }
 
   function updateCorrection(key: string, value: string) {
@@ -133,10 +143,24 @@ export function OCRConfirmScreen({route, navigation}: Props) {
           {text: 'OK', onPress: () => navigation.goBack()},
         ]);
       } else {
-        Alert.alert('Error', 'Failed to confirm OCR results.');
+        Alert.alert(
+          'Error',
+          'Failed to confirm OCR results.',
+          [
+            {text: 'OK'},
+            {text: 'Enter Manually', onPress: enterManually},
+          ],
+        );
       }
     } catch {
-      Alert.alert('Error', 'Network error during confirmation.');
+      Alert.alert(
+        'Offline',
+        'Network error during confirmation. Please enter data manually.',
+        [
+          {text: 'OK'},
+          {text: 'Enter Manually', onPress: enterManually},
+        ],
+      );
     }
     setConfirming(false);
   }
@@ -168,7 +192,14 @@ export function OCRConfirmScreen({route, navigation}: Props) {
                 ]);
               }
             } catch {
-              Alert.alert('Error', 'Network error during rejection.');
+              Alert.alert(
+                'Offline',
+                'Network error during rejection. Please enter data manually.',
+                [
+                  {text: 'OK'},
+                  {text: 'Enter Manually', onPress: enterManually},
+                ],
+              );
             }
             setConfirming(false);
           },
@@ -203,7 +234,25 @@ export function OCRConfirmScreen({route, navigation}: Props) {
           <Text style={[styles.title, {color: colors.textPrimary}]}>Confirm OCR Results</Text>
         </View>
         <View style={styles.content}>
-          <Text style={[styles.bodyText, {color: colors.textSecondary}]}>OCR job not found.</Text>
+          <View style={[styles.card, {backgroundColor: colors.surface}]}>
+            <Text style={[styles.label, {color: loadFailed ? colors.warning : colors.textSecondary}]}>
+              {loadFailed ? 'Offline' : 'Not Found'}
+            </Text>
+            <Text style={[styles.bodyText, {color: colors.textSecondary, marginTop: 8}]}>
+              {loadFailed
+                ? 'Cannot load OCR results offline. Please enter data manually.'
+                : 'OCR job not found.'}
+            </Text>
+          </View>
+          {loadFailed && (
+            <Pressable
+              style={[styles.manualBtn, {borderColor: colors.primary}]}
+              onPress={enterManually}>
+              <Text style={[styles.manualBtnText, {color: colors.primary}]}>
+                Enter Manually
+              </Text>
+            </Pressable>
+          )}
         </View>
       </SafeAreaView>
     );
@@ -382,4 +431,6 @@ const styles = StyleSheet.create({
   confirmBtn: {flex: 1, padding: 14, borderRadius: 12, alignItems: 'center'},
   confirmBtnText: {color: '#fff', fontWeight: '700', fontSize: 14},
   hint: {fontSize: 12, textAlign: 'center', marginTop: 4},
+  manualBtn: {padding: 14, borderRadius: 12, borderWidth: 1, alignItems: 'center'},
+  manualBtnText: {fontWeight: '600', fontSize: 14},
 });

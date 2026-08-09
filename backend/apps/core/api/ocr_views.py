@@ -36,6 +36,8 @@ def _template_to_dict(template):
         "description": template.description,
         "fieldDefinitions": template.field_definitions,
         "referenceImageUrl": template.reference_image_url,
+        "pageDimensions": template.page_dimensions,
+        "activeFrom": template.active_from.isoformat() if template.active_from else None,
     }
 
 
@@ -147,6 +149,14 @@ class OCRJobCreateView(APIView):
             except (ValueError, TypeError):
                 return Response({"error": "Invalid template UUID"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # If no template provided, attempt automatic template detection (spec §16.4)
+        adapter = get_ocr_adapter()
+        if not template and image_path:
+            detected_template_id = adapter.detect_template(image_path)
+            if detected_template_id:
+                template = DocumentTemplate.get_template(detected_template_id)
+            # If detection returns None, manual entry will be required (handled below)
+
         # Create the OCR job
         job = OCRJob.objects.create(
             patient=patient,
@@ -160,7 +170,6 @@ class OCRJobCreateView(APIView):
         )
 
         # Run OCR extraction
-        adapter = get_ocr_adapter()
         result = adapter.extract(image_path, template.template_id if template else None)
 
         job.ocr_engine = "stub"

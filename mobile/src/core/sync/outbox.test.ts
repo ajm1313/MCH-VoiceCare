@@ -38,6 +38,32 @@ describe('outbox — enqueue', () => {
     expect(params[5]).toBe('device-1');
     expect(params[6]).toBe('v1.0');
   });
+
+  it('stores entityId, operation, and localVersion when provided via options', () => {
+    const clientId = enqueue(
+      'pregnancy',
+      { foo: 'bar' },
+      'device-1',
+      'v1.0',
+      { entityId: 'entity-uuid-123', operation: 'UPSERT', localVersion: 3 },
+    );
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+    const [sql, params] = mockExecute.mock.calls[0];
+    expect(sql).toContain('entity_id');
+    expect(sql).toContain('operation');
+    expect(sql).toContain('local_version');
+    expect(params[7]).toBe('entity-uuid-123');
+    expect(params[8]).toBe('UPSERT');
+    expect(params[9]).toBe(3);
+  });
+
+  it('defaults operation to UPSERT and localVersion to 1 when not provided', () => {
+    enqueue('pregnancy', { foo: 'bar' }, 'device-1', 'v1.0');
+    const [, params] = mockExecute.mock.calls[0];
+    expect(params[7]).toBeNull();
+    expect(params[8]).toBe('UPSERT');
+    expect(params[9]).toBe(1);
+  });
 });
 
 describe('outbox — getPending', () => {
@@ -58,6 +84,9 @@ describe('outbox — getPending', () => {
       attempts: 0,
       last_error: null,
       last_attempt_at: null,
+      entity_id: 'entity-uuid-456',
+      operation: 'UPSERT',
+      local_version: 2,
     };
     mockQuery.mockReturnValue([fakeRow]);
 
@@ -67,6 +96,9 @@ describe('outbox — getPending', () => {
     expect(records[0].entityType).toBe('pregnancy');
     expect(records[0].payload).toEqual({ data: 'test' });
     expect(records[0].syncStatus).toBe('NOT_SYNCED');
+    expect(records[0].entityId).toBe('entity-uuid-456');
+    expect(records[0].operation).toBe('UPSERT');
+    expect(records[0].localVersion).toBe(2);
   });
 
   it('returns empty array when no records', () => {

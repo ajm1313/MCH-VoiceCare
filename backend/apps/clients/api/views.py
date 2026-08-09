@@ -4,10 +4,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.clients.models import Person, Household, CaregiverLink
+from apps.clients.models import Person, Household, CaregiverLink, PatientReconciliationQueue
 from apps.clients.api.serializers import (
     PersonSerializer, HouseholdSerializer, CaregiverLinkSerializer,
+    PatientReconciliationQueueSerializer,
 )
+from apps.clients.reconciliation import resolve_reconciliation
 from apps.core.mixins import OrgScopedViewSet
 from apps.audit.services import log_audit
 
@@ -131,3 +133,55 @@ class CaregiverLinkViewSet(viewsets.ModelViewSet):
     serializer_class = CaregiverLinkSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["child", "caregiver", "is_primary"]
+
+
+class PatientReconciliationQueueViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    View and resolve patient identity reconciliation queue items (spec §19.4).
+
+    GET    /api/v1/clients/reconciliation-queue/       — list pending items
+    GET    /api/v1/clients/reconciliation-queue/{id}/   — retrieve a single item
+    POST   /api/v1/clients/reconciliation-queue/{id}/resolve/ — resolve an item
+    """
+    queryset = PatientReconciliationQueue.objects.all().select_related(
+        "person_a", "person_b",
+    )
+    serializer_class = PatientReconciliationQueueSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["status"]
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
+    def resolve(self, request, pk=None):
+        """
+        Resolve a reconciliation queue entry.
+
+        Request body:
+            resolution: "RESOLVED_MERGE" | "RESOLVED_KEEP_BOTH" | "RESOLVED_REJECT"
+        """
+        queue_entry = self.get_object()
+        resolution = request.data.get("resolution", "")
+
+        if resolution not in (
+            "RESOLVED_MERGE", "RESOLVED_KEEP_BOTH", "RESOLVED_REJECT",
+        ):
+            return Response(
+                {"detail": "resolution must be one of: RESOLVED_MERGE, "
+                           "RESOLVED_KEEP_BOTH, RESOLVED_REJECT"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        resolved_by = request.user.username
+        resolve_reconciliation(queue_entry, resolution, resolved_by)
+
+        log_audit(
+            actor=resolved_by,
+            action="RECONCILIATION_RESOLVED",
+            actor_role=request.user.system_role,
+            entity_type="PatientReconciliationQueue",
+            entity_id=str(queue_entry.id),
+            purpose="ADMIN",
+            metadata={"resolution": resolution},
+        )
+
+        queue_entry.refresh_from_db()
+        return Response(PatientReconciliationQueueSerializer(queue_entry).data)

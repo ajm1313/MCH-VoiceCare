@@ -12,6 +12,117 @@ import { verifyPackage, type SigningKeyInfo } from '../rules/signatureVerify';
 import { getCachedSigningKeys } from './configStore';
 import { logLocalAudit } from '../utils/audit';
 
+/**
+ * Generic rollback-retention save for any package type (spec §24).
+ *
+ * Before replacing the active package, saves the current cached version as
+ * the known-good rollback version. This ensures we can revert if the new
+ * package causes issues. Applies to ALL package types: rule, ML, engagement,
+ * OCR, telephony, and config.
+ *
+ * @param cacheKey       The active cache key (e.g. CACHE_KEYS.RULE_SET)
+ * @param previousCacheKey  The rollback cache key (e.g. CACHE_KEYS.RULE_SET_PREVIOUS)
+ * @param data           The new package data to cache
+ * @param version        The version string for the new package
+ * @param ttlHours       TTL for the active cache entry (default 72h)
+ * @param retentionDays  How long to retain the rollback version (default 90 days)
+ * @param entityType     Audit log entity type (e.g. 'rule_package')
+ * @param bundleId       Optional bundle ID for audit metadata
+ * @returns true if the package was successfully saved
+ */
+export function savePackageWithRollback<T>(
+  cacheKey: string,
+  previousCacheKey: string,
+  data: T,
+  version: string,
+  ttlHours: number = 72,
+  retentionDays: number = 90,
+  entityType: string = 'package',
+  bundleId?: string,
+): boolean {
+  // --- Rollback retention (spec §24) ---
+  // Before replacing the active package, save the current one as the
+  // known-good rollback version. This ensures we can revert if the new
+  // package causes issues.
+  const currentPackage = getCachedJSON<T>(cacheKey);
+  if (currentPackage) {
+    // Extract version from current package if it has one, otherwise use the new version
+    const currentVersion = (currentPackage as Record<string, unknown>)?.rule_set_version as string
+      ?? (currentPackage as Record<string, unknown>)?.version as string
+      ?? version;
+    setCachedJSON(previousCacheKey, currentPackage, currentVersion, 24 * retentionDays);
+  }
+
+  // Cache the new active package
+  setCachedJSON(cacheKey, data, version, ttlHours);
+
+  logLocalAudit({
+    action: 'PACKAGE_ACTIVATED',
+    entityType,
+    entityId: version,
+    metadata: {
+      bundle_id: bundleId ?? null,
+      previous_version: (currentPackage as Record<string, unknown>)?.rule_set_version as string
+        ?? (currentPackage as Record<string, unknown>)?.version as string
+        ?? null,
+    },
+  });
+
+  return true;
+}
+
+/**
+ * Generic rollback to a previously cached package (spec §24).
+ * Works for any package type that used savePackageWithRollback.
+ *
+ * @param cacheKey       The active cache key
+ * @param previousCacheKey  The rollback cache key
+ * @param ttlHours       TTL for the restored active cache entry
+ * @param retentionDays  How long to retain the new rollback (the current active)
+ * @param entityType     Audit log entity type
+ * @returns The restored package data, or null if no previous version exists
+ */
+export function rollbackPackage<T>(
+  cacheKey: string,
+  previousCacheKey: string,
+  ttlHours: number = 72,
+  retentionDays: number = 90,
+  entityType: string = 'package',
+): T | null {
+  const previous = getCachedJSON<T>(previousCacheKey);
+  if (!previous) {
+    return null;
+  }
+
+  // Save current as the new "previous" (in case rollback needs to be undone)
+  const current = getCachedJSON<T>(cacheKey);
+  if (current) {
+    const currentVersion = (current as Record<string, unknown>)?.rule_set_version as string
+      ?? (current as Record<string, unknown>)?.version as string
+      ?? 'unknown';
+    setCachedJSON(previousCacheKey, current, currentVersion, 24 * retentionDays);
+  }
+
+  // Restore the previous version as active
+  const previousVersion = (previous as Record<string, unknown>)?.rule_set_version as string
+    ?? (previous as Record<string, unknown>)?.version as string
+    ?? 'unknown';
+  setCachedJSON(cacheKey, previous, previousVersion, ttlHours);
+
+  logLocalAudit({
+    action: 'PACKAGE_ROLLBACK',
+    entityType,
+    entityId: previousVersion,
+    metadata: {
+      rolled_back_from: (current as Record<string, unknown>)?.rule_set_version as string
+        ?? (current as Record<string, unknown>)?.version as string
+        ?? null,
+    },
+  });
+
+  return previous;
+}
+
 export interface SerialisedRule {
   rule_id: string;
   urgency: string;
@@ -148,26 +259,20 @@ export async function syncRulePackage(): Promise<boolean> {
   };
 
   // --- Rollback retention (spec §24) ---
-  // Before replacing the active package, save the current one as the
-  // known-good rollback version. This ensures we can revert if the new
-  // package causes issues.
-  const currentPackage = getCachedJSON<RulePackage>(CACHE_KEYS.RULE_SET);
-  if (currentPackage) {
-    setCachedJSON(CACHE_KEYS.RULE_SET_PREVIOUS, currentPackage, currentPackage.rule_set_version, 24 * 90); // 90 days
-  }
-
-  // Cache with 72-hour TTL (rule packages don't change frequently)
-  setCachedJSON(CACHE_KEYS.RULE_SET, data, data.rule_set_version, 72);
-
-  logLocalAudit({
-    action: 'PACKAGE_ACTIVATED',
-    entityType: 'rule_package',
-    entityId: data.rule_set_version,
-    metadata: {
-      bundle_id: serverData.bundleId,
-      previous_version: currentPackage?.rule_set_version ?? null,
-    },
-  });
+  // Uses the generic savePackageWithRollback which saves the current package
+  // as _PREVIOUS before activating the new one. This same pattern MUST be
+  // applied to all other package types (ML, engagement, OCR, telephony, config)
+  // when their sync functions are added — see savePackageWithRollback().
+  savePackageWithRollback<RulePackage>(
+    CACHE_KEYS.RULE_SET,
+    CACHE_KEYS.RULE_SET_PREVIOUS,
+    data,
+    data.rule_set_version,
+    72,   // 72-hour TTL for active rule package
+    90,   // 90-day retention for rollback version
+    'rule_package',
+    serverData.bundleId,
+  );
 
   return true;
 }
@@ -175,32 +280,18 @@ export async function syncRulePackage(): Promise<boolean> {
 /**
  * Rollback to the previously cached rule package (spec §24).
  * If there is no previous version cached, returns false.
+ *
+ * Delegates to the generic rollbackPackage() which supports all package types.
  */
 export function rollbackRulePackage(): boolean {
-  const previous = getCachedJSON<RulePackage>(CACHE_KEYS.RULE_SET_PREVIOUS);
-  if (!previous) {
-    return false;
-  }
-
-  // Save current as the new "previous" (in case rollback needs to be undone)
-  const current = getCachedJSON<RulePackage>(CACHE_KEYS.RULE_SET);
-  if (current) {
-    setCachedJSON(CACHE_KEYS.RULE_SET_PREVIOUS, current, current.rule_set_version, 24 * 90);
-  }
-
-  // Restore the previous version as active
-  setCachedJSON(CACHE_KEYS.RULE_SET, previous, previous.rule_set_version, 72);
-
-  logLocalAudit({
-    action: 'PACKAGE_ROLLBACK',
-    entityType: 'rule_package',
-    entityId: previous.rule_set_version,
-    metadata: {
-      rolled_back_from: current?.rule_set_version ?? null,
-    },
-  });
-
-  return true;
+  const result = rollbackPackage<RulePackage>(
+    CACHE_KEYS.RULE_SET,
+    CACHE_KEYS.RULE_SET_PREVIOUS,
+    72,
+    90,
+    'rule_package',
+  );
+  return result !== null;
 }
 
 /**

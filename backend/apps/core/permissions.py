@@ -131,3 +131,36 @@ def has_purpose_bound_access(user, purpose: str) -> bool:
     # For now, allow SUPER_ADMIN, REGIONAL_ADMIN etc. with valid purposes
     # This can be extended with a Purpose model later
     return purpose in VALID_PURPOSES
+
+
+def can_access_identified_records(user) -> bool:
+    """Check if user can access identified (non-aggregate) patient records.
+
+    Facility-level users: always yes (direct care).
+    Above-facility users: only with purpose-bound role (spec §21.2).
+    """
+    if user.is_superuser:
+        return True
+    if user.system_role in _FACILITY_LEVEL_ROLES:
+        return True
+    # Above-facility users need purpose-bound access
+    return has_purpose_bound_access(user, "DIRECT_CARE")
+
+
+def filter_queryset_aggregate(qs, user, org_field="organisation_unit"):
+    """Filter a queryset for aggregate/statistical access.
+
+    All admin levels can see aggregate data within their scope.
+    This does NOT include patient identifiers — use filter_queryset_by_org
+    for identified access (which requires purpose-bound checks).
+    """
+    if user.is_superuser:
+        return qs
+
+    unit_ids = get_user_org_unit_ids(user)
+    if unit_ids is None:
+        return qs
+    if not unit_ids:
+        return qs.none()
+
+    return qs.filter(**{f"{org_field}_id__in": unit_ids})

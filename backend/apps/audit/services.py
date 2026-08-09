@@ -312,3 +312,77 @@ def log_permission_change(
             "new_role": new_role,
         },
     )
+
+
+def log_patient_search(
+    actor: str,
+    search_query: str,
+    result_count: int,
+    actor_role: str = "",
+    facility_id=None,
+    purpose: str = "DIRECT_CARE",
+):
+    """Log a patient search event (spec §23)."""
+    return log_audit(
+        actor=actor,
+        action="PATIENT_SEARCH",
+        actor_role=actor_role,
+        entity_type="Person",
+        entity_id=search_query,
+        facility_id=facility_id,
+        purpose=purpose,
+        metadata={
+            "search_query": search_query,
+            "result_count": result_count,
+        },
+    )
+
+
+def log_telephony_emergency(
+    actor: str,
+    patient_id=None,
+    observation_id: str = "",
+    urgency: str = "",
+    facility_id=None,
+    actor_role: str = "",
+):
+    """Log a telephony emergency event (spec §23)."""
+    return log_audit(
+        actor=actor,
+        action="TELEPHONY_EMERGENCY",
+        actor_role=actor_role,
+        entity_type="Observation",
+        entity_id=str(observation_id),
+        patient_id=patient_id,
+        facility_id=facility_id,
+        purpose="REFERRAL",
+        metadata={
+            "urgency": urgency,
+            "channel": "TELEPHONY",
+        },
+    )
+
+
+def log_package_rollback(
+    actor: str,
+    package_type: str,
+    from_version: str,
+    to_version: str,
+    reason: str = "",
+    actor_role: str = "",
+):
+    """Log a package rollback event (spec §23, §24)."""
+    return log_audit(
+        actor=actor,
+        action="PACKAGE_ROLLBACK",
+        actor_role=actor_role,
+        entity_type="Package",
+        entity_id=package_type,
+        purpose="ADMIN",
+        metadata={
+            "package_type": package_type,
+            "from_version": from_version,
+            "to_version": to_version,
+            "reason": reason,
+        },
+    )

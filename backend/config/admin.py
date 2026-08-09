@@ -3,7 +3,7 @@ from django.contrib import admin
 
 from apps.accounts.models import UserAccount, UserRoleScope
 from apps.organisations.models import OrganisationUnit, FacilityCapability
-from apps.clients.models import Person, Household, CaregiverLink
+from apps.clients.models import Person, Household, CaregiverLink, PatientReconciliationQueue
 from apps.pregnancy.models import PregnancyEpisode, PregnancyObservation, PregnancyAssessment
 from apps.newborn.models import BirthEpisode, NewbornEpisode, NewbornObservation, NewbornAssessment
 from apps.immunisation.models import (
@@ -69,6 +69,13 @@ class HouseholdAdmin(admin.ModelAdmin):
 class CaregiverLinkAdmin(admin.ModelAdmin):
     list_display = ("child", "caregiver", "relationship", "is_primary")
     list_filter = ("is_primary",)
+
+
+@admin.register(PatientReconciliationQueue)
+class PatientReconciliationQueueAdmin(admin.ModelAdmin):
+    list_display = ("person_a", "person_b", "match_score", "status", "created_at")
+    list_filter = ("status",)
+    search_fields = ("person_a__full_name", "person_b__full_name", "reason")
 
 
 # ── Pregnancy ──
