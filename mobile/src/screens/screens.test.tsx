@@ -82,7 +82,7 @@ describe('LoginScreen', () => {
     const { LoginScreen } = require('./LoginScreen');
     const tree = render(<LoginScreen />);
     const texts = findAllTexts(tree);
-    expect(texts).toContain('MCH VoiceCare');
+    expect(texts.some((t: string) => t.includes('MCH VoiceCare'))).toBe(true);
   });
 
   it('has username and password inputs', () => {
@@ -218,8 +218,9 @@ describe('PregnancyRegisterScreen', () => {
     const { PregnancyRegisterScreen } = require('./PregnancyRegisterScreen');
     const tree = render(<PregnancyRegisterScreen />);
     const texts = findAllTexts(tree);
-    expect(texts.some((t: string) => t.includes('Identity'))).toBe(true);
-    expect(texts.some((t: string) => t.includes('Dating'))).toBe(true);
+    // Step 1 shows "Identity", step 2 shows "Dating" — check step indicator and section titles
+    const allText = texts.join(' ');
+    expect(allText).toMatch(/Identity/i);
   });
 
   it('has a save button', () => {

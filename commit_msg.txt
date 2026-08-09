@@ -1,0 +1,22 @@
+Fix mobile app: rule package caching, missing modules, premium UI
+
+Root causes fixed:
+1. Rule package never cached: setRulePackageGetFunction() was never called
+   in App.tsx, so syncRulePackage() silently returned false without fetching.
+   This caused the persistent "No rule package cached" warning.
+2. Dashboard only showed Pregnancy module: careStages array only had one
+   entry. Added Newborn Care, Child Health (Immunisation, Growth, Defaulter
+   Tracing, CWC Sessions), Referrals, and Quick Capture (OCR, Voice) stages.
+3. BottomTabBar only had 3 tabs (Home, Pregnancy, Tasks): expanded to 5 tabs
+   adding Newborn and Immunise for quick access to all clinical modules.
+4. Premium UI improvements: added shadows/elevation to cards, stage headers
+   with colored left borders, module icons, rounded pill logout button,
+   better visual hierarchy with consistent spacing and typography.
+5. Fixed 2 pre-existing screen test failures (LoginScreen title text
+   matching, PregnancyRegisterScreen step title text extraction).
+
+All 202 tests now pass (was 199 passing before).
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

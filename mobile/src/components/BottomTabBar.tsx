@@ -15,7 +15,9 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 const TABS: {route: keyof RootStackParamList; label: string; icon: string; hint: string}[] = [
   {route: 'Dashboard', label: 'Home', icon: '🏠', hint: 'Go to dashboard'},
   {route: 'PregnancyList', label: 'Pregnancy', icon: '🤰', hint: 'View pregnancy list'},
-  {route: 'TaskList', label: 'Tasks', icon: '�', hint: 'View task list'},
+  {route: 'NewbornList', label: 'Newborn', icon: '👶', hint: 'View newborn list'},
+  {route: 'ImmunisationList', label: 'Immunise', icon: '💉', hint: 'View immunisation list'},
+  {route: 'TaskList', label: 'Tasks', icon: '📋', hint: 'View task list'},
 ];
 
 export function BottomTabBar({activeRoute}: {activeRoute: string}) {
@@ -58,9 +60,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingBottom: 4,
     paddingTop: 6,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: -2},
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tab: {flex: 1, alignItems: 'center', paddingVertical: 8, minHeight: 48, position: 'relative'},
   icon: {fontSize: 20, marginBottom: 2},
-  label: {fontSize: 10},
+  label: {fontSize: 9},
   indicator: {position: 'absolute', top: 0, width: 24, height: 3, borderRadius: 2},
 });

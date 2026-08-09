@@ -18,6 +18,7 @@ import {setGetFunction} from './core/sync/pull';
 import {setConfigGetFunction} from './core/sync/configStore';
 import {setDashboardGetFunction} from './core/sync/dashboardSync';
 import {setWorklistGetFunction} from './core/sync/worklistSync';
+import {setRulePackageGetFunction} from './core/sync/rulePackageSync';
 import {useAuthStore} from './core/auth/authStore';
 import {useAutoLock} from './core/auth/useAutoLock';
 import {provisionDevice} from './core/auth/deviceProvision';
@@ -137,6 +138,7 @@ export default function App(): React.JSX.Element {
       setConfigGetFunction(httpGet);
       setDashboardGetFunction(httpGet);
       setWorklistGetFunction(httpGet);
+      setRulePackageGetFunction(httpGet);
 
       await initDatabaseEncrypted();
       await restoreSession();

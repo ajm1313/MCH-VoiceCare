@@ -1,12 +1,17 @@
 /**
  * Dashboard screen — UX-003. Shows urgency summary cards and module
  * navigation. Sync queue depth badge reflects offline outbox state.
+ *
+ * All clinical modules are accessible from the dashboard:
+ * Pregnancy, Newborn, Immunisation, Growth, Referrals, OCR, Voice,
+ * plus support tools and admin modules.
  */
 import React, {useEffect, useState} from 'react';
 import {
   Alert,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -55,7 +60,6 @@ export function DashboardScreen({navigation}: Props) {
 
   useEffect(() => {
     try {
-      // Quick stats from local DB
       const overdueRows = query(
         `SELECT COUNT(*) as cnt FROM notifications WHERE status IN ('OPEN','ACKNOWLEDGED','IN_PROGRESS','OVERDUE') AND urgency IN ('RED','ORANGE')`,
       );
@@ -69,7 +73,6 @@ export function DashboardScreen({navigation}: Props) {
         pendingSync: Number((pendingRows[0] as any)?.cnt || 0),
       });
 
-      // Recent activity feed
       const activities: {label: string; sub: string; time: string; icon: string}[] = [];
       const pregObs = query(`SELECT recorded_at FROM pregnancy_observations ORDER BY recorded_at DESC LIMIT 5`);
       for (const r of pregObs as any[]) {
@@ -82,7 +85,6 @@ export function DashboardScreen({navigation}: Props) {
 
   useEffect(() => {
     try {
-      // Analytics: pregnancy-focused stats
       const activePregnancies = (query(`SELECT COUNT(*) as cnt FROM episodes WHERE module = 'pregnancy' AND status = 'OPEN'`)[0] as any)?.cnt || 0;
       const highRiskPregnancies = (query(`SELECT COUNT(*) as cnt FROM episodes WHERE module = 'pregnancy' AND status = 'OPEN' AND risk_class IN ('RED', 'ORANGE')`)[0] as any)?.cnt || 0;
       const totalObservations = (query(`SELECT COUNT(*) as cnt FROM pregnancy_observations`)[0] as any)?.cnt || 0;
@@ -119,32 +121,73 @@ export function DashboardScreen({navigation}: Props) {
     {key: 'GREY', label: 'GREY — Data missing', color: urgency.GREY, description: 'Assessment needed', count: counts.GREY},
   ];
 
+  // All clinical care stages with their modules
   const careStages = [
     {
       title: 'Pregnancy & Antenatal',
       icon: '🤰',
       desc: 'Active pregnancies, observations & assessments',
+      color: brand.teal,
       modules: [
-        {label: 'Pregnancy', desc: 'Active episodes & assessments', target: 'PregnancyList' as const},
-        {label: 'Profiling', desc: 'Pregnancy risk profiling', target: 'ProfileList' as const},
+        {label: 'Pregnancy', desc: 'Active episodes & assessments', target: 'PregnancyList' as const, icon: '🤰'},
+        {label: 'Profiling', desc: 'Pregnancy risk profiling', target: 'ProfileList' as const, icon: '📊'},
+      ],
+    },
+    {
+      title: 'Newborn Care',
+      icon: '👶',
+      desc: 'Newborn episodes, observations & assessments',
+      color: '#7C3AED',
+      modules: [
+        {label: 'Newborn', desc: 'Newborn episodes & observations', target: 'NewbornList' as const, icon: '👶'},
+      ],
+    },
+    {
+      title: 'Child Health',
+      icon: '💉',
+      desc: 'Immunisation, growth monitoring & defaulter tracing',
+      color: '#059669',
+      modules: [
+        {label: 'Immunisation', desc: 'EPI schedule & vaccine doses', target: 'ImmunisationList' as const, icon: '💉'},
+        {label: 'Growth', desc: 'Growth measurements & charts', target: 'GrowthList' as const, icon: '📈'},
+        {label: 'Defaulter Tracing', desc: 'Track & trace defaulters', target: 'DefaulterList' as const, icon: '🔍'},
+        {label: 'CWC Sessions', desc: 'Child welfare clinic sessions', target: 'CWCSession' as const, icon: '🏥'},
+      ],
+    },
+    {
+      title: 'Referrals',
+      icon: '🚑',
+      desc: 'Patient referral management & tracking',
+      color: urgency.RED,
+      modules: [
+        {label: 'Referrals', desc: 'Create & track referrals', target: 'ReferralList' as const, icon: '🚑'},
+      ],
+    },
+    {
+      title: 'Quick Capture',
+      icon: '📷',
+      desc: 'OCR document scanning & voice recording',
+      color: '#6366F1',
+      modules: [
+        {label: 'OCR Scan', desc: 'Select client & scan document', target: 'PersonList' as const, icon: '📷'},
+        {label: 'Voice Record', desc: 'Select episode & record voice', target: 'PregnancyList' as const, icon: '🎤'},
       ],
     },
   ];
 
   const supportModules = [
-    {label: 'Tasks', desc: 'Open notifications & action items', target: 'TaskList' as const, adminOnly: false},
-    {label: 'Referrals', desc: 'Patient referral management', target: 'ReferralList' as const, adminOnly: false},
-    {label: 'Clients', desc: 'Persons & households', target: 'PersonList' as const, adminOnly: false},
-    {label: 'Households', desc: 'Household registry', target: 'HouseholdList' as const, adminOnly: false},
-    {label: 'Campaigns', desc: 'Communication campaigns', target: 'CampaignList' as const, adminOnly: true},
-    {label: 'Templates', desc: 'Message templates', target: 'TemplateList' as const, adminOnly: true},
-    {label: 'Reports', desc: 'Report generation & viewing', target: 'ReportList' as const, adminOnly: false},
-    {label: 'Integrations', desc: 'External system configs', target: 'IntegrationList' as const, superAdminOnly: true},
-    {label: 'Org Units', desc: 'Organisation structure', target: 'OrgUnitList' as const, adminOnly: true},
-    {label: 'Users', desc: 'User account management', target: 'UserList' as const, superAdminOnly: true},
-    {label: 'Audit Log', desc: 'System audit trail', target: 'AuditList' as const, superAdminOnly: true},
-    {label: 'Sync Status', desc: 'Last sync, queue & conflicts', target: 'SyncStatus' as const, adminOnly: false},
-    {label: 'Monitoring', desc: 'System health & clinical safety', target: 'Monitoring' as const, adminOnly: true},
+    {label: 'Tasks', desc: 'Open notifications & action items', target: 'TaskList' as const, adminOnly: false, icon: '📋'},
+    {label: 'Clients', desc: 'Persons & households', target: 'PersonList' as const, adminOnly: false, icon: '👤'},
+    {label: 'Households', desc: 'Household registry', target: 'HouseholdList' as const, adminOnly: false, icon: '🏠'},
+    {label: 'Reports', desc: 'Report generation & viewing', target: 'ReportList' as const, adminOnly: false, icon: '📄'},
+    {label: 'Sync Status', desc: 'Last sync, queue & conflicts', target: 'SyncStatus' as const, adminOnly: false, icon: '⟳'},
+    {label: 'Campaigns', desc: 'Communication campaigns', target: 'CampaignList' as const, adminOnly: true, icon: '📢'},
+    {label: 'Templates', desc: 'Message templates', target: 'TemplateList' as const, adminOnly: true, icon: '📝'},
+    {label: 'Integrations', desc: 'External system configs', target: 'IntegrationList' as const, superAdminOnly: true, icon: '🔌'},
+    {label: 'Org Units', desc: 'Organisation structure', target: 'OrgUnitList' as const, adminOnly: true, icon: '🏛️'},
+    {label: 'Users', desc: 'User account management', target: 'UserList' as const, superAdminOnly: true, icon: '👥'},
+    {label: 'Audit Log', desc: 'System audit trail', target: 'AuditList' as const, superAdminOnly: true, icon: '🔒'},
+    {label: 'Monitoring', desc: 'System health & clinical safety', target: 'Monitoring' as const, adminOnly: true, icon: '📡'},
   ].filter(m => {
     if (m.superAdminOnly) return isSuperAdmin;
     if (m.adminOnly) return isAdmin;
@@ -154,11 +197,11 @@ export function DashboardScreen({navigation}: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerLeft}>
           <Text style={styles.greeting}>Welcome, {user?.fullName || user?.username}</Text>
-          <Text style={styles.role}>{user?.systemRole}</Text>
+          <Text style={styles.role}>{user?.systemRole?.replace(/_/g, ' ')}</Text>
         </View>
-        <Pressable onPress={() => {
+        <Pressable style={styles.logoutBtn} onPress={() => {
           const {hasUnsynced, count} = useAuthStore.getState().checkUnsyncedBeforeLogout();
           if (hasUnsynced) {
             Alert.alert(
@@ -212,22 +255,22 @@ export function DashboardScreen({navigation}: Props) {
             {analytics.totalChildren > 0 && (
               <View style={styles.analyticsContainer}>
                 <Text style={styles.sectionTitle}>Pregnancy Analytics</Text>
-                {/* High-risk rate */}
-                <View style={[styles.quickCard, {borderTopColor: urgency.ORANGE, borderTopWidth: 3}]}>
-                  <Text style={styles.quickIcon}>⚠️</Text>
-                  <Text style={styles.analyticsValue}>{analytics.coverageRate}%</Text>
-                  <Text style={styles.quickLabel}>High Risk</Text>
-                  <View style={styles.analyticsBarBg}>
-                    <View style={[styles.analyticsBarFill, {width: `${analytics.coverageRate}%`, backgroundColor: analytics.coverageRate > 30 ? urgency.RED : analytics.coverageRate > 15 ? urgency.ORANGE : urgency.GREEN}]} />
+                <View style={styles.analyticsRow}>
+                  <View style={[styles.quickCard, {borderTopColor: urgency.ORANGE}]}>
+                    <Text style={styles.quickIcon}>⚠️</Text>
+                    <Text style={styles.analyticsValue}>{analytics.coverageRate}%</Text>
+                    <Text style={styles.quickLabel}>High Risk</Text>
+                    <View style={styles.analyticsBarBg}>
+                      <View style={[styles.analyticsBarFill, {width: `${analytics.coverageRate}%`, backgroundColor: analytics.coverageRate > 30 ? urgency.RED : analytics.coverageRate > 15 ? urgency.ORANGE : urgency.GREEN}]} />
+                    </View>
+                    <Text style={styles.analyticsSub}>{analytics.childrenWithDoses}/{analytics.totalChildren} pregnancies</Text>
                   </View>
-                  <Text style={styles.analyticsSub}>{analytics.childrenWithDoses}/{analytics.totalChildren} pregnancies</Text>
-                </View>
-                {/* Total observations */}
-                <View style={[styles.quickCard, {borderTopColor: urgency.GREEN, borderTopWidth: 3}]}>
-                  <Text style={styles.quickIcon}>📝</Text>
-                  <Text style={styles.analyticsValue}>{analytics.openDefaulters}</Text>
-                  <Text style={styles.quickLabel}>Observations</Text>
-                  <Text style={styles.analyticsSub}>Total recorded</Text>
+                  <View style={[styles.quickCard, {borderTopColor: urgency.GREEN}]}>
+                    <Text style={styles.quickIcon}>📝</Text>
+                    <Text style={styles.analyticsValue}>{analytics.openDefaulters}</Text>
+                    <Text style={styles.quickLabel}>Observations</Text>
+                    <Text style={styles.analyticsSub}>Total recorded</Text>
+                  </View>
                 </View>
               </View>
             )}
@@ -236,8 +279,8 @@ export function DashboardScreen({navigation}: Props) {
             {serverAggregate && (
               <View style={styles.analyticsContainer}>
                 <Text style={styles.sectionTitle}>Server Overview</Text>
-                <View style={{flexDirection: 'row', gap: 8, flexWrap: 'wrap'}}>
-                  <View style={[styles.quickCard, {borderTopColor: urgency.RED, borderTopWidth: 3, flex: 0}]}>
+                <View style={styles.analyticsRow}>
+                  <View style={[styles.quickCard, {borderTopColor: urgency.RED}]}>
                     <Text style={styles.quickIcon}>🤰</Text>
                     <Text style={styles.analyticsValue}>{serverAggregate.pregnancy.active}</Text>
                     <Text style={styles.quickLabel}>Active Preg</Text>
@@ -245,7 +288,7 @@ export function DashboardScreen({navigation}: Props) {
                       <Text style={[styles.analyticsSub, {color: urgency.RED}]}>{serverAggregate.pregnancy.emergency} emergency</Text>
                     )}
                   </View>
-                  <View style={[styles.quickCard, {borderTopColor: urgency.AMBER, borderTopWidth: 3, flex: 0}]}>
+                  <View style={[styles.quickCard, {borderTopColor: urgency.AMBER}]}>
                     <Text style={styles.quickIcon}>🔗</Text>
                     <Text style={styles.analyticsValue}>{serverAggregate.referrals.open}</Text>
                     <Text style={styles.quickLabel}>Open Referrals</Text>
@@ -277,13 +320,13 @@ export function DashboardScreen({navigation}: Props) {
         }
         ListFooterComponent={
           <View style={styles.modules}>
-            {/* Continuity of Care */}
+            {/* Continuity of Care — all clinical modules */}
             <Text style={styles.sectionTitle}>Continuity of Care</Text>
-            <Text style={styles.sectionSubtitle}>Antenatal pregnancy management</Text>
+            <Text style={styles.sectionSubtitle}>Maternal & child health workflows</Text>
 
             {careStages.map((stage, si) => (
               <View key={si} style={styles.stageGroup}>
-                <View style={styles.stageHeader}>
+                <View style={[styles.stageHeader, {borderLeftColor: stage.color}]}>
                   <Text style={styles.stageIcon}>{stage.icon}</Text>
                   <View style={styles.stageHeaderText}>
                     <Text style={styles.stageTitle}>{stage.title}</Text>
@@ -298,9 +341,12 @@ export function DashboardScreen({navigation}: Props) {
                     accessibilityRole="button"
                     accessibilityLabel={m.label}
                     accessibilityHint={m.desc}>
-                    <View>
-                      <Text style={styles.moduleLabel} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.label}</Text>
-                      <Text style={styles.moduleDesc} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.desc}</Text>
+                    <View style={styles.moduleLeft}>
+                      <Text style={styles.moduleIcon}>{m.icon}</Text>
+                      <View>
+                        <Text style={styles.moduleLabel} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.label}</Text>
+                        <Text style={styles.moduleDesc} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.desc}</Text>
+                      </View>
                     </View>
                     <Text style={styles.arrow} allowFontScaling={true} maxFontSizeMultiplier={1.5}>›</Text>
                   </Pressable>
@@ -340,9 +386,12 @@ export function DashboardScreen({navigation}: Props) {
                 accessibilityRole="button"
                 accessibilityLabel={m.label}
                 accessibilityHint={m.desc}>
-                <View>
-                  <Text style={styles.moduleLabel} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.label}</Text>
-                  <Text style={styles.moduleDesc} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.desc}</Text>
+                <View style={styles.moduleLeft}>
+                  <Text style={styles.moduleIcon}>{m.icon}</Text>
+                  <View>
+                    <Text style={styles.moduleLabel} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.label}</Text>
+                    <Text style={styles.moduleDesc} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.desc}</Text>
+                  </View>
                 </View>
                 <Text style={styles.arrow} allowFontScaling={true} maxFontSizeMultiplier={1.5}>›</Text>
               </Pressable>
@@ -357,100 +406,151 @@ export function DashboardScreen({navigation}: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: lightColors.background},
+  container: {flex: 1, backgroundColor: '#F0F4F8'},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  greeting: {fontSize: 18, fontWeight: '700', color: lightColors.textPrimary},
-  role: {fontSize: 12, color: lightColors.textSecondary, marginTop: 2},
-  logout: {fontSize: 14, color: brand.teal, fontWeight: '600'},
+  headerLeft: {flex: 1},
+  greeting: {fontSize: 20, fontWeight: '800', color: '#0F172A'},
+  role: {fontSize: 12, color: '#64748B', marginTop: 2, textTransform: 'capitalize'},
+  logoutBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: brand.teal + '15',
+    borderRadius: 20,
+  },
+  logout: {fontSize: 13, color: brand.teal, fontWeight: '700'},
   syncBanner: {
-    backgroundColor: urgency.AMBER + '20',
+    backgroundColor: urgency.AMBER + '18',
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginHorizontal: 16,
-    borderRadius: 8,
+    marginTop: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: urgency.AMBER + '30',
   },
   syncText: {fontSize: 13, color: urgency.AMBER, fontWeight: '600'},
   ruleWarningBanner: {
-    backgroundColor: urgency.ORANGE + '20',
+    backgroundColor: urgency.ORANGE + '15',
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 4,
+    borderRadius: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: urgency.ORANGE + '30',
   },
-  ruleWarningText: {fontSize: 13, color: urgency.ORANGE, fontWeight: '600'},
+  ruleWarningText: {fontSize: 12, color: urgency.ORANGE, fontWeight: '600'},
   list: {padding: 16, gap: 10},
-  quickActions: {flexDirection: 'row', gap: 8, marginBottom: 16},
+  quickActions: {flexDirection: 'row', gap: 10, marginBottom: 16},
+  analyticsContainer: {marginBottom: 16},
+  analyticsRow: {flexDirection: 'row', gap: 10},
   quickCard: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: lightColors.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: lightColors.border,
+    borderColor: '#E2E8F0',
     borderTopWidth: 3,
-    borderRadius: 12,
-    padding: 12,
-    minHeight: 96,
+    borderRadius: 14,
+    padding: 14,
+    minHeight: 100,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  quickIcon: {fontSize: 22, marginBottom: 4},
-  quickValue: {fontSize: 24, fontWeight: '800', color: lightColors.textPrimary},
-  quickLabel: {fontSize: 11, color: lightColors.textSecondary, marginTop: 2},
-  activityRow: {flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: lightColors.border + '40'},
-  activityIcon: {fontSize: 18, marginRight: 10},
+  quickIcon: {fontSize: 24, marginBottom: 4},
+  quickValue: {fontSize: 26, fontWeight: '800', color: '#0F172A'},
+  quickLabel: {fontSize: 11, color: '#64748B', marginTop: 2, fontWeight: '600'},
+  activityRow: {flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E2E8F050'},
+  activityIcon: {fontSize: 20, marginRight: 12},
   activityBody: {flex: 1},
-  activityLabel: {fontSize: 14, fontWeight: '600', color: lightColors.textPrimary},
-  activitySub: {fontSize: 11, color: lightColors.textSecondary, marginTop: 1},
-  activityTime: {fontSize: 11, color: lightColors.textSecondary},
+  activityLabel: {fontSize: 14, fontWeight: '600', color: '#0F172A'},
+  activitySub: {fontSize: 11, color: '#64748B', marginTop: 1},
+  activityTime: {fontSize: 11, color: '#94A3B8'},
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: lightColors.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: lightColors.border,
-    borderRadius: 12,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
     padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  dot: {width: 10, height: 10, borderRadius: 5, marginRight: 12},
+  dot: {width: 12, height: 12, borderRadius: 6, marginRight: 14},
   cardBody: {flex: 1},
-  cardLabel: {fontSize: 14, fontWeight: '600', color: lightColors.textPrimary},
-  cardDesc: {fontSize: 12, color: lightColors.textSecondary, marginTop: 2},
-  cardCount: {fontSize: 28, fontWeight: '800', color: lightColors.textPrimary},
+  cardLabel: {fontSize: 14, fontWeight: '700', color: '#0F172A'},
+  cardDesc: {fontSize: 12, color: '#64748B', marginTop: 2},
+  cardCount: {fontSize: 30, fontWeight: '800', color: '#0F172A'},
   modules: {marginTop: 24},
-  sectionTitle: {fontSize: 16, fontWeight: '700', color: lightColors.textPrimary, marginBottom: 4},
-  sectionSubtitle: {fontSize: 12, color: lightColors.textSecondary, marginBottom: 16},
-  flowConnector: {width: 2, height: 12, backgroundColor: brand.teal + '40', alignSelf: 'center', marginBottom: 4},
-  stageGroup: {marginBottom: 8},
-  stageHeader: {flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4},
-  stageIcon: {fontSize: 22, marginRight: 10},
+  sectionTitle: {fontSize: 17, fontWeight: '800', color: '#0F172A', marginBottom: 4},
+  sectionSubtitle: {fontSize: 12, color: '#64748B', marginBottom: 16},
+  stageGroup: {marginBottom: 12},
+  stageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  stageIcon: {fontSize: 24, marginRight: 12},
   stageHeaderText: {flex: 1},
-  stageTitle: {fontSize: 15, fontWeight: '700', color: brand.navy},
-  stageDesc: {fontSize: 11, color: lightColors.textSecondary, marginTop: 1},
+  stageTitle: {fontSize: 15, fontWeight: '800', color: '#0F172A'},
+  stageDesc: {fontSize: 11, color: '#64748B', marginTop: 1},
   flowArrow: {alignItems: 'center', paddingVertical: 4},
-  flowArrowText: {fontSize: 18, color: brand.teal + '80'},
+  flowArrowText: {fontSize: 18, color: brand.teal + '60'},
   moduleCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: lightColors.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: lightColors.border,
-    borderRadius: 12,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
     padding: 16,
     marginBottom: 8,
-    minHeight: 56,
+    minHeight: 60,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  moduleLabel: {fontSize: 15, fontWeight: '600', color: lightColors.textPrimary},
-  moduleDesc: {fontSize: 12, color: lightColors.textSecondary, marginTop: 2},
-  arrow: {fontSize: 24, color: lightColors.textSecondary},
-  analyticsContainer: {marginBottom: 16},
-  analyticsValue: {fontSize: 24, fontWeight: '800', color: lightColors.textPrimary, marginTop: 4},
-  analyticsBarBg: {height: 4, borderRadius: 2, backgroundColor: lightColors.border + '40', marginTop: 8, overflow: 'hidden'},
-  analyticsBarFill: {height: '100%', borderRadius: 2},
-  analyticsSub: {fontSize: 10, color: lightColors.textSecondary, marginTop: 4},
+  moduleLeft: {flexDirection: 'row', alignItems: 'center', flex: 1},
+  moduleIcon: {fontSize: 22, marginRight: 12},
+  moduleLabel: {fontSize: 15, fontWeight: '700', color: '#0F172A'},
+  moduleDesc: {fontSize: 12, color: '#64748B', marginTop: 2},
+  arrow: {fontSize: 24, color: '#CBD5E1'},
+  analyticsValue: {fontSize: 26, fontWeight: '800', color: '#0F172A', marginTop: 4},
+  analyticsBarBg: {height: 5, borderRadius: 3, backgroundColor: '#E2E8F060', marginTop: 8, overflow: 'hidden', width: '100%'},
+  analyticsBarFill: {height: '100%', borderRadius: 3},
+  analyticsSub: {fontSize: 10, color: '#64748B', marginTop: 4},
 });
