@@ -54,14 +54,14 @@ cd mobile && npx react-native run-android
 2. **Adapter boundaries:** OCR, telephony, and CatBoost ML are all behind Protocol-based adapters (spec §10.7-10.9).
 3. **Non-downgrade invariant:** ML can escalate but NEVER de-escalate rule-based emergencies (spec §3.1).
 4. **Default RULES_ONLY:** Clinical ML defaults to RULES_ONLY; ASSISTED mode requires governance approval (spec §3.2).
-5. **FHIR R4:** REST surface at `/fhir/R4/` with 9 resource types.
+5. **FHIR R4:** REST surface at `/fhir/R4/` with 10 resource types (Patient, Observation, Encounter, EpisodeOfCare, ServiceRequest, Task, Provenance, AuditEvent, Library, PlanDefinition).
 6. **Webhook security:** Telephony webhooks use HMAC-SHA256 signature verification (spec §22).
 7. **MFA required for privileged roles:** Super/regional/district/sub-district admins must enable TOTP MFA (spec §22).
 
 ## Test Count
 
 - Backend: 664 tests (all passing)
-- Mobile: 202 tests (all passing)
+- Mobile: 204 tests (all passing)
 
 ## Implementation Phases
 
