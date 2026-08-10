@@ -5,7 +5,7 @@
     "dockerfilePath": "backend/Dockerfile.railway"
   },
   "deploy": {
-    "startCommand": "sh -c 'python manage.py sync_schema && python manage.py migrate --noinput || (python manage.py migrate accounts --fake 0005 && python manage.py migrate clients --fake 0002 && python manage.py migrate core --fake 0008 && python manage.py migrate newborn --fake 0002 && python manage.py migrate pregnancy --fake 0002 && python manage.py migrate referrals --fake 0002 && python manage.py migrate --noinput) ; python manage.py ensure_admin_role ; if [ -n \"$SEED_USER_USERNAME\" ]; then python manage.py create_user --username \"$SEED_USER_USERNAME\" --password \"$SEED_USER_PASSWORD\" --full-name \"$SEED_USER_FULL_NAME\" --role \"$SEED_USER_ROLE\" ; fi ; gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --access-logfile - --error-logfile - --log-level info'",
+    "startCommand": "sh -c 'python manage.py sync_schema 2>&1 || true ; python manage.py migrate --noinput 2>&1 || (python manage.py migrate accounts --fake 0005 2>&1 ; python manage.py migrate clients --fake 0002 2>&1 ; python manage.py migrate core --fake 0008 2>&1 ; python manage.py migrate newborn --fake 0002 2>&1 ; python manage.py migrate pregnancy --fake 0002 2>&1 ; python manage.py migrate referrals --fake 0002 2>&1 ; python manage.py migrate --noinput 2>&1 || true) ; python manage.py ensure_admin_role 2>&1 || true ; gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --access-logfile - --error-logfile - --log-level info'",
     "healthcheckPath": "/api/v1/health/",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
