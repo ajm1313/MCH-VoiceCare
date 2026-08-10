@@ -5,15 +5,13 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Force cache rebuild — change this line to bust Railway's Docker layer cache
-RUN echo "cache-bust-2026-08-11-v2"
-
 # Install system dependencies (including cron for scheduled jobs)
+# NOTE: cron + postgresql-client added 2026-08-11 for backup/purge jobs
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libpq-dev cron postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python dependencies (mozilla-django-oidc removed)
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -23,7 +21,7 @@ COPY backend/ .
 # Collect static files
 RUN python manage.py collectstatic --noinput || true
 
-# ── Cron jobs (spec §29.3, §25) ──
+# Cron jobs (spec §29.3, §25)
 # Daily database backup at 02:00 UTC
 # Purge expired OCR scan images at 03:00 UTC
 RUN echo "0 2 * * * cd /app && python manage.py backup_db >> /var/log/mch_backup.log 2>&1" > /etc/cron.d/mch-backup && \
@@ -33,8 +31,4 @@ RUN echo "0 2 * * * cd /app && python manage.py backup_db >> /var/log/mch_backup
 
 EXPOSE 8000
 
-# Run migrations with fallback to --fake, start cron, then start gunicorn.
-# The production DB was created out-of-band so some migrations fail on
-# columns/tables that already don't exist. We fake-apply all migrations
-# to reconcile state, then run real migrations for new changes.
-CMD ["sh", "-c", "python manage.py migrate --noinput 2>&1 || (echo 'Normal migrate failed, faking all migrations...' && python manage.py migrate --fake --noinput 2>&1; python manage.py migrate --noinput 2>&1 || true) && echo 'Migrations done.' && cron && exec gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --access-logfile - --error-logfile - --log-level debug"]
+CMD ["sh", "-c", "python manage.py migrate --noinput || true && cron && exec gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --access-logfile - --error-logfile - --log-level info"]
