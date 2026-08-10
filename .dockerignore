@@ -20,7 +20,7 @@ mobile/.expo/
 
 # Docker
 docker-compose.yml
-Dockerfile*
+# Note: Do NOT exclude Dockerfiles — they need to be in the build context
 
 # IDE
 .vscode/

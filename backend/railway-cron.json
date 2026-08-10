@@ -1,0 +1,14 @@
+{
+  "crons": [
+    {
+      "command": "python manage.py backup_db",
+      "schedule": "0 2 * * *",
+      "description": "Daily database backup at 02:00 UTC (spec §29.3)"
+    },
+    {
+      "command": "python manage.py purge_expired_scans",
+      "schedule": "0 3 * * *",
+      "description": "Purge expired OCR scan images at 03:00 UTC (spec §25)"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install system dependencies (including cron for scheduled jobs)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev cron postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies (mozilla-django-oidc removed)
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy project
+COPY backend/ .
+
+# Collect static files
+RUN python manage.py collectstatic --noinput || true
+
+# Cron jobs (spec §29.3, §25)
+RUN echo "0 2 * * * cd /app && python manage.py backup_db >> /var/log/mch_backup.log 2>&1" > /etc/cron.d/mch-backup && \
+    echo "0 3 * * * cd /app && python manage.py purge_expired_scans >> /var/log/mch_purge.log 2>&1" > /etc/cron.d/mch-purge && \
+    chmod 0644 /etc/cron.d/mch-backup /etc/cron.d/mch-purge && \
+    touch /var/log/mch_backup.log /var/log/mch_purge.log
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "python manage.py migrate --noinput || true && cron && exec gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --access-logfile - --error-logfile - --log-level info"]
