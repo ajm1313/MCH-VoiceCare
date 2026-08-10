@@ -17,7 +17,8 @@ ALLOWED_HOSTS = env("ALLOWED_HOSTS", default="").split(",")
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Redirect all HTTP requests to HTTPS
-SECURE_SSL_REDIRECT = True
+# Can be disabled via env var for healthcheck compatibility
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
 
 # HSTS — tell browsers to only use HTTPS for 1 year
 SECURE_HSTS_SECONDS = 31536000  # 1 year

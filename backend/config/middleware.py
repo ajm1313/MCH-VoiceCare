@@ -28,6 +28,9 @@ class EnforceTLSMiddleware:
         if not getattr(settings, "DEBUG", True):
             # Check if the request is secure
             if not request.is_secure():
+                # Allow health checks over HTTP (Railway healthcheck comes over HTTP)
+                if request.path.startswith("/api/v1/health"):
+                    return self.get_response(request)
                 # Build the HTTPS URL and redirect
                 host = request.get_host()
                 path = request.get_full_path()
