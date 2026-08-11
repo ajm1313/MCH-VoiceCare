@@ -216,3 +216,15 @@ SIMPLE_JWT = {
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"
+
+# ── FCM Push Notifications (spec §22) ──
+# Service account JSON from Firebase Console > Project Settings > Service Accounts.
+# Stored as a raw JSON string in the FCM_SERVICE_ACCOUNT_JSON env var.
+# Never exposed to the client.
+FCM_SERVICE_ACCOUNT_JSON = env("FCM_SERVICE_ACCOUNT_JSON", default="")
+
+# ── Monitoring (spec §27.1) ──
+# Bearer token for the Prometheus /metrics endpoint.
+# If not set, falls back to Django admin session auth.
+MONITORING_TOKEN = env("MONITORING_TOKEN", default=None)
+
