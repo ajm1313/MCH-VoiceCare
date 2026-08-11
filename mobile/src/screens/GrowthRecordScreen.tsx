@@ -3,29 +3,28 @@
  * MCHVC-SPEC-001 v1.1 §51.3. Enqueues to outbox for sync (DEC-007).
  */
 import React, {useState} from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-  useColorScheme,
-} from 'react-native';
+import {Pressable, StyleSheet, Switch, View} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
 import {enqueue} from '../core/sync/outbox';
 import {withProvenance} from '../core/utils/provenance';
+import {
+  Screen,
+  Card,
+  Button,
+  Field,
+  SectionHeader,
+  AppText,
+} from '../components/ui';
+import {border, radius, space} from '../theme/tokens';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function GrowthRecordScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
   const route = useRoute();
   const childId = (route.params as {childId: string}).childId;
@@ -75,117 +74,94 @@ export function GrowthRecordScreen() {
     navigation.goBack();
   };
 
+  const renderChipRow = (options: string[], value: string, onChange: (v: string) => void) => (
+    <View style={styles.chipRow}>
+      {options.map(opt => (
+        <Pressable
+          key={opt}
+          onPress={() => onChange(opt)}
+          accessibilityRole="button"
+          accessibilityLabel={opt}
+          accessibilityState={{selected: value === opt}}
+          style={[
+            styles.chip,
+            {
+              backgroundColor: value === opt ? colors.primary : 'transparent',
+              borderColor: value === opt ? colors.primary : colors.border,
+            },
+          ]}>
+          <AppText
+            variant="caption"
+            tone="inherit"
+            style={{color: value === opt ? colors.onPrimary : colors.textSecondary}}>
+            {opt}
+          </AppText>
+        </Pressable>
+      ))}
+    </View>
+  );
+
   return (
-    <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={[styles.section, {backgroundColor: colors.surface}]}>
-        <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>
-          Growth Measurement
-        </Text>
-        <Text style={[styles.label, {color: colors.textSecondary}]}>Weight (kg)</Text>
-        <TextInput
-          style={[styles.input, {backgroundColor: colors.background, color: colors.textPrimary}]}
-          value={weight}
-          onChangeText={setWeight}
-          keyboardType="numeric"
-          placeholder="3.5"
-        />
-        <Text style={[styles.label, {color: colors.textSecondary}]}>Length (cm)</Text>
-        <TextInput
-          style={[styles.input, {backgroundColor: colors.background, color: colors.textPrimary}]}
-          value={length}
-          onChangeText={setLength}
-          keyboardType="numeric"
-          placeholder="50"
-        />
-        <Text style={[styles.label, {color: colors.textSecondary}]}>Height (cm)</Text>
-        <TextInput
-          style={[styles.input, {backgroundColor: colors.background, color: colors.textPrimary}]}
-          value={height}
-          onChangeText={setHeight}
-          keyboardType="numeric"
-          placeholder="75"
-        />
-        <Text style={[styles.label, {color: colors.textSecondary}]}>Measurement Position</Text>
-        <View style={styles.chipRow}>
-          {['RECUMBENT', 'STANDING', 'UNKNOWN'].map(pos => (
-            <Pressable key={pos} onPress={() => setMeasurementPosition(pos)}
-              style={[styles.chip, {backgroundColor: measurementPosition === pos ? colors.primary : 'transparent', borderColor: colors.border}]}>
-              <Text style={{fontSize: 11, fontWeight: '600', color: measurementPosition === pos ? '#fff' : colors.textSecondary}}>{pos}</Text>
-            </Pressable>
-          ))}
-        </View>
-        <Text style={[styles.label, {color: colors.textSecondary}]}>MUAC (mm)</Text>
-        <TextInput
-          style={[styles.input, {backgroundColor: colors.background, color: colors.textPrimary}]}
-          value={muac}
-          onChangeText={setMuac}
-          keyboardType="numeric"
-          placeholder="120"
-        />
+    <Screen scroll>
+      <Card style={styles.section}>
+        <SectionHeader title="Growth Measurement" />
+
+        <Field label="Weight (kg)" value={weight} onChangeText={setWeight} keyboardType="numeric" placeholder="3.5" />
+        <Field label="Length (cm)" value={length} onChangeText={setLength} keyboardType="numeric" placeholder="50" />
+        <Field label="Height (cm)" value={height} onChangeText={setHeight} keyboardType="numeric" placeholder="75" />
+
+        <AppText variant="smallStrong" tone="secondary" style={styles.label}>Measurement Position</AppText>
+        {renderChipRow(['RECUMBENT', 'STANDING', 'UNKNOWN'], measurementPosition, setMeasurementPosition)}
+
+        <Field label="MUAC (mm)" value={muac} onChangeText={setMuac} keyboardType="numeric" placeholder="120" />
+
         <View style={styles.switchRow}>
-          <Text style={[styles.label, {color: colors.textPrimary}]}>Bilateral oedema</Text>
-          <Switch value={oedema} onValueChange={setOedema} />
+          <AppText variant="bodyStrong">Bilateral oedema</AppText>
+          <Switch value={oedema} onValueChange={setOedema} trackColor={{false: colors.border, true: colors.primary}} />
         </View>
-        <Text style={[styles.label, {color: colors.textSecondary}]}>Feeding Status</Text>
-        <View style={styles.chipRow}>
-          {['UNKNOWN', 'BREASTFED', 'MIXED', 'COMPLEMENTARY', 'NOT_FEEDING'].map(fs => (
-            <Pressable key={fs} onPress={() => setFeedingStatus(fs)}
-              style={[styles.chip, {backgroundColor: feedingStatus === fs ? colors.primary : 'transparent', borderColor: colors.border}]}>
-              <Text style={{fontSize: 11, fontWeight: '600', color: feedingStatus === fs ? '#fff' : colors.textSecondary}}>{fs}</Text>
-            </Pressable>
-          ))}
-        </View>
-        <Text style={[styles.label, {color: colors.textSecondary}]}>Recent Illness</Text>
-        <TextInput
-          style={[styles.input, {backgroundColor: colors.background, color: colors.textPrimary}]}
-          value={recentIllness}
-          onChangeText={setRecentIllness}
-          placeholder="e.g. fever, diarrhoea"
-        />
-        <Text style={[styles.label, {color: colors.textSecondary}]}>Measurement Quality</Text>
-        <View style={styles.chipRow}>
-          {['NOT_ASSESSED', 'GOOD', 'ACCEPTABLE', 'POOR'].map(mq => (
-            <Pressable key={mq} onPress={() => setMeasurementQuality(mq)}
-              style={[styles.chip, {backgroundColor: measurementQuality === mq ? colors.primary : 'transparent', borderColor: colors.border}]}>
-              <Text style={{fontSize: 11, fontWeight: '600', color: measurementQuality === mq ? '#fff' : colors.textSecondary}}>{mq}</Text>
-            </Pressable>
-          ))}
-        </View>
-        <Text style={[styles.label, {color: colors.textSecondary}]}>Scale ID</Text>
-        <TextInput
-          style={[styles.input, {backgroundColor: colors.background, color: colors.textPrimary}]}
-          value={scaleId}
-          onChangeText={setScaleId}
-          placeholder="Optional"
-        />
-        <Text style={[styles.label, {color: colors.textSecondary}]}>Length Board ID</Text>
-        <TextInput
-          style={[styles.input, {backgroundColor: colors.background, color: colors.textPrimary}]}
-          value={lengthBoardId}
-          onChangeText={setLengthBoardId}
-          placeholder="Optional"
+
+        <AppText variant="smallStrong" tone="secondary" style={styles.label}>Feeding Status</AppText>
+        {renderChipRow(['UNKNOWN', 'BREASTFED', 'MIXED', 'COMPLEMENTARY', 'NOT_FEEDING'], feedingStatus, setFeedingStatus)}
+
+        <Field label="Recent Illness" value={recentIllness} onChangeText={setRecentIllness} placeholder="e.g. fever, diarrhoea" />
+
+        <AppText variant="smallStrong" tone="secondary" style={styles.label}>Measurement Quality</AppText>
+        {renderChipRow(['NOT_ASSESSED', 'GOOD', 'ACCEPTABLE', 'POOR'], measurementQuality, setMeasurementQuality)}
+
+        <Field label="Scale ID" value={scaleId} onChangeText={setScaleId} placeholder="Optional" />
+        <Field label="Length Board ID" value={lengthBoardId} onChangeText={setLengthBoardId} placeholder="Optional" />
+      </Card>
+
+      <View style={styles.buttonRow}>
+        <Button
+          label={saving ? 'Saving...' : 'Save Measurement'}
+          variant="primary"
+          size="lg"
+          icon="check"
+          loading={saving}
+          fullWidth
+          onPress={handleSave}
         />
       </View>
-
-      <Pressable
-        onPress={handleSave}
-        disabled={saving}
-        style={[styles.button, {backgroundColor: colors.primary, opacity: saving ? 0.6 : 1}]}>
-        <Text style={styles.buttonText}>{saving ? 'Saving...' : 'Save Measurement'}</Text>
-      </Pressable>
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  section: {margin: 16, padding: 16, borderRadius: 12},
-  sectionTitle: {fontSize: 16, fontWeight: '700', marginBottom: 12},
-  label: {fontSize: 13, fontWeight: '500', marginTop: 8, marginBottom: 4},
-  input: {borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15},
-  switchRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8},
-  chip: {paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, borderWidth: 1},
-  button: {margin: 16, padding: 14, borderRadius: 12, alignItems: 'center'},
-  buttonText: {color: '#fff', fontWeight: '700', fontSize: 15},
+  section: {marginVertical: space[2]},
+  label: {marginBottom: space[1]},
+  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: space[3]},
+  chip: {
+    paddingHorizontal: space[2],
+    paddingVertical: space[1] + 2,
+    borderRadius: radius.sm,
+    borderWidth: border.thick,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: space[3],
+  },
+  buttonRow: {marginVertical: space[2]},
 });

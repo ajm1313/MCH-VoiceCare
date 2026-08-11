@@ -46,12 +46,25 @@ class PregnancyRuleEngineTests(TestCase):
         self.woman = _make_woman(self.org)
 
     def test_routine_when_no_risk_factors(self):
-        """No risk factors → ROUTINE disposition."""
+        """No risk factors and all critical fields present → ROUTINE disposition."""
         episode = _make_episode(self.woman)
+        PregnancyObservation.objects.create(
+            episode=episode,
+            bp_systolic=110, bp_diastolic=70,
+            temperature_c=36.5, fhr_bpm=140,
+        )
         result = run_pregnancy_assessment(episode)
         self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
         self.assertEqual(result["fired_rules"], [])
         self.assertIn("routine", result["recommended_action"].lower())
+        self.assertEqual(result["missingCriticalFields"], [])
+
+    def test_abstain_when_no_observation(self):
+        """No observation at all → ABSTAIN (spec §3.1: missing critical fields)."""
+        episode = _make_episode(self.woman)
+        result = run_pregnancy_assessment(episode)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
+        self.assertGreater(len(result["missingCriticalFields"]), 0)
 
     def test_severe_hypertension_is_emergency(self):
         """SBP ≥160 → EMERGENCY."""

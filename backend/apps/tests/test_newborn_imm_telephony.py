@@ -121,27 +121,31 @@ class NewbornRuleGoldenNegativeTests(TestCase):
     def test_normal_birth_weight_routine(self):
         org = _make_org()
         ep = _make_newborn(org, birth_weight_g=3200)
+        _make_obs(ep, temperature_c=36.5, respiratory_rate_min=40, current_weight_g=3100)
         result = run_newborn_assessment(ep)
         self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
 
-    def test_no_observation_routine(self):
+    def test_no_observation_abstain(self):
+        """No observation → ABSTAIN (spec §3.1: missing critical fields)."""
         org = _make_org()
         ep = _make_newborn(org, birth_weight_g=3000, gestational_age_weeks=39)
         result = run_newborn_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
 
     def test_normal_apgar_routine(self):
         org = _make_org()
         ep = _make_newborn(org, apgar_1_min=9, apgar_5_min=10, birth_weight_g=3100)
+        _make_obs(ep, temperature_c=36.5, respiratory_rate_min=40, current_weight_g=3000)
         result = run_newborn_assessment(ep)
         self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
 
     def test_normal_temperature_routine(self):
+        """Normal temp but missing RR and weight → ABSTAIN (spec §3.1)."""
         org = _make_org()
         ep = _make_newborn(org, birth_weight_g=3200)
         _make_obs(ep, temperature_c=37.0)
         result = run_newborn_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
 
 
 class NewbornRuleGoldenBoundaryTests(TestCase):
@@ -186,6 +190,7 @@ class NewbornRuleGoldenBoundaryTests(TestCase):
     def test_birth_weight_2500_exact_is_routine(self):
         org = _make_org()
         ep = _make_newborn(org, birth_weight_g=2500)
+        _make_obs(ep, temperature_c=36.5, respiratory_rate_min=40, current_weight_g=2400)
         result = run_newborn_assessment(ep)
         self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
 
@@ -213,7 +218,7 @@ class NewbornRuleGoldenBoundaryTests(TestCase):
     def test_temperature_36_exact_is_routine(self):
         org = _make_org()
         ep = _make_newborn(org, birth_weight_g=3000)
-        _make_obs(ep, temperature_c=36.0)
+        _make_obs(ep, temperature_c=36.0, respiratory_rate_min=40, current_weight_g=2900)
         result = run_newborn_assessment(ep)
         self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
 
@@ -222,23 +227,27 @@ class NewbornRuleGoldenMissingDataTests(TestCase):
     """Missing-data scenarios (spec §29.2)."""
 
     def test_no_birth_weight_no_gestational_age(self):
+        """No birth weight, no gestational age, no observation → ABSTAIN (spec §3.1)."""
         org = _make_org()
         ep = _make_newborn(org)
         result = run_newborn_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
 
     def test_no_apgar_scores(self):
+        """No Apgar scores and no observation → ABSTAIN (spec §3.1)."""
         org = _make_org()
         ep = _make_newborn(org, birth_weight_g=3000)
         result = run_newborn_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
 
     def test_observation_no_vitals(self):
+        """Observation with no vitals → ABSTAIN (spec §3.1: missing critical fields)."""
         org = _make_org()
         ep = _make_newborn(org, birth_weight_g=3000)
         _make_obs(ep)
         result = run_newborn_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
+        self.assertGreater(len(result["missingCriticalFields"]), 0)
 
 
 class NewbornRuleGoldenConflictTests(TestCase):

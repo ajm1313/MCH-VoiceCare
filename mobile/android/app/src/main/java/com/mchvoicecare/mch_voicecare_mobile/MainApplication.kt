@@ -1,4 +1,4 @@
-package com.mchvoicecare
+package com.mchvoicecare.mch_voicecare_mobile
 
 import android.app.Application
 import com.facebook.react.PackageList
@@ -11,7 +11,10 @@ import com.facebook.react.defaults.DefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
-import com.mchvoicecare.security.ScreenSecurityPackage
+import com.mchvoicecare.mch_voicecare_mobile.security.ScreenSecurityPackage
+import com.mchvoicecare.mch_voicecare_mobile.ocr.OcrPackage
+import com.mchvoicecare.mch_voicecare_mobile.biometric.BiometricPackage
+import com.mchvoicecare.mch_voicecare_mobile.push.PushNotificationPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -19,8 +22,11 @@ class MainApplication : Application(), ReactApplication {
         object : DefaultReactNativeHost(this) {
             override fun getPackages(): List<ReactPackage> =
                 PackageList(this).packages.apply {
-                    // Register the ScreenSecurity native module (spec §22.2)
+                    // Register native modules (spec §22.2, §16, §22, §27)
                     add(ScreenSecurityPackage())
+                    add(OcrPackage())
+                    add(BiometricPackage())
+                    add(PushNotificationPackage())
                 }
 
             override fun getJSMainModuleName(): String = "index"

@@ -14,23 +14,37 @@
 import React, {useState, useEffect} from 'react';
 import {
   Alert,
-  Pressable,
-  ScrollView,
   StyleSheet,
-  Text,
   View,
-  useColorScheme,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors} from '../theme/colors';
 import {AppConfig} from '../config/appConfig';
 import {useAuthStore} from '../core/auth/authStore';
 import {getCachedDeviceConfig} from '../core/auth/deviceProvision';
+import {apiFetch} from '../core/security/secureFetch';
 import {isOcrEnabled} from '../core/auth/featureFlags';
 import {setCachedJSON, getCachedJSON} from '../core/sync/contentCache';
+import {checkOcrAvailability, recognizeText, mapTextToFields} from '../core/ocr/ocrService';
+import {
+  isCameraAvailable,
+  requestCameraPermission,
+  checkCameraPermission,
+  capturePhoto,
+  readImageAsBase64,
+} from '../core/camera/cameraService';
 import type {RootStackParamList} from '../core/navigation/types';
+import {useTheme} from '../theme/useTheme';
+import {border, radius, space} from '../theme/tokens';
+import {
+  AppText,
+  Badge,
+  Button,
+  Card,
+  Icon,
+  Screen,
+  SectionHeader,
+} from '../components/ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Scan'>;
 
@@ -87,8 +101,7 @@ interface CaptureQuality {
 }
 
 export function ScanScreen({route, navigation}: Props) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
 
   const {patientId} = route.params;
   const episode = route.params.episode || '';
@@ -109,6 +122,20 @@ export function ScanScreen({route, navigation}: Props) {
   // Feature flag gate (spec §34)
   const ocrEnabled = isOcrEnabled();
 
+  // On-device OCR availability (spec §16)
+  const [onDeviceOcrAvailable, setOnDeviceOcrAvailable] = useState(false);
+  const [onDeviceOcrEngine, setOnDeviceOcrEngine] = useState('none');
+
+  useEffect(() => {
+    if (ocrEnabled) {
+      // Check if on-device OCR is available
+      checkOcrAvailability().then(avail => {
+        setOnDeviceOcrAvailable(avail.available);
+        setOnDeviceOcrEngine(avail.engine);
+      });
+    }
+  }, [ocrEnabled]);
+
   useEffect(() => {
     if (ocrEnabled) {
       loadTemplates();
@@ -127,7 +154,7 @@ export function ScanScreen({route, navigation}: Props) {
 
     // Fetch from server
     try {
-      const resp = await fetch(`${AppConfig.apiBaseUrl}/ocr/templates`, {
+      const resp = await apiFetch(`${AppConfig.apiBaseUrl}/ocr/templates`, {
         headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
       });
       if (resp.ok) {
@@ -191,12 +218,46 @@ export function ScanScreen({route, navigation}: Props) {
   /**
    * Capture a page (spec §16.2 / Phase 4).
    *
-   * In production this invokes react-native-vision-camera to take a photo.
-   * Here we simulate the capture, run the quality heuristic, and store the
-   * page. Poor-quality captures are flagged so the user can retake.
+   * Uses react-native-vision-camera via the camera service to capture a
+   * photo. Falls back to simulated capture when the camera is not available
+   * (e.g., in tests or on a simulator). Poor-quality captures are flagged
+   * so the user can retake.
    */
-  function capturePage() {
-    const imagePath = `/tmp/scan_${patientId}_${currentPage}_${Date.now()}.jpg`;
+  async function capturePage() {
+    // Check camera permission first
+    if (isCameraAvailable()) {
+      const perm = await checkCameraPermission();
+      if (!perm.granted) {
+        const requested = await requestCameraPermission();
+        if (!requested.granted) {
+          Alert.alert(
+            'Camera Permission Required',
+            'Please grant camera permission to scan documents.',
+            [{text: 'OK'}],
+          );
+          return;
+        }
+      }
+    }
+
+    let imagePath: string;
+    let imageWidth = 4032;
+    let imageHeight = 3024;
+
+    try {
+      const result = await capturePhoto({ flash: 'auto', quality: 'high' });
+      imagePath = result.path;
+      imageWidth = result.width;
+      imageHeight = result.height;
+    } catch (err: any) {
+      Alert.alert(
+        'Capture Failed',
+        err?.message || 'Failed to capture photo. Please try again.',
+        [{text: 'OK'}],
+      );
+      return;
+    }
+
     const imageHash = `hash_${currentPage}_${Date.now()}`;
     const quality = estimateCaptureQuality(imagePath);
 
@@ -258,13 +319,45 @@ export function ScanScreen({route, navigation}: Props) {
 
     setSubmitting(true);
     try {
-      // Submit each captured page as an OCR job (spec §16.2 / Phase 4).
-      // The first page's job is used for the confirmation screen.
+      // Try on-device OCR first (spec §16 — offline-first)
+      if (onDeviceOcrAvailable && capturedPages.length > 0) {
+        // For on-device OCR, we process the first page locally
+        // and navigate to confirmation with the extracted fields.
+        // The image is still submitted to the server when network is available.
+        const firstPage = capturedPages[0];
+        // Read the captured image as base64 for on-device OCR
+        const imageBase64 = await readImageAsBase64(firstPage.imagePath);
+        const ocrResult = await recognizeText(imageBase64, selectedTemplate);
+
+        if (ocrResult.engine !== 'none' && ocrResult.text) {
+          // Map raw text to structured fields using template definitions
+          const template = templates.find(t => t.templateId === selectedTemplate);
+          const fieldDefs = template?.fieldDefinitions || [];
+          const mappedFields = mapTextToFields(ocrResult.text, fieldDefs);
+
+          // Navigate to confirmation with on-device extracted fields
+          navigation.navigate('OCRConfirm', {
+            jobId: `local_${Date.now()}`,
+            localFields: mappedFields.map(f => ({
+              key: f.key,
+              value: f.value,
+              confidence: f.confidence,
+              safety_critical: fieldDefs.find(d => d.key === f.key)?.safety_critical ?? false,
+              human_confirmed: false,
+            })),
+            localEngine: ocrResult.engine,
+          });
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // Fall back to server-side OCR (spec §16.2)
       let firstJobId: string | null = null;
       let lastError: string | null = null;
 
       for (const page of capturedPages) {
-        const resp = await fetch(`${AppConfig.apiBaseUrl}/ocr/jobs`, {
+        const resp = await apiFetch(`${AppConfig.apiBaseUrl}/ocr/jobs`, {
           method: 'POST',
           headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
           body: JSON.stringify({
@@ -320,276 +413,297 @@ export function ScanScreen({route, navigation}: Props) {
   // Feature flag gate: show disabled view if OCR is not enabled
   if (!ocrEnabled) {
     return (
-      <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()}>
-            <Text style={[styles.back, {color: colors.primary}]}>‹ Back</Text>
-          </Pressable>
-          <Text style={[styles.title, {color: colors.textPrimary}]}>Scan Document</Text>
-        </View>
-        <View style={styles.content}>
-          <View style={[styles.card, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.label, {color: colors.textSecondary}]}>Feature Unavailable</Text>
-            <Text style={[styles.bodyText, {color: colors.textSecondary, marginTop: 8}]}>
-              Document scanning (OCR) is not enabled in this deployment.
-              Use manual data entry instead.
-            </Text>
+      <Screen scroll>
+        <SectionHeader title="Scan Document" overline="OCR capture" />
+        <Card style={styles.messageCard}>
+          <View style={styles.messageIconRow}>
+            <Icon name="scan" size={28} color={colors.textTertiary} />
           </View>
-          <Pressable
-            style={[styles.submitBtn, {backgroundColor: colors.primary}]}
-            onPress={enterManually}>
-            <Text style={styles.submitBtnText}>Enter Manually</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+          <AppText variant="h3" center style={styles.messageTitle}>
+            Feature Unavailable
+          </AppText>
+          <AppText variant="small" tone="secondary" center>
+            Document scanning (OCR) is not enabled in this deployment.
+            Use manual data entry instead.
+          </AppText>
+        </Card>
+        <Button
+          label="Enter Manually"
+          variant="primary"
+          onPress={enterManually}
+          icon="pencil"
+          fullWidth
+        />
+      </Screen>
     );
   }
 
   // Offline fallback banner (spec §10.2)
   if (offlineMode) {
     return (
-      <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()}>
-            <Text style={[styles.back, {color: colors.primary}]}>‹ Back</Text>
-          </Pressable>
-          <Text style={[styles.title, {color: colors.textPrimary}]}>Scan Document</Text>
-        </View>
-        <View style={styles.content}>
-          <View style={[styles.card, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.label, {color: colors.warning}]}>Offline Mode</Text>
-            <Text style={[styles.bodyText, {color: colors.textSecondary, marginTop: 8}]}>
-              OCR scanning requires network. You can enter data manually instead.
-            </Text>
+      <Screen scroll>
+        <SectionHeader title="Scan Document" overline="OCR capture" />
+        <Card style={styles.messageCard} accentColor={colors.warning}>
+          <View style={styles.messageIconRow}>
+            <Icon name="cloudOff" size={28} color={colors.warning} />
           </View>
-          <Pressable
-            style={[styles.submitBtn, {backgroundColor: colors.primary}]}
-            onPress={enterManually}>
-            <Text style={styles.submitBtnText}>Enter Manually</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+          <AppText variant="h3" center style={styles.messageTitle} tone="warning">
+            Offline Mode
+          </AppText>
+          <AppText variant="small" tone="secondary" center>
+            OCR scanning requires network. You can enter data manually instead.
+          </AppText>
+        </Card>
+        <Button
+          label="Enter Manually"
+          variant="primary"
+          onPress={enterManually}
+          icon="pencil"
+          fullWidth
+        />
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={[styles.back, {color: colors.primary}]}>‹ Back</Text>
-        </Pressable>
-        <Text style={[styles.title, {color: colors.textPrimary}]}>Scan Document</Text>
-      </View>
+    <Screen scroll>
+      <SectionHeader
+        title="Scan Document"
+        overline="OCR capture"
+        subtitle="Capture a document page, select a template, and submit for OCR extraction."
+      />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Template selector */}
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Document Template *</Text>
-          {loadingTemplates ? (
-            <Text style={[styles.bodyText, {color: colors.textSecondary}]}>Loading templates...</Text>
-          ) : templates.length === 0 ? (
-            <Text style={[styles.bodyText, {color: colors.textSecondary}]}>
-              No templates available. Connect to sync.
-            </Text>
-          ) : (
-            templates.map(t => (
-              <Pressable
+      {/* Template selector */}
+      <Card style={styles.sectionCard}>
+        <AppText variant="smallStrong" tone="secondary" style={styles.fieldLabel}>
+          Document Template *
+        </AppText>
+        {loadingTemplates ? (
+          <AppText variant="small" tone="secondary">Loading templates…</AppText>
+        ) : templates.length === 0 ? (
+          <AppText variant="small" tone="secondary">
+            No templates available. Connect to sync.
+          </AppText>
+        ) : (
+          templates.map(t => {
+            const selected = selectedTemplate === t.id;
+            const hasSafetyCritical = t.fieldDefinitions.some(f => f.safety_critical);
+            return (
+              <Card
                 key={t.id}
+                variant={selected ? 'elevated' : 'outlined'}
+                onPress={() => setSelectedTemplate(t.id)}
+                accessibilityLabel={`${t.name}. ${t.pageType}, version ${t.version}.`}
                 style={[
                   styles.option,
-                  {
-                    borderColor: selectedTemplate === t.id ? colors.primary : '#E2E8F0',
-                    backgroundColor: selectedTemplate === t.id ? colors.primary + '10' : 'transparent',
-                  },
-                ]}
-                onPress={() => setSelectedTemplate(t.id)}>
-                <Text style={[styles.optionTitle, {color: colors.textPrimary}]}>{t.name}</Text>
-                <Text style={[styles.optionSub, {color: colors.textSecondary}]}>
-                  {t.pageType} · v{t.version}
-                </Text>
-                {t.fieldDefinitions.some(f => f.safety_critical) && (
-                  <Text style={[styles.warning, {color: colors.warning}]}>
-                    ⚠ Contains safety-critical fields requiring confirmation
-                  </Text>
-                )}
-              </Pressable>
-            ))
-          )}
-        </View>
-
-        {/* Camera preview + capture guidance overlay (spec §16.2 / Phase 4) */}
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Document Capture</Text>
-          <View style={styles.cameraPlaceholder}>
-            {showGuidance && (
-              <View style={styles.guidanceOverlay}>
-                <Text style={[styles.guidanceTitle, {color: colors.textPrimary}]}>
-                  Positioning Guide
-                </Text>
-                <Text style={[styles.cameraHint, {color: colors.textSecondary}]}>
-                  • Place the document flat on a contrasting surface.{'\n'}
-                  • Fill the frame with the page (all four corners visible).{'\n'}
-                  • Avoid shadows and direct reflections.{'\n'}
-                  • Hold the device steady and parallel to the page.
-                </Text>
-              </View>
-            )}
-            {!showGuidance && (
-              <Text style={[styles.cameraHint, {color: colors.textSecondary}]}>
-                Camera preview will appear here when react-native-vision-camera is integrated.
-              </Text>
-            )}
-          </View>
-
-          {/* Brightness indicator (spec §16.2) */}
-          {captureQuality && (
-            <View style={styles.qualityRow}>
-              <Text style={[styles.qualityLabel, {color: colors.textSecondary}]}>
-                Brightness: {captureQuality.brightness}%
-              </Text>
-              <Text
-                style={[
-                  styles.qualityBadge,
-                  {
-                    color: captureQuality.isAcceptable ? colors.primary : colors.warning,
-                    borderColor: captureQuality.isAcceptable ? colors.primary : colors.warning,
-                  },
+                  selected && {borderColor: colors.primary, backgroundColor: colors.primarySubtle},
                 ]}>
-                {captureQuality.isAcceptable ? 'OK' : 'Check'}
-              </Text>
+                <View style={styles.optionRow}>
+                  <Icon name="fileText" size={18} color={selected ? colors.primary : colors.textTertiary} />
+                  <View style={styles.flex}>
+                    <AppText variant="bodyStrong" tone={selected ? 'brand' : 'primary'}>
+                      {t.name}
+                    </AppText>
+                    <AppText variant="small" tone="secondary">
+                      {t.pageType} · v{t.version}
+                    </AppText>
+                    {hasSafetyCritical ? (
+                      <View style={styles.safetyRow}>
+                        <Icon name="alertTriangle" size={12} color={colors.warning} />
+                        <AppText variant="caption" tone="warning">
+                          Contains safety-critical fields requiring confirmation
+                        </AppText>
+                      </View>
+                    ) : null}
+                  </View>
+                  {selected ? <Icon name="check" size={18} color={colors.primary} /> : null}
+                </View>
+              </Card>
+            );
+          })
+        )}
+      </Card>
+
+      {/* Camera preview + capture guidance overlay (spec §16.2 / Phase 4) */}
+      <Card style={styles.sectionCard}>
+        <AppText variant="smallStrong" tone="secondary" style={styles.fieldLabel}>
+          Document Capture
+        </AppText>
+        <View style={styles.cameraPlaceholder}>
+          {showGuidance ? (
+            <View style={styles.guidanceOverlay}>
+              <Icon name="scan" size={32} color={colors.textTertiary} />
+              <AppText variant="bodyStrong" center style={styles.guidanceTitle}>
+                Positioning Guide
+              </AppText>
+              <AppText variant="small" tone="secondary" center style={styles.cameraHint}>
+                {'\u2022'} Place the document flat on a contrasting surface.{'\n'}
+                {'\u2022'} Fill the frame with the page (all four corners visible).{'\n'}
+                {'\u2022'} Avoid shadows and direct reflections.{'\n'}
+                {'\u2022'} Hold the device steady and parallel to the page.
+              </AppText>
+            </View>
+          ) : (
+            <View style={styles.guidanceOverlay}>
+              <Icon name="camera" size={32} color={colors.textTertiary} />
+              <AppText variant="small" tone="secondary" center style={styles.cameraHint}>
+                Camera preview will appear here when react-native-vision-camera is integrated.
+              </AppText>
             </View>
           )}
-
-          {/* Capture quality feedback (spec §16.2) */}
-          {captureQuality && !captureQuality.isAcceptable && (
-            <Text style={[styles.qualityMessage, {color: colors.warning}]}>
-              ⚠ {captureQuality.message}
-            </Text>
-          )}
-          {captureQuality && captureQuality.isAcceptable && (
-            <Text style={[styles.qualityMessage, {color: colors.primary}]}>
-              ✓ {captureQuality.message}
-            </Text>
-          )}
-
-          {/* Capture + retake buttons (spec §16.2 / Phase 4) */}
-          <View style={styles.captureRow}>
-            <Pressable
-              style={[styles.captureBtn, {backgroundColor: colors.primary}]}
-              onPress={capturePage}>
-              <Text style={styles.captureBtnText}>
-                {hasCapturedPages ? `Capture Page ${currentPage}` : 'Capture Page'}
-              </Text>
-            </Pressable>
-            {hasCapturedPages && (
-              <Pressable
-                style={[styles.retakeBtn, {borderColor: colors.warning}]}
-                onPress={retakeLastPage}>
-                <Text style={[styles.retakeBtnText, {color: colors.warning}]}>Retake</Text>
-              </Pressable>
-            )}
-          </View>
         </View>
 
-        {/* Captured pages list (multi-page support, spec §16.2 / Phase 4) */}
-        {hasCapturedPages && (
-          <View style={[styles.card, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.label, {color: colors.textSecondary}]}>
-              Captured Pages ({capturedPages.length})
-            </Text>
-            {capturedPages.map(p => (
-              <View key={p.pageNumber} style={styles.pageRow}>
-                <Text style={[styles.pageText, {color: colors.textPrimary}]}>
-                  Page {p.pageNumber}
-                </Text>
-                <Text
-                  style={[
-                    styles.pageQuality,
-                    {color: p.quality.isAcceptable ? colors.primary : colors.warning},
-                  ]}>
-                  {p.quality.isAcceptable ? '✓ OK' : '⚠ Check'}
-                </Text>
-              </View>
-            ))}
-            <Pressable
-              style={[styles.clearBtn, {borderColor: colors.textSecondary}]}
-              onPress={clearAllPages}>
-              <Text style={[styles.clearBtnText, {color: colors.textSecondary}]}>
-                Clear All Pages
-              </Text>
-            </Pressable>
+        {/* Brightness indicator (spec §16.2) */}
+        {captureQuality ? (
+          <View style={styles.qualityRow}>
+            <AppText variant="small" tone="secondary">
+              Brightness: {captureQuality.brightness}%
+            </AppText>
+            <Badge
+              label={captureQuality.isAcceptable ? 'OK' : 'Check'}
+              tone={captureQuality.isAcceptable ? 'success' : 'warning'}
+              icon={captureQuality.isAcceptable ? 'checkCircle' : 'alertTriangle'}
+            />
           </View>
-        )}
+        ) : null}
 
-        {/* Submit button */}
-        <Pressable
-          style={[styles.submitBtn, {backgroundColor: colors.primary, opacity: submitting || !hasCapturedPages ? 0.6 : 1}]}
-          onPress={submitScan}
-          disabled={submitting || !selectedTemplate || !hasCapturedPages}>
-          <Text style={styles.submitBtnText}>
-            {submitting
-              ? 'Processing...'
-              : hasCapturedPages
-              ? `Extract ${capturedPages.length} Page${capturedPages.length > 1 ? 's' : ''}`
-              : 'Capture & Extract'}
-          </Text>
-        </Pressable>
+        {/* Capture quality feedback (spec §16.2) */}
+        {captureQuality && !captureQuality.isAcceptable ? (
+          <View style={styles.qualityMessageRow}>
+            <Icon name="alertTriangle" size={14} color={colors.warning} />
+            <AppText variant="caption" tone="warning" style={styles.qualityMessage}>
+              {captureQuality.message}
+            </AppText>
+          </View>
+        ) : null}
+        {captureQuality && captureQuality.isAcceptable ? (
+          <View style={styles.qualityMessageRow}>
+            <Icon name="checkCircle" size={14} color={colors.success} />
+            <AppText variant="caption" tone="success" style={styles.qualityMessage}>
+              {captureQuality.message}
+            </AppText>
+          </View>
+        ) : null}
 
-        {/* Manual entry fallback link (spec §10.2) */}
-        <Pressable
-          style={[styles.manualBtn, {borderColor: colors.primary}]}
-          onPress={enterManually}>
-          <Text style={[styles.manualBtnText, {color: colors.primary}]}>
-            Enter Manually Instead
-          </Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+        {/* Capture + retake buttons (spec §16.2 / Phase 4) */}
+        <View style={styles.captureRow}>
+          <Button
+            label={hasCapturedPages ? `Capture Page ${currentPage}` : 'Capture Page'}
+            variant="primary"
+            onPress={capturePage}
+            icon="camera"
+            style={styles.flex}
+          />
+          {hasCapturedPages ? (
+            <Button
+              label="Retake"
+              variant="secondary"
+              onPress={retakeLastPage}
+              icon="refresh"
+            />
+          ) : null}
+        </View>
+      </Card>
+
+      {/* Captured pages list (multi-page support, spec §16.2 / Phase 4) */}
+      {hasCapturedPages ? (
+        <Card style={styles.sectionCard}>
+          <AppText variant="smallStrong" tone="secondary" style={styles.fieldLabel}>
+            Captured Pages ({capturedPages.length})
+          </AppText>
+          {capturedPages.map(p => (
+            <View key={p.pageNumber} style={styles.pageRow}>
+              <View style={styles.pageRowLeft}>
+                <Icon name="fileText" size={16} color={colors.primary} />
+                <AppText variant="bodyStrong">Page {p.pageNumber}</AppText>
+              </View>
+              <Badge
+                label={p.quality.isAcceptable ? 'OK' : 'Check'}
+                tone={p.quality.isAcceptable ? 'success' : 'warning'}
+                icon={p.quality.isAcceptable ? 'checkCircle' : 'alertTriangle'}
+              />
+            </View>
+          ))}
+          <Button
+            label="Clear All Pages"
+            variant="ghost"
+            onPress={clearAllPages}
+            icon="trash"
+            fullWidth
+            style={styles.clearBtn}
+          />
+        </Card>
+      ) : null}
+
+      {/* Submit button */}
+      <Button
+        label={
+          submitting
+            ? 'Processing…'
+            : hasCapturedPages
+            ? `Extract ${capturedPages.length} Page${capturedPages.length > 1 ? 's' : ''}`
+            : 'Capture & Extract'
+        }
+        variant="primary"
+        onPress={submitScan}
+        loading={submitting}
+        disabled={submitting || !selectedTemplate || !hasCapturedPages}
+        icon="scan"
+        fullWidth
+        size="lg"
+        style={styles.submitBtn}
+      />
+
+      {/* Manual entry fallback link (spec §10.2) */}
+      <Button
+        label="Enter Manually Instead"
+        variant="ghost"
+        onPress={enterManually}
+        icon="pencil"
+        fullWidth
+        style={styles.manualBtn}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  header: {flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12},
-  back: {fontSize: 16},
-  title: {fontSize: 18, fontWeight: '700'},
-  content: {padding: 16, gap: 12},
-  card: {borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0'},
-  label: {fontSize: 12, fontWeight: '600', textTransform: 'uppercase', marginBottom: 8},
-  bodyText: {fontSize: 14, lineHeight: 20},
-  option: {padding: 12, borderRadius: 8, borderWidth: 1, marginBottom: 8},
-  optionTitle: {fontSize: 15, fontWeight: '600'},
-  optionSub: {fontSize: 12, marginTop: 2},
-  warning: {fontSize: 11, marginTop: 4, fontWeight: '600'},
-  cameraPlaceholder: {
-    height: 200,
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-    borderRadius: 12,
+  messageCard: {alignItems: 'center', paddingVertical: space[8], marginBottom: space[4]},
+  messageIconRow: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.xxl,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    marginBottom: space[4],
   },
-  cameraHint: {fontSize: 13, textAlign: 'center', lineHeight: 18},
-  guidanceOverlay: {alignItems: 'center', justifyContent: 'center', padding: 4},
-  guidanceTitle: {fontSize: 14, fontWeight: '700', marginBottom: 8},
-  qualityRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10},
-  qualityLabel: {fontSize: 13, fontWeight: '600'},
-  qualityBadge: {fontSize: 11, fontWeight: '700', borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2},
-  qualityMessage: {fontSize: 12, marginTop: 6, lineHeight: 16},
-  captureRow: {flexDirection: 'row', gap: 10, marginTop: 12},
-  captureBtn: {flex: 1, padding: 14, borderRadius: 10, alignItems: 'center'},
-  captureBtnText: {color: '#fff', fontWeight: '700', fontSize: 14},
-  retakeBtn: {padding: 14, borderRadius: 10, borderWidth: 1, alignItems: 'center'},
-  retakeBtnText: {fontWeight: '700', fontSize: 14},
-  pageRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0'},
-  pageText: {fontSize: 14, fontWeight: '600'},
-  pageQuality: {fontSize: 12, fontWeight: '600'},
-  clearBtn: {padding: 10, borderRadius: 8, borderWidth: 1, alignItems: 'center', marginTop: 10},
-  clearBtnText: {fontWeight: '600', fontSize: 13},
-  submitBtn: {padding: 16, borderRadius: 12, alignItems: 'center'},
-  submitBtnText: {color: '#fff', fontWeight: '700', fontSize: 15},
-  manualBtn: {padding: 14, borderRadius: 12, borderWidth: 1, alignItems: 'center'},
-  manualBtnText: {fontWeight: '600', fontSize: 14},
+  messageTitle: {marginBottom: space[2]},
+  sectionCard: {marginBottom: space[4]},
+  fieldLabel: {marginBottom: space[3]},
+  option: {marginBottom: space[2]},
+  optionRow: {flexDirection: 'row', alignItems: 'flex-start', gap: space[3]},
+  flex: {flex: 1},
+  safetyRow: {flexDirection: 'row', alignItems: 'center', gap: space[1], marginTop: space[1]},
+  cameraPlaceholder: {
+    height: 200,
+    borderWidth: border.heavy,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: space[4],
+  },
+  guidanceOverlay: {alignItems: 'center', justifyContent: 'center', padding: space[1], gap: space[2]},
+  guidanceTitle: {marginBottom: space[1]},
+  cameraHint: {lineHeight: 18},
+  qualityRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space[3]},
+  qualityMessageRow: {flexDirection: 'row', alignItems: 'flex-start', gap: space[1], marginTop: space[2]},
+  qualityMessage: {flex: 1, lineHeight: 16},
+  captureRow: {flexDirection: 'row', gap: space[2], marginTop: space[3]},
+  pageRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: space[2], borderBottomWidth: 1, borderBottomColor: '#E2E8F0'},
+  pageRowLeft: {flexDirection: 'row', alignItems: 'center', gap: space[2]},
+  clearBtn: {marginTop: space[3]},
+  submitBtn: {marginBottom: space[2]},
+  manualBtn: {marginBottom: space[2]},
 });

@@ -4,34 +4,40 @@
 {% block navbar_title %}Immunisation Detail{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'immunisation_list' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'immunisation_list' %}" class="btn-back" aria-label="Back to immunisation list">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">{{ record.child.full_name }}</h1>
-  </div>
-
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Enrolment Info</h2>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-base-content/50">DOB</span><span>{{ record.date_of_birth|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">CWC Card</span><span>{{ record.cwc_card_number|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">CHPS</span><span>{{ record.current_chps|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Residence</span><span>{{ record.residence_status|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Next due</span><span>{{ record.next_due_date|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Defaulter</span><span class="badge badge-sm {{ record.defaulter_status|status_badge }}">{{ record.defaulter_status }}</span></div>
-        </div>
+    <div class="flex-1 flex items-center gap-4 min-w-0">
+      <span class="w-12 h-12 rounded-full grid place-items-center shrink-0 bg-gradient-to-br from-success to-emerald-700 text-white font-bold shadow-soft">
+        {{ record.child.full_name|slice:":1"|upper }}
+      </span>
+      <div class="min-w-0">
+        <h1 class="page-title truncate">{{ record.child.full_name }}</h1>
+        <p class="page-subtitle">DOB: {{ record.date_of_birth|default:"—" }} · CWC: {{ record.cwc_card_number|default:"—" }}</p>
       </div>
     </div>
+  </div>
 
-    <div class="card-section">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <section class="card-section animate-in">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Enrolment Info</h2></div>
+      <div class="card-body space-y-3">
+        <div class="kv-row"><span class="kv-key">DOB</span><span class="kv-value">{{ record.date_of_birth|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">CWC Card</span><span class="kv-value font-mono">{{ record.cwc_card_number|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">CHPS</span><span class="kv-value">{{ record.current_chps|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Residence</span><span class="kv-value">{{ record.residence_status|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Next due</span><span class="kv-value">{{ record.next_due_date|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Defaulter</span><span class="kv-value"><span class="pill pill-neutral">{{ record.defaulter_status }}</span></span></div>
+      </div>
+    </section>
+
+    <section class="card-section animate-in stagger-1">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Record Vaccine Dose</h2></div>
       <div class="card-body">
-        <h2 class="card-title">Record Vaccine Dose</h2>
-        <form method="post" action="{% url 'immunisation_record_dose' record.pk %}" class="space-y-3">
+        <form method="post" action="{% url 'immunisation_record_dose' record.pk %}" class="space-y-4">
           {% csrf_token %}
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {% for field in dose_form %}
@@ -43,59 +49,58 @@
               {% endif %}
             {% endfor %}
           </div>
-          <button type="submit" class="btn btn-primary btn-sm">Record Dose</button>
+          <button type="submit" class="btn btn-primary btn-sm gap-2">
+            <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+            Record Dose
+          </button>
         </form>
       </div>
-    </div>
+    </section>
   </div>
 
-  <div class="card-section">
-    <div class="card-body">
-      <h2 class="card-title">Vaccine History</h2>
-      <div class="overflow-x-auto">
-        <table class="table table-sm">
-          <thead><tr><th>Date</th><th>Vaccine</th><th>Dose</th><th>Batch</th><th>By</th></tr></thead>
-          <tbody>
-            {% for dose in doses %}
-            <tr>
-              <td>{{ dose.administration_date }}</td>
-              <td>{{ dose.vaccine_name|default:dose.vaccine_code }}</td>
-              <td>{{ dose.dose_number }}</td>
-              <td>{{ dose.batch_lot|default:"—" }}</td>
-              <td>{{ dose.administered_by|default:"—" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" class="text-center text-base-content/50 py-4">No doses recorded.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+  <section class="card-section animate-in">
+    <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Vaccine History</h2></div>
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead><tr><th class="px-5 py-3 text-left">Date</th><th class="px-5 py-3 text-left">Vaccine</th><th class="px-5 py-3 text-left">Dose</th><th class="px-5 py-3 text-left">Batch</th><th class="px-5 py-3 text-left">By</th></tr></thead>
+        <tbody>
+          {% for dose in doses %}
+          <tr>
+            <td class="px-5 py-3 text-small text-base-content/55">{{ dose.administration_date }}</td>
+            <td class="px-5 py-3 font-medium">{{ dose.vaccine_name|default:dose.vaccine_code }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral pill-xs">Dose {{ dose.dose_number }}</span></td>
+            <td class="px-5 py-3 font-mono text-small text-base-content/55">{{ dose.batch_lot|default:"—" }}</td>
+            <td class="px-5 py-3 text-small text-base-content/70">{{ dose.administered_by|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="px-5 py-10 text-center text-base-content/40">No doses recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </div>
+  </section>
 
   {% if defaulters %}
-  <div class="card-section">
-    <div class="card-body">
-      <h2 class="card-title">Defaulter Episodes</h2>
-      <div class="overflow-x-auto">
-        <table class="table table-sm">
-          <thead><tr><th>Status</th><th>Days Overdue</th><th>Last Visit</th><th>Next Due</th><th>Trace</th><th></th></tr></thead>
-          <tbody>
-            {% for d in defaulters %}
-            <tr>
-              <td><span class="badge badge-sm {{ d.defaulter_status|status_badge }}">{{ d.defaulter_status }}</span></td>
-              <td>{{ d.days_overdue }}</td>
-              <td>{{ d.last_visit_date|default:"—" }}</td>
-              <td>{{ d.next_due_date|default:"—" }}</td>
-              <td><span class="badge badge-sm">{{ d.trace_status }}</span></td>
-              <td><a href="{% url 'defaulter_detail' d.pk %}" class="btn btn-ghost btn-xs">View</a></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+  <section class="card-section animate-in">
+    <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Defaulter Episodes</h2></div>
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead><tr><th class="px-5 py-3 text-left">Status</th><th class="px-5 py-3 text-left">Days Overdue</th><th class="px-5 py-3 text-left">Last Visit</th><th class="px-5 py-3 text-left">Next Due</th><th class="px-5 py-3 text-left">Trace</th><th class="px-5 py-3"></th></tr></thead>
+        <tbody>
+          {% for d in defaulters %}
+          <tr class="{% if d.defaulter_status == 'ACTIVE' %}row-accent-amber{% elif d.defaulter_status == 'LOST' %}row-accent-red{% endif %}">
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ d.defaulter_status }}</span></td>
+            <td class="px-5 py-3 {% if d.days_overdue > 30 %}text-error font-semibold{% else %}text-warning font-semibold{% endif %}">{{ d.days_overdue }}</td>
+            <td class="px-5 py-3 text-small text-base-content/55">{{ d.last_visit_date|default:"—" }}</td>
+            <td class="px-5 py-3 text-small text-base-content/55">{{ d.next_due_date|default:"—" }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral pill-xs">{{ d.trace_status }}</span></td>
+            <td class="px-5 py-3 text-right"><a href="{% url 'defaulter_detail' d.pk %}" class="btn btn-ghost btn-xs">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </div>
+  </section>
   {% endif %}
 </div>
 {% endblock %}

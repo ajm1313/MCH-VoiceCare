@@ -2,12 +2,22 @@
  * DefaulterListScreen — list immunisation defaulters.
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, useColorScheme} from 'react-native';
+import {FlatList, StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
 import {query} from '../core/db/database';
+import {
+  Screen,
+  Card,
+  Badge,
+  EmptyState,
+  LoadingState,
+  AppText,
+  type BadgeTone,
+} from '../components/ui';
+import {space} from '../theme/tokens';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Defaulter = {
@@ -21,8 +31,7 @@ type Defaulter = {
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function DefaulterListScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
 
   const [rows, setRows] = useState<Defaulter[]>([]);
@@ -52,40 +61,68 @@ export function DefaulterListScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const overdueTone = (days: number): BadgeTone => {
+    return days > 60 ? 'danger' : 'warning';
+  };
+
+  const overdueColor = (days: number): string => {
+    return days > 60 ? colors.danger : colors.warning;
+  };
+
   if (loading) {
-    return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.primary} /></View>;
+    return (
+      <Screen>
+        <LoadingState message="Loading defaulters…" />
+      </Screen>
+    );
   }
 
   return (
-    <FlatList
-      style={[styles.container, {backgroundColor: colors.background}]}
-      data={rows}
-      keyExtractor={item => item.id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} colors={[colors.primary]} />}
-      ListEmptyComponent={<View style={styles.center}><Text style={[styles.empty, {color: colors.textSecondary}]}>No active defaulters</Text></View>}
-      renderItem={({item}) => (
-        <Pressable style={[styles.card, {backgroundColor: colors.surface}]} onPress={() => navigation.navigate('DefaulterDetail', {defaulterId: item.id})}>
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>{item.child_name}</Text>
-            <View style={[styles.badge, {backgroundColor: item.days_overdue > 60 ? urgency.RED : urgency.ORANGE}]}>
-              <Text style={styles.badgeText}>{item.days_overdue}d overdue</Text>
+    <Screen padded={false}>
+      <FlatList
+        data={rows}
+        keyExtractor={item => item.id}
+        refreshing={refreshing}
+        onRefresh={() => { setRefreshing(true); loadData(); }}
+        ListEmptyComponent={
+          <EmptyState
+            icon="checkCircle"
+            title="No active defaulters"
+            message="All children are up to date with their immunisations."
+          />
+        }
+        renderItem={({item}) => (
+          <Card
+            onPress={() => navigation.navigate('DefaulterDetail', {defaulterId: item.id})}
+            accentColor={overdueColor(item.days_overdue)}
+            style={styles.card}
+            accessibilityLabel={`${item.child_name}. ${item.days_overdue} days overdue`}>
+            <View style={styles.cardHeader}>
+              <AppText variant="bodyStrong" style={styles.flex}>{item.child_name}</AppText>
+              <Badge
+                label={`${item.days_overdue}d overdue`}
+                tone={overdueTone(item.days_overdue)}
+                size="sm"
+                icon="alertTriangle"
+                solid
+              />
             </View>
-          </View>
-          {item.next_due_date && <Text style={[styles.cardSub, {color: colors.textSecondary}]}>Was due: {item.next_due_date}</Text>}
-        </Pressable>
-      )}
-    />
+            {item.next_due_date && (
+              <AppText variant="small" tone="secondary" style={styles.cardSub}>
+                Was due: {item.next_due_date}
+              </AppText>
+            )}
+          </Card>
+        )}
+        contentContainerStyle={{padding: space[4], gap: space[2]}}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  empty: {fontSize: 14},
-  card: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12},
-  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  cardTitle: {fontSize: 15, fontWeight: '600'},
-  cardSub: {fontSize: 12, marginTop: 4},
-  badge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
-  badgeText: {color: '#fff', fontSize: 11, fontWeight: '700'},
+  card: {marginBottom: space[2]},
+  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space[2]},
+  flex: {flex: 1},
+  cardSub: {marginTop: space[1]},
 });

@@ -2,6 +2,9 @@
  * Pregnancy observation form — records vital signs, fetal assessment,
  * urine & fluids, danger signs, and worker judgement offline.
  * Data is enqueued to the outbox for sync (SYNC-001).
+ *
+ * UX-003: restyled with the shared design system primitives and SVG icons.
+ * Clinical behaviour, queries, navigation and accessibility are unchanged.
  */
 import React, {useState} from 'react';
 import {
@@ -11,22 +14,27 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {enqueue} from '../core/sync/outbox';
 import {withProvenance} from '../core/utils/provenance';
 import {logLocalAudit} from '../core/utils/audit';
-import {brand, lightColors} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
+import {border, radius, space} from '../theme/tokens';
+import {Screen} from '../components/ui/Screen';
+import {Button} from '../components/ui/Button';
+import {Field} from '../components/ui/Input';
+import {AppText} from '../components/ui/Text';
+import {Icon} from '../components/ui/Icon';
+import {SectionHeader} from '../components/ui/Layout';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PregnancyObserve'>;
 
 export function PregnancyObserveScreen({route, navigation}: Props) {
+  const {colors} = useTheme();
   const {episodeId} = route.params;
 
   // Vital signs
@@ -154,225 +162,236 @@ export function PregnancyObserveScreen({route, navigation}: Props) {
 
   if (saved) {
     return (
-      <SafeAreaView style={styles.savedContainer}>
-        <Text style={styles.savedText}>Observation saved — queued for sync</Text>
-      </SafeAreaView>
+      <Screen>
+        <View style={styles.savedContainer}>
+          <View style={[styles.savedIcon, {backgroundColor: colors.successSubtle, borderColor: colors.success}]}>
+            <Icon name="checkCircle" size={32} color={colors.success} strokeWidth={2} />
+          </View>
+          <AppText variant="h3" tone="success" center style={styles.savedText}>
+            Observation saved
+          </AppText>
+          <AppText variant="small" tone="secondary" center>
+            Queued for sync
+          </AppText>
+        </View>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Screen padded={false}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>‹ Cancel</Text>
-        </Pressable>
-        <Text style={styles.title}>Record Observation</Text>
+        <Button
+          label="Cancel"
+          variant="ghost"
+          size="sm"
+          icon="close"
+          onPress={() => navigation.goBack()}
+          accessibilityLabel="Cancel and go back"
+        />
+        <AppText variant="h2">Record Observation</AppText>
       </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{flex: 1}}>
-        <ScrollView contentContainerStyle={styles.form}>
-          <Text style={styles.section}>Vital Signs</Text>
-          <View style={styles.row}>
-            <NumberField label="Systolic BP" value={bpSys} onChange={setBpSys} placeholder="120" />
-            <NumberField label="Diastolic BP" value={bpDia} onChange={setBpDia} placeholder="80" />
-          </View>
-          <ToggleRow label="BP repeat after rest" value={bpRepeat} onChange={setBpRepeat} />
-          <View style={styles.row}>
-            <NumberField label="Hb (g/dL)" value={hb} onChange={setHb} placeholder="11.0" />
-            <NumberField label="Temp (°C)" value={temp} onChange={setTemp} placeholder="37.0" />
-          </View>
-          <View style={styles.row}>
-            <NumberField label="Resp Rate" value={rr} onChange={setRr} placeholder="18" />
-            <NumberField label="Weight (kg)" value={weight} onChange={setWeight} placeholder="65" />
-          </View>
-          <View style={styles.row}>
-            <NumberField label="Fundal Height (cm)" value={fundalHeight} onChange={setFundalHeight} placeholder="24" />
-          </View>
-          <Text style={styles.label}>Urine Protein</Text>
-          <ChipPicker value={urineProtein} onChange={setUrineProtein} options={['NONE', 'TRACE', '1+', '2+', '3+']} />
+        style={styles.flex}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
+            <SectionHeader title="Vital Signs" overline="Section 1" />
+            <View style={styles.row}>
+              <Field label="Systolic BP" value={bpSys} onChangeText={setBpSys} placeholder="120" keyboardType="numeric" containerStyle={styles.fieldHalf} />
+              <Field label="Diastolic BP" value={bpDia} onChangeText={setBpDia} placeholder="80" keyboardType="numeric" containerStyle={styles.fieldHalf} />
+            </View>
+            <ToggleRow label="BP repeat after rest" value={bpRepeat} onChange={setBpRepeat} />
+            <View style={styles.row}>
+              <Field label="Hb (g/dL)" value={hb} onChangeText={setHb} placeholder="11.0" keyboardType="numeric" containerStyle={styles.fieldHalf} />
+              <Field label="Temp (°C)" value={temp} onChangeText={setTemp} placeholder="37.0" keyboardType="numeric" containerStyle={styles.fieldHalf} />
+            </View>
+            <View style={styles.row}>
+              <Field label="Resp Rate" value={rr} onChangeText={setRr} placeholder="18" keyboardType="numeric" containerStyle={styles.fieldHalf} />
+              <Field label="Weight (kg)" value={weight} onChangeText={setWeight} placeholder="65" keyboardType="numeric" containerStyle={styles.fieldHalf} />
+            </View>
+            <View style={styles.row}>
+              <Field label="Fundal Height (cm)" value={fundalHeight} onChangeText={setFundalHeight} placeholder="24" keyboardType="numeric" containerStyle={styles.fieldHalf} />
+            </View>
+            <ChipPickerField label="Urine Protein" value={urineProtein} onChange={setUrineProtein} options={['NONE', 'TRACE', '1+', '2+', '3+']} />
 
-          <Text style={styles.section}>Fetal Assessment</Text>
-          <View style={styles.row}>
-            <NumberField label="Fetal Heart Rate" value={fhr} onChange={setFhr} placeholder="140" />
-            <NumberField label="Uterine Discrepancy (wks)" value={uterineDiscrepancy} onChange={setUterineDiscrepancy} placeholder="0" />
-          </View>
-          <Text style={styles.label}>Fetal Movement</Text>
-          <ChipPicker value={fetalMovement} onChange={setFetalMovement} options={['NORMAL', 'REDUCED', 'ABSENT', 'UNKNOWN']} />
-          <Text style={styles.label}>Fetal Number</Text>
-          <ChipPicker value={fetalNumber} onChange={setFetalNumber} options={['SINGLE', 'MULTIPLE', 'UNKNOWN']} />
-          <Text style={styles.label}>Presentation</Text>
-          <ChipPicker value={presentation} onChange={setPresentation} options={['CEPHALIC', 'BREECH', 'TRANSVERSE', 'UNKNOWN']} />
+            <SectionHeader title="Fetal Assessment" overline="Section 2" />
+            <View style={styles.row}>
+              <Field label="Fetal Heart Rate" value={fhr} onChangeText={setFhr} placeholder="140" keyboardType="numeric" containerStyle={styles.fieldHalf} />
+              <Field label="Uterine Discrepancy (wks)" value={uterineDiscrepancy} onChangeText={setUterineDiscrepancy} placeholder="0" keyboardType="numeric" containerStyle={styles.fieldHalf} />
+            </View>
+            <ChipPickerField label="Fetal Movement" value={fetalMovement} onChange={setFetalMovement} options={['NORMAL', 'REDUCED', 'ABSENT', 'UNKNOWN']} />
+            <ChipPickerField label="Fetal Number" value={fetalNumber} onChange={setFetalNumber} options={['SINGLE', 'MULTIPLE', 'UNKNOWN']} />
+            <ChipPickerField label="Presentation" value={presentation} onChange={setPresentation} options={['CEPHALIC', 'BREECH', 'TRANSVERSE', 'UNKNOWN']} />
 
-          <Text style={styles.section}>Urine & Fluids</Text>
-          <Text style={styles.label}>Vaginal Bleeding</Text>
-          <ChipPicker value={vaginalBleeding} onChange={setVaginalBleeding} options={['NONE', 'SPOTTING', 'HEAVY', 'UNKNOWN']} />
-          <Text style={styles.label}>Fluid Leakage</Text>
-          <ChipPicker value={fluidLeakage} onChange={setFluidLeakage} options={['NONE', 'CLEAR', 'BLOOD_STAINED', 'MECONIUM_STAINED', 'UNKNOWN']} />
-          <Text style={styles.label}>Contractions</Text>
-          <ChipPicker value={contractions} onChange={setContractions} options={['NONE', 'IRREGULAR', 'REGULAR', 'UNKNOWN']} />
+            <SectionHeader title="Urine & Fluids" overline="Section 3" />
+            <ChipPickerField label="Vaginal Bleeding" value={vaginalBleeding} onChange={setVaginalBleeding} options={['NONE', 'SPOTTING', 'HEAVY', 'UNKNOWN']} />
+            <ChipPickerField label="Fluid Leakage" value={fluidLeakage} onChange={setFluidLeakage} options={['NONE', 'CLEAR', 'BLOOD_STAINED', 'MECONIUM_STAINED', 'UNKNOWN']} />
+            <ChipPickerField label="Contractions" value={contractions} onChange={setContractions} options={['NONE', 'IRREGULAR', 'REGULAR', 'UNKNOWN']} />
 
-          <Text style={styles.section}>Danger Signs</Text>
-          <ToggleRow label="Severe headache" value={headache} onChange={setHeadache} />
-          <ToggleRow label="Visual disturbance" value={visual} onChange={setVisual} />
-          <ToggleRow label="Epigastric pain" value={epigastric} onChange={setEpigastric} />
-          <ToggleRow label="Convulsion / unconscious" value={convulsion} onChange={setConvulsion} />
-          <ToggleRow label="Severe abdominal pain" value={abdPain} onChange={setAbdPain} />
-          <ToggleRow label="Fever / severe illness" value={fever} onChange={setFever} />
-          <ToggleRow label="Suspected shock or collapse" value={shock} onChange={setShock} />
-          <ToggleRow label="Severe breathing difficulty" value={breathingDiff} onChange={setBreathingDiff} />
-          <ToggleRow label="Suspected cord prolapse" value={cordProlapse} onChange={setCordProlapse} />
-          <ToggleRow label="Persistent vomiting / dehydration" value={vomitingDehydration} onChange={setVomitingDehydration} />
-          <ToggleRow label="Jaundice or liver symptoms" value={jaundice} onChange={setJaundice} />
-          <ToggleRow label="Offensive discharge with fever/pain" value={offensiveDischarge} onChange={setOffensiveDischarge} />
-          <ToggleRow label="Anaemia symptoms" value={anaemiaSymptoms} onChange={setAnaemiaSymptoms} />
+            <SectionHeader title="Danger Signs" overline="Section 4" />
+            <ToggleRow label="Severe headache" value={headache} onChange={setHeadache} />
+            <ToggleRow label="Visual disturbance" value={visual} onChange={setVisual} />
+            <ToggleRow label="Epigastric pain" value={epigastric} onChange={setEpigastric} />
+            <ToggleRow label="Convulsion / unconscious" value={convulsion} onChange={setConvulsion} />
+            <ToggleRow label="Severe abdominal pain" value={abdPain} onChange={setAbdPain} />
+            <ToggleRow label="Fever / severe illness" value={fever} onChange={setFever} />
+            <ToggleRow label="Suspected shock or collapse" value={shock} onChange={setShock} />
+            <ToggleRow label="Severe breathing difficulty" value={breathingDiff} onChange={setBreathingDiff} />
+            <ToggleRow label="Suspected cord prolapse" value={cordProlapse} onChange={setCordProlapse} />
+            <ToggleRow label="Persistent vomiting / dehydration" value={vomitingDehydration} onChange={setVomitingDehydration} />
+            <ToggleRow label="Jaundice or liver symptoms" value={jaundice} onChange={setJaundice} />
+            <ToggleRow label="Offensive discharge with fever/pain" value={offensiveDischarge} onChange={setOffensiveDischarge} />
+            <ToggleRow label="Anaemia symptoms" value={anaemiaSymptoms} onChange={setAnaemiaSymptoms} />
 
-          <Text style={styles.section}>Extended Clinical Flags</Text>
-          <ToggleRow label="Suspected sepsis" value={suspectedSepsis} onChange={setSuspectedSepsis} />
-          <ToggleRow label="Fetal heart seriously abnormal" value={fhrSeriouslyAbnormal} onChange={setFhrSeriouslyAbnormal} />
-          <ToggleRow label="Severe anaemia symptoms (unstable)" value={severeAnaemiaUnstable} onChange={setSevereAnaemiaUnstable} />
-          <ToggleRow label="Emergency referral incomplete" value={emergencyReferralIncomplete} onChange={setEmergencyReferralIncomplete} />
-          <ToggleRow label="Definitive fetal assessment done" value={definitiveFetalAssessment} onChange={setDefinitiveFetalAssessment} />
-          <ToggleRow label="Growth trend static" value={growthTrendStatic} onChange={setGrowthTrendStatic} />
-          <ToggleRow label="Urgent referral incomplete (stable)" value={urgentReferralIncomplete} onChange={setUrgentReferralIncomplete} />
-          <ToggleRow label="FHR repeat confirmed" value={fhrRepeatConfirmed} onChange={setFhrRepeatConfirmed} />
-          <ToggleRow label="Hb required by protocol" value={hbRequiredByProtocol} onChange={setHbRequiredByProtocol} />
-          <ToggleRow label="Symptom not understood" value={symptomNotUnderstood} onChange={setSymptomNotUnderstood} />
-          <ToggleRow label="Records conflicting" value={recordsConflicting} onChange={setRecordsConflicting} />
-          <ToggleRow label="Client uncontactable" value={clientUncontactable} onChange={setClientUncontactable} />
+            <SectionHeader title="Extended Clinical Flags" overline="Section 5" />
+            <ToggleRow label="Suspected sepsis" value={suspectedSepsis} onChange={setSuspectedSepsis} />
+            <ToggleRow label="Fetal heart seriously abnormal" value={fhrSeriouslyAbnormal} onChange={setFhrSeriouslyAbnormal} />
+            <ToggleRow label="Severe anaemia symptoms (unstable)" value={severeAnaemiaUnstable} onChange={setSevereAnaemiaUnstable} />
+            <ToggleRow label="Emergency referral incomplete" value={emergencyReferralIncomplete} onChange={setEmergencyReferralIncomplete} />
+            <ToggleRow label="Definitive fetal assessment done" value={definitiveFetalAssessment} onChange={setDefinitiveFetalAssessment} />
+            <ToggleRow label="Growth trend static" value={growthTrendStatic} onChange={setGrowthTrendStatic} />
+            <ToggleRow label="Urgent referral incomplete (stable)" value={urgentReferralIncomplete} onChange={setUrgentReferralIncomplete} />
+            <ToggleRow label="FHR repeat confirmed" value={fhrRepeatConfirmed} onChange={setFhrRepeatConfirmed} />
+            <ToggleRow label="Hb required by protocol" value={hbRequiredByProtocol} onChange={setHbRequiredByProtocol} />
+            <ToggleRow label="Symptom not understood" value={symptomNotUnderstood} onChange={setSymptomNotUnderstood} />
+            <ToggleRow label="Records conflicting" value={recordsConflicting} onChange={setRecordsConflicting} />
+            <ToggleRow label="Client uncontactable" value={clientUncontactable} onChange={setClientUncontactable} />
 
-          <Text style={styles.section}>Worker Judgement</Text>
-          <ToggleRow label="Worker judgement critical" value={judgement} onChange={setJudgement} />
-          {judgement && (
-            <View style={styles.rationaleBox}>
-              <Text style={styles.label}>Rationale</Text>
-              <TextInput
-                style={styles.textArea}
+            <SectionHeader title="Worker Judgement" overline="Section 6" />
+            <ToggleRow label="Worker judgement critical" value={judgement} onChange={setJudgement} />
+            {judgement && (
+              <Field
+                label="Rationale"
                 value={rationale}
                 onChangeText={setRationale}
+                placeholder="Describe clinical concern…"
                 multiline
                 numberOfLines={3}
-                placeholder="Describe clinical concern…"
-                placeholderTextColor={lightColors.textSecondary}
+                textAlignVertical="top"
               />
-            </View>
-          )}
+            )}
 
-          <Pressable style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Save & Queue for Sync</Text>
-          </Pressable>
+            <Button
+              label="Save & Queue for Sync"
+              onPress={handleSave}
+              icon="check"
+              fullWidth
+              size="lg"
+              style={styles.saveButton}
+              accessibilityLabel="Save observation and queue for sync"
+            />
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-function NumberField({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
+function ToggleRow({label, value, onChange}: {label: string; value: boolean; onChange: (v: boolean) => void}) {
+  const {colors} = useTheme();
   return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        style={styles.input}
+    <View style={styles.toggleRow}>
+      <AppText variant="body" style={styles.toggleLabel}>{label}</AppText>
+      <Switch
         value={value}
-        onChangeText={onChange}
-        keyboardType="numeric"
-        placeholder={placeholder}
-        placeholderTextColor={lightColors.textSecondary}
+        onValueChange={onChange}
+        trackColor={{false: colors.border, true: colors.primary}}
+        accessibilityRole="switch"
+        accessibilityState={{checked: value}}
+        accessibilityLabel={label}
       />
     </View>
   );
 }
 
-function ToggleRow({label, value, onChange}: {label: string; value: boolean; onChange: (v: boolean) => void}) {
+function ChipPickerField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  const {colors} = useTheme();
   return (
-    <View style={styles.toggleRow}>
-      <Text style={styles.toggleLabel}>{label}</Text>
-      <Switch value={value} onValueChange={onChange} trackColor={{false: lightColors.border, true: brand.teal}} />
-    </View>
-  );
-}
-
-function ChipPicker({value, onChange, options}: {value: string; onChange: (v: string) => void; options: string[]}) {
-  return (
-    <View style={styles.chipRow}>
-      {options.map(opt => (
-        <Pressable
-          key={opt}
-          onPress={() => onChange(opt)}
-          style={[styles.chip, {backgroundColor: value === opt ? brand.teal : 'transparent', borderColor: lightColors.border}]}>
-          <Text style={{fontSize: 12, fontWeight: '600', color: value === opt ? '#fff' : lightColors.textSecondary}}>{opt}</Text>
-        </Pressable>
-      ))}
+    <View style={styles.chipField}>
+      <AppText variant="smallStrong" tone="secondary" style={styles.chipLabel}>{label}</AppText>
+      <View style={styles.chipRow}>
+        {options.map(opt => {
+          const selected = value === opt;
+          return (
+            <Pressable
+              key={opt}
+              onPress={() => onChange(opt)}
+              accessibilityRole="button"
+              accessibilityLabel={`${label}: ${opt}`}
+              accessibilityState={{selected}}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: selected ? colors.primary : 'transparent',
+                  borderColor: selected ? colors.primary : colors.border,
+                },
+              ]}>
+              <AppText
+                variant="caption"
+                tone="inherit"
+                style={{color: selected ? colors.onPrimary : colors.textSecondary}}>
+                {opt}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: lightColors.background},
+  flex: {flex: 1},
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 16,
+    gap: space[2],
+    marginBottom: space[2],
+    paddingHorizontal: space[4],
   },
-  back: {fontSize: 16, color: brand.teal},
-  title: {fontSize: 18, fontWeight: '700', color: lightColors.textPrimary},
-  form: {padding: 16, gap: 10},
-  section: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: lightColors.textSecondary,
-    textTransform: 'uppercase',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  row: {flexDirection: 'row', gap: 10},
-  field: {flex: 1},
-  label: {fontSize: 12, color: lightColors.textSecondary, marginBottom: 4},
-  input: {
-    borderWidth: 1,
-    borderColor: lightColors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: lightColors.textPrimary,
-  },
-  toggleRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6},
-  toggleLabel: {fontSize: 14, color: lightColors.textPrimary, flex: 1, flexWrap: 'wrap'},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8},
-  chip: {paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1},
-  rationaleBox: {marginTop: 4},
-  textArea: {
-    borderWidth: 1,
-    borderColor: lightColors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: lightColors.textPrimary,
-    minHeight: 70,
-  },
-  saveButton: {
-    backgroundColor: brand.teal,
-    borderRadius: 10,
-    paddingVertical: 14,
+  form: {paddingHorizontal: space[4], paddingBottom: space[8], gap: space[2]},
+  row: {flexDirection: 'row', gap: space[2]},
+  fieldHalf: {flex: 1},
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 16,
+    paddingVertical: space[2],
+    gap: space[3],
   },
-  saveButtonText: {color: '#fff', fontSize: 16, fontWeight: '700'},
-  savedContainer: {flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: lightColors.background},
-  savedText: {fontSize: 16, color: brand.green, fontWeight: '600'},
+  toggleLabel: {flex: 1, flexWrap: 'wrap'},
+  chipField: {marginBottom: space[2]},
+  chipLabel: {marginBottom: space[1]},
+  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: space[1]},
+  chip: {
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+    borderRadius: radius.md,
+    borderWidth: border.thick,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButton: {marginTop: space[4]},
+  savedContainer: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: space[6]},
+  savedIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.xxl,
+    borderWidth: border.thick,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space[4],
+  },
+  savedText: {marginBottom: space[1]},
 });

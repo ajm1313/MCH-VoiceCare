@@ -3057,7 +3057,6 @@ paths:
           enum:
           - DHIS2
           - FHIR
-          - OIDC
           - SMS_GATEWAY
           - TELEPHONY
         description: |-
@@ -3065,7 +3064,6 @@ paths:
           * `FHIR` - FHIR Server
           * `TELEPHONY` - Telephony Gateway
           * `SMS_GATEWAY` - SMS Gateway
-          * `OIDC` - OIDC Provider
       - name: page
         required: false
         in: query
@@ -7945,14 +7943,12 @@ components:
       - FHIR
       - TELEPHONY
       - SMS_GATEWAY
-      - OIDC
       type: string
       description: |-
         * `DHIS2` - DHIS2
         * `FHIR` - FHIR Server
         * `TELEPHONY` - Telephony Gateway
         * `SMS_GATEWAY` - SMS Gateway
-        * `OIDC` - OIDC Provider
     CreateUser:
       type: object
       properties:

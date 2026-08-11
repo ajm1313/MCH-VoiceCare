@@ -8,28 +8,31 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
-  Text,
-  TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
+import {Alert} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors} from '../theme/colors';
 import {enqueue} from '../core/sync/outbox';
 import {checkMotherChildPairExists, checkChildExists, checkWomanExists} from '../core/dedup/personDedup';
 import type {RootStackParamList} from '../core/navigation/types';
-import {Alert} from 'react-native';
+import {
+  Screen,
+  Card,
+  Button,
+  Field,
+  AppText,
+  SectionHeader,
+} from '../components/ui';
+import {useTheme} from '../theme/useTheme';
+import {border, radius, space} from '../theme/tokens';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function NewbornRegisterScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
   const navigation = useNavigation<Nav>();
 
   // Birth episode
@@ -233,158 +236,174 @@ export function NewbornRegisterScreen() {
     <KeyboardAvoidingView
       style={{flex: 1}}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
-        <Text style={[styles.title, {color: colors.textPrimary}]}>Register Newborn</Text>
+      <Screen scroll>
+        <SectionHeader title="Register Newborn" />
 
         {/* Birth Episode */}
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Birth Details</Text>
-          <LabeledInput label="Pregnancy ID (if linked)" value={pregnancyId} onChange={setPregnancyId} colors={colors} />
-          <LabeledInput label="Birth Date/Time" value={birthDatetime} onChange={setBirthDatetime} colors={colors} placeholder="2026-07-27T14:30" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Place of Birth</Text>
-          <ChipPicker value={placeOfBirth} onChange={setPlaceOfBirth} options={['FACILITY', 'HOME', 'OTHER', 'UNKNOWN']} colors={colors} />
-          <ToggleRow label="Skilled attendant" value={skilledAttendant} onChange={setSkilledAttendant} colors={colors} />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Mode of Delivery</Text>
-          <ChipPicker value={modeOfDelivery} onChange={setModeOfDelivery} options={['SPONTANEOUS_VAGINAL', 'ASSISTED_VAGINAL', 'CAESAREAN', 'BREECH', 'UNKNOWN']} colors={colors} />
-          <ToggleRow label="Maternal fever in labour" value={maternalFever} onChange={setMaternalFever} colors={colors} />
-          <LabeledInput label="ROM (hours)" value={romHours} onChange={setRomHours} colors={colors} keyboardType="numeric" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Liquor Quality</Text>
-          <ChipPicker value={liquorQuality} onChange={setLiquorQuality} options={['CLEAR', 'BLOOD_STAINED', 'MECONIUM_STAINED', 'PURULENT', 'UNKNOWN']} colors={colors} />
-        </View>
+        <Card style={styles.section}>
+          <SectionHeader title="Birth Details" />
+          <Field label="Pregnancy ID (if linked)" value={pregnancyId} onChangeText={setPregnancyId} />
+          <Field label="Birth Date/Time" value={birthDatetime} onChangeText={setBirthDatetime} placeholder="2026-07-27T14:30" />
+          <AppText variant="smallStrong" tone="secondary" style={styles.pickerLabel}>
+            Place of Birth
+          </AppText>
+          <ChipPicker value={placeOfBirth} onChange={setPlaceOfBirth} options={['FACILITY', 'HOME', 'OTHER', 'UNKNOWN']} />
+          <ToggleRow label="Skilled attendant" value={skilledAttendant} onChange={setSkilledAttendant} />
+          <AppText variant="smallStrong" tone="secondary" style={styles.pickerLabel}>
+            Mode of Delivery
+          </AppText>
+          <ChipPicker value={modeOfDelivery} onChange={setModeOfDelivery} options={['SPONTANEOUS_VAGINAL', 'ASSISTED_VAGINAL', 'CAESAREAN', 'BREECH', 'UNKNOWN']} />
+          <ToggleRow label="Maternal fever in labour" value={maternalFever} onChange={setMaternalFever} />
+          <Field label="ROM (hours)" value={romHours} onChangeText={setRomHours} keyboardType="numeric" />
+          <AppText variant="smallStrong" tone="secondary" style={styles.pickerLabel}>
+            Liquor Quality
+          </AppText>
+          <ChipPicker value={liquorQuality} onChange={setLiquorQuality} options={['CLEAR', 'BLOOD_STAINED', 'MECONIUM_STAINED', 'PURULENT', 'UNKNOWN']} />
+        </Card>
 
         {/* Identity */}
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Identity</Text>
-          <LabeledInput label="Child Name" value={childName} onChange={setChildName} colors={colors} />
-          <LabeledInput label="Mother Name" value={motherName} onChange={setMotherName} colors={colors} />
-          <LabeledInput label="Child ID" value={childId} onChange={setChildId} colors={colors} />
-          <LabeledInput label="Mother ID" value={motherId} onChange={setMotherId} colors={colors} />
-          <LabeledInput label="Assigned CHPS" value={assignedChps} onChange={setAssignedChps} colors={colors} />
-          <LabeledInput label="Assigned Worker" value={assignedWorker} onChange={setAssignedWorker} colors={colors} />
-        </View>
+        <Card style={styles.section}>
+          <SectionHeader title="Identity" />
+          <Field label="Child Name" value={childName} onChangeText={setChildName} />
+          <Field label="Mother Name" value={motherName} onChangeText={setMotherName} />
+          <Field label="Child ID" value={childId} onChangeText={setChildId} />
+          <Field label="Mother ID" value={motherId} onChangeText={setMotherId} />
+          <Field label="Assigned CHPS" value={assignedChps} onChangeText={setAssignedChps} />
+          <Field label="Assigned Worker" value={assignedWorker} onChangeText={setAssignedWorker} />
+        </Card>
 
         {/* Newborn Details */}
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Newborn Details</Text>
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Sex</Text>
-          <ChipPicker value={sex} onChange={setSex} options={['MALE', 'FEMALE', 'AMBIGUOUS', 'UNKNOWN']} colors={colors} />
+        <Card style={styles.section}>
+          <SectionHeader title="Newborn Details" />
+          <AppText variant="smallStrong" tone="secondary" style={styles.pickerLabel}>
+            Sex
+          </AppText>
+          <ChipPicker value={sex} onChange={setSex} options={['MALE', 'FEMALE', 'AMBIGUOUS', 'UNKNOWN']} />
           <View style={styles.row}>
-            <LabeledInput label="Gestational Age (wks)" value={gestationalAge} onChange={setGestationalAge} colors={colors} keyboardType="numeric" />
-            <LabeledInput label="Birth Weight (g)" value={birthWeight} onChange={setBirthWeight} colors={colors} keyboardType="numeric" />
+            <Field label="Gestational Age (wks)" value={gestationalAge} onChangeText={setGestationalAge} keyboardType="numeric" containerStyle={styles.halfField} />
+            <Field label="Birth Weight (g)" value={birthWeight} onChangeText={setBirthWeight} keyboardType="numeric" containerStyle={styles.halfField} />
           </View>
           <View style={styles.row}>
-            <LabeledInput label="Length (cm)" value={lengthCm} onChange={setLengthCm} colors={colors} keyboardType="numeric" />
-            <LabeledInput label="Head Circ (cm)" value={headCirc} onChange={setHeadCirc} colors={colors} keyboardType="numeric" />
+            <Field label="Length (cm)" value={lengthCm} onChangeText={setLengthCm} keyboardType="numeric" containerStyle={styles.halfField} />
+            <Field label="Head Circ (cm)" value={headCirc} onChangeText={setHeadCirc} keyboardType="numeric" containerStyle={styles.halfField} />
           </View>
           <View style={styles.row}>
-            <LabeledInput label="Multiple Birth Order" value={multipleBirthOrder} onChange={setMultipleBirthOrder} colors={colors} keyboardType="numeric" />
-            <LabeledInput label="APGAR 1 min" value={apgar1} onChange={setApgar1} colors={colors} keyboardType="numeric" />
+            <Field label="Multiple Birth Order" value={multipleBirthOrder} onChangeText={setMultipleBirthOrder} keyboardType="numeric" containerStyle={styles.halfField} />
+            <Field label="APGAR 1 min" value={apgar1} onChangeText={setApgar1} keyboardType="numeric" containerStyle={styles.halfField} />
           </View>
           <View style={styles.row}>
-            <LabeledInput label="APGAR 5 min" value={apgar5} onChange={setApgar5} colors={colors} keyboardType="numeric" />
-            <LabeledInput label="Resuscitation (min)" value={resuscitationDuration} onChange={setResuscitationDuration} colors={colors} keyboardType="numeric" />
+            <Field label="APGAR 5 min" value={apgar5} onChangeText={setApgar5} keyboardType="numeric" containerStyle={styles.halfField} />
+            <Field label="Resuscitation (min)" value={resuscitationDuration} onChangeText={setResuscitationDuration} keyboardType="numeric" containerStyle={styles.halfField} />
           </View>
-          <ToggleRow label="Cried/breathed immediately" value={criedImmediately} onChange={setCriedImmediately} colors={colors} />
-          <ToggleRow label="Resuscitation required" value={resuscitationRequired} onChange={setResuscitationRequired} colors={colors} />
-        </View>
+          <ToggleRow label="Cried/breathed immediately" value={criedImmediately} onChange={setCriedImmediately} />
+          <ToggleRow label="Resuscitation required" value={resuscitationRequired} onChange={setResuscitationRequired} />
+        </Card>
 
         {/* Essential Care & KMC */}
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Essential Care & KMC</Text>
-          <ToggleRow label="Essential care complete" value={essentialCareComplete} onChange={setEssentialCareComplete} colors={colors} />
-          <LabeledInput label="Breastfeeding initiation" value={breastfeedingInit} onChange={setBreastfeedingInit} colors={colors} placeholder="2026-07-27T15:00" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>KMC Status</Text>
-          <ChipPicker value={kmcStatus} onChange={setKmcStatus} options={['NOT_ELIGIBLE', 'ELIGIBLE', 'ONGOING', 'COMPLETED']} colors={colors} />
-          <LabeledInput label="KMC hours (24h)" value={kmcHours} onChange={setKmcHours} colors={colors} keyboardType="numeric" />
-          <LabeledInput label="Hospital discharge date" value={hospitalDischargeDate} onChange={setHospitalDischargeDate} colors={colors} placeholder="2026-07-29" />
-          <LabeledInput label="Discharge diagnoses" value={dischargeDiagnoses} onChange={setDischargeDiagnoses} colors={colors} />
-          <LabeledInput label="Next follow-up" value={nextFollowUp} onChange={setNextFollowUp} colors={colors} placeholder="2026-08-03T10:00" />
-        </View>
+        <Card style={styles.section}>
+          <SectionHeader title="Essential Care & KMC" />
+          <ToggleRow label="Essential care complete" value={essentialCareComplete} onChange={setEssentialCareComplete} />
+          <Field label="Breastfeeding initiation" value={breastfeedingInit} onChangeText={setBreastfeedingInit} placeholder="2026-07-27T15:00" />
+          <AppText variant="smallStrong" tone="secondary" style={styles.pickerLabel}>
+            KMC Status
+          </AppText>
+          <ChipPicker value={kmcStatus} onChange={setKmcStatus} options={['NOT_ELIGIBLE', 'ELIGIBLE', 'ONGOING', 'COMPLETED']} />
+          <Field label="KMC hours (24h)" value={kmcHours} onChangeText={setKmcHours} keyboardType="numeric" />
+          <Field label="Hospital discharge date" value={hospitalDischargeDate} onChangeText={setHospitalDischargeDate} placeholder="2026-07-29" />
+          <Field label="Discharge diagnoses" value={dischargeDiagnoses} onChangeText={setDischargeDiagnoses} />
+          <Field label="Next follow-up" value={nextFollowUp} onChangeText={setNextFollowUp} placeholder="2026-08-03T10:00" />
+        </Card>
 
         {/* Access & Caregiver */}
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Access & Caregiver</Text>
-          <LabeledInput label="Travel time to referral (min)" value={travelTime} onChange={setTravelTime} colors={colors} keyboardType="numeric" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Current Location</Text>
-          <ChipPicker value={currentLocation} onChange={setCurrentLocation} options={['WITH_MOTHER', 'FACILITY', 'OTHER_CAREGIVER', 'UNKNOWN']} colors={colors} />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Maternal Ability to Care</Text>
-          <ChipPicker value={maternalAbility} onChange={setMaternalAbility} options={['ABLE', 'PARTIALLY_ABLE', 'UNABLE', 'UNKNOWN']} colors={colors} />
-          <ToggleRow label="Alternative caregiver available" value={altCaregiver} onChange={setAltCaregiver} colors={colors} />
-        </View>
+        <Card style={styles.section}>
+          <SectionHeader title="Access & Caregiver" />
+          <Field label="Travel time to referral (min)" value={travelTime} onChangeText={setTravelTime} keyboardType="numeric" />
+          <AppText variant="smallStrong" tone="secondary" style={styles.pickerLabel}>
+            Current Location
+          </AppText>
+          <ChipPicker value={currentLocation} onChange={setCurrentLocation} options={['WITH_MOTHER', 'FACILITY', 'OTHER_CAREGIVER', 'UNKNOWN']} />
+          <AppText variant="smallStrong" tone="secondary" style={styles.pickerLabel}>
+            Maternal Ability to Care
+          </AppText>
+          <ChipPicker value={maternalAbility} onChange={setMaternalAbility} options={['ABLE', 'PARTIALLY_ABLE', 'UNABLE', 'UNKNOWN']} />
+          <ToggleRow label="Alternative caregiver available" value={altCaregiver} onChange={setAltCaregiver} />
+        </Card>
 
         {/* Risk Flags */}
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Risk Flags</Text>
-          <ToggleRow label="Previous NBU admission" value={prevNbuAdmission} onChange={setPrevNbuAdmission} colors={colors} />
-          <ToggleRow label="Congenital abnormality" value={congenitalAbnormality} onChange={setCongenitalAbnormality} colors={colors} />
-          <ToggleRow label="Complex feeding plan" value={complexFeedingPlan} onChange={setComplexFeedingPlan} colors={colors} />
-          <ToggleRow label="Maternal death" value={maternalDeath} onChange={setMaternalDeath} colors={colors} />
-          <ToggleRow label="Severe access barrier" value={severeAccessBarrier} onChange={setSevereAccessBarrier} colors={colors} />
-          <ToggleRow label="Missed postnatal contact" value={missedPostnatalContact} onChange={setMissedPostnatalContact} colors={colors} />
-        </View>
+        <Card style={styles.section}>
+          <SectionHeader title="Risk Flags" />
+          <ToggleRow label="Previous NBU admission" value={prevNbuAdmission} onChange={setPrevNbuAdmission} />
+          <ToggleRow label="Congenital abnormality" value={congenitalAbnormality} onChange={setCongenitalAbnormality} />
+          <ToggleRow label="Complex feeding plan" value={complexFeedingPlan} onChange={setComplexFeedingPlan} />
+          <ToggleRow label="Maternal death" value={maternalDeath} onChange={setMaternalDeath} />
+          <ToggleRow label="Severe access barrier" value={severeAccessBarrier} onChange={setSevereAccessBarrier} />
+          <ToggleRow label="Missed postnatal contact" value={missedPostnatalContact} onChange={setMissedPostnatalContact} />
+        </Card>
 
-        <Pressable
+        <Button
+          label={saving ? 'Saving...' : 'Register & Queue for Sync'}
           onPress={handleSave}
-          disabled={saving}
-          style={[styles.button, {backgroundColor: colors.primary, opacity: saving ? 0.6 : 1}]}>
-          <Text style={styles.buttonText}>{saving ? 'Saving...' : 'Register & Queue for Sync'}</Text>
-        </Pressable>
-      </ScrollView>
+          loading={saving}
+          fullWidth
+          icon="plus"
+          style={styles.saveButton}
+        />
+      </Screen>
     </KeyboardAvoidingView>
   );
 }
 
-function LabeledInput({
-  label, value, onChange, colors, placeholder, keyboardType,
-}: {
-  label: string; value: string; onChange: (v: string) => void; colors: typeof lightColors; placeholder?: string; keyboardType?: 'default' | 'numeric';
-}) {
-  return (
-    <View style={styles.field}>
-      <Text style={[styles.label, {color: colors.textSecondary}]}>{label}</Text>
-      <TextInput
-        style={[styles.input, {backgroundColor: colors.background, color: colors.textPrimary}]}
-        value={value} onChangeText={onChange} placeholder={placeholder}
-        placeholderTextColor={colors.textSecondary} keyboardType={keyboardType || 'default'} />
-    </View>
-  );
-}
-
-function ChipPicker({value, onChange, options, colors}: {value: string; onChange: (v: string) => void; options: string[]; colors: typeof lightColors}) {
+function ChipPicker({value, onChange, options}: {value: string; onChange: (v: string) => void; options: string[]}) {
+  const {colors} = useTheme();
   return (
     <View style={styles.chipRow}>
-      {options.map(opt => (
-        <Pressable key={opt} onPress={() => onChange(opt)}
-          style={[styles.chip, {backgroundColor: value === opt ? colors.primary : 'transparent', borderColor: colors.border}]}>
-          <Text style={{fontSize: 11, fontWeight: '600', color: value === opt ? '#fff' : colors.textSecondary}}>{opt}</Text>
-        </Pressable>
-      ))}
+      {options.map(opt => {
+        const active = value === opt;
+        return (
+          <Pressable
+            key={opt}
+            onPress={() => onChange(opt)}
+            accessibilityRole="button"
+            accessibilityLabel={opt}
+            accessibilityState={{selected: active}}
+            style={[
+              styles.chip,
+              {
+                backgroundColor: active ? colors.primary : 'transparent',
+                borderColor: active ? colors.primary : colors.border,
+              },
+            ]}>
+            <AppText
+              variant="caption"
+              tone="inherit"
+              style={{color: active ? colors.onPrimary : colors.textSecondary, fontWeight: '600'}}>
+              {opt}
+            </AppText>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
-function ToggleRow({label, value, onChange, colors}: {label: string; value: boolean; onChange: (v: boolean) => void; colors: typeof lightColors}) {
+function ToggleRow({label, value, onChange}: {label: string; value: boolean; onChange: (v: boolean) => void}) {
+  const {colors} = useTheme();
   return (
     <View style={styles.toggleRow}>
-      <Text style={[styles.toggleLabel, {color: colors.textPrimary}]}>{label}</Text>
+      <AppText variant="body" style={styles.toggleLabel}>{label}</AppText>
       <Switch value={value} onValueChange={onChange} trackColor={{false: colors.border, true: colors.primary}} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  title: {fontSize: 20, fontWeight: '700', padding: 16},
-  section: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12},
-  sectionTitle: {fontSize: 14, fontWeight: '700', marginBottom: 10},
-  row: {flexDirection: 'row', gap: 10},
-  field: {flex: 1, marginBottom: 8},
-  label: {fontSize: 12, fontWeight: '500', marginBottom: 4},
-  input: {borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8},
-  chip: {paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, borderWidth: 1},
-  toggleRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6},
-  toggleLabel: {fontSize: 14, flex: 1, flexWrap: 'wrap'},
-  button: {margin: 16, padding: 14, borderRadius: 12, alignItems: 'center'},
-  buttonText: {color: '#fff', fontWeight: '700', fontSize: 15},
+  section: {marginBottom: space[3]},
+  row: {flexDirection: 'row', gap: space[3]},
+  halfField: {flex: 1},
+  pickerLabel: {marginBottom: space[1]},
+  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: space[2], marginBottom: space[3]},
+  chip: {paddingHorizontal: space[3], paddingVertical: space[2], borderRadius: radius.sm, borderWidth: border.thick},
+  toggleRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: space[2]},
+  toggleLabel: {flex: 1, flexWrap: 'wrap'},
+  saveButton: {marginTop: space[2], marginBottom: space[4]},
 });

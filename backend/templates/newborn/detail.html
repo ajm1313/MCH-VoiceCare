@@ -4,62 +4,69 @@
 {% block navbar_title %}Newborn Detail{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'newborn_list' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'newborn_list' %}" class="btn-back" aria-label="Back to newborn list">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">{{ episode.child.full_name }}</h1>
-    <span class="badge badge-lg {{ episode.current_urgency|urgency_badge }}">{{ episode.current_urgency }}</span>
+    <div class="flex-1 flex items-center gap-4 min-w-0">
+      <span class="w-12 h-12 rounded-full grid place-items-center shrink-0 bg-gradient-to-br from-info to-sky-700 text-white font-bold shadow-soft">
+        {{ episode.child.full_name|slice:":1"|upper }}
+      </span>
+      <div class="min-w-0">
+        <h1 class="page-title truncate">{{ episode.child.full_name }}</h1>
+        <p class="page-subtitle">Newborn episode · Mother: {{ episode.mother.full_name|default:"—" }}</p>
+      </div>
+    </div>
+    {% include "partials/urgency_badge.html" with value=episode.current_urgency size="lg" %}
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Episode Info</h2>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-base-content/50">Status</span><span class="badge badge-sm {{ episode.status|status_badge }}">{{ episode.status }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Sex</span><span>{{ episode.get_sex_display }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Birth weight</span><span>{{ episode.birth_weight_g|default:"—" }}g</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">GA</span><span>{{ episode.gestational_age_weeks|default:"—" }} weeks</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">APGAR 1</span><span>{{ episode.apgar_1_min|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">APGAR 5</span><span>{{ episode.apgar_5_min|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">CHPS</span><span>{{ episode.assigned_chps|default:"—" }}</span></div>
-        </div>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <section class="card-section animate-in">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Episode Info</h2></div>
+      <div class="card-body space-y-3">
+        <div class="kv-row"><span class="kv-key">Status</span><span class="kv-value"><span class="pill pill-neutral">{{ episode.status }}</span></span></div>
+        <div class="kv-row"><span class="kv-key">Sex</span><span class="kv-value">{{ episode.get_sex_display }}</span></div>
+        <div class="kv-row"><span class="kv-key">Birth weight</span><span class="kv-value">{{ episode.birth_weight_g|default:"—" }}g</span></div>
+        <div class="kv-row"><span class="kv-key">GA</span><span class="kv-value">{{ episode.gestational_age_weeks|default:"—" }} weeks</span></div>
+        <div class="kv-row"><span class="kv-key">APGAR 1</span><span class="kv-value">{{ episode.apgar_1_min|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">APGAR 5</span><span class="kv-value">{{ episode.apgar_5_min|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">CHPS</span><span class="kv-value">{{ episode.assigned_chps|default:"—" }}</span></div>
       </div>
-    </div>
+    </section>
 
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Care & Feeding</h2>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-base-content/50">KMC</span><span>{{ episode.kmc_status|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Essential care</span><span>{% if episode.essential_care_complete %}Complete{% else %}Incomplete{% endif %}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Discharge</span><span>{{ episode.hospital_discharge_date|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Follow-up</span><span>{{ episode.next_follow_up_datetime|default:"—" }}</span></div>
-        </div>
+    <section class="card-section animate-in stagger-1">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Care &amp; Feeding</h2></div>
+      <div class="card-body space-y-3">
+        <div class="kv-row"><span class="kv-key">KMC</span><span class="kv-value">{{ episode.kmc_status|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Essential care</span><span class="kv-value">{% if episode.essential_care_complete %}<span class="pill pill-success">Complete</span>{% else %}<span class="pill pill-warning">Incomplete</span>{% endif %}</span></div>
+        <div class="kv-row"><span class="kv-key">Discharge</span><span class="kv-value">{{ episode.hospital_discharge_date|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Follow-up</span><span class="kv-value">{{ episode.next_follow_up_datetime|default:"—" }}</span></div>
       </div>
-    </div>
+    </section>
 
-    <div class="card-section">
+    <section class="card-section animate-in stagger-2">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Latest Assessment</h2></div>
       <div class="card-body">
-        <h2 class="card-title">Latest Assessment</h2>
         {% if assessments %}
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-base-content/50">Disposition</span><span class="badge {{ assessments.0.disposition|urgency_badge }}">{{ assessments.0.disposition }}</span></div>
-            <p class="text-xs">{{ assessments.0.recommended_action }}</p>
-          </div>
+        <div class="space-y-3">
+          <div class="kv-row"><span class="kv-key">Disposition</span><span class="kv-value">{% include "partials/urgency_badge.html" with value=assessments.0.disposition %}</span></div>
+          <p class="text-small text-base-content/70">{{ assessments.0.recommended_action }}</p>
+        </div>
         {% else %}
-          <p class="text-sm text-base-content/50">No assessments yet.</p>
+        <div class="empty-state empty-state-compact">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"/></svg>
+          <p class="empty-state-body">No assessments yet.</p>
+        </div>
         {% endif %}
       </div>
-    </div>
+    </section>
   </div>
 
-  <div class="card-section">
+  <section class="card-section animate-in">
+    <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Record Observation</h2></div>
     <div class="card-body">
-      <h2 class="card-title">Record Observation</h2>
       <form method="post" action="{% url 'newborn_observe' episode.pk %}" class="space-y-4">
         {% csrf_token %}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -67,37 +74,40 @@
           <div class="form-field">
             <label for="{{ field.id_for_label }}">{{ field.label }}</label>
             {{ field }}
-            {% if field.errors %}<p class="text-error text-sm">{{ field.errors|join:", " }}</p>{% endif %}
+            {% if field.errors %}<p class="form-error">{{ field.errors|join:", " }}</p>{% endif %}
           </div>
           {% endfor %}
         </div>
-        <button type="submit" class="btn btn-primary btn-sm">Save Observation</button>
+        <button type="submit" class="btn btn-primary btn-sm gap-2">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          Save Observation
+        </button>
       </form>
     </div>
-  </div>
+  </section>
 
-  <div class="card-section">
-    <div class="card-body">
-      <h2 class="card-title">Recent Observations</h2>
-      <div class="overflow-x-auto">
-        <table class="table table-sm">
-          <thead><tr><th>Date</th><th>Temp</th><th>RR</th><th>Weight</th><th>Critical?</th></tr></thead>
-          <tbody>
-            {% for obs in observations %}
-            <tr>
-              <td>{{ obs.recorded_at|date:"M d, H:i" }}</td>
-              <td>{{ obs.temperature_c|default:"—" }}</td>
-              <td>{{ obs.respiratory_rate_min|default:"—" }}</td>
-              <td>{{ obs.current_weight_g|default:"—" }}g</td>
-              <td>{% if obs.worker_judgement_critical %}<span class="badge badge-error badge-sm">Yes</span>{% else %}—{% endif %}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" class="text-center text-base-content/50 py-4">No observations recorded.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+  <section class="card-section animate-in">
+    <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Recent Observations</h2></div>
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead>
+          <tr><th class="px-5 py-3 text-left">Date</th><th class="px-5 py-3 text-left">Temp</th><th class="px-5 py-3 text-left">RR</th><th class="px-5 py-3 text-left">Weight</th><th class="px-5 py-3 text-left">Critical?</th></tr>
+        </thead>
+        <tbody>
+          {% for obs in observations %}
+          <tr>
+            <td class="px-5 py-3 text-small text-base-content/55 whitespace-nowrap">{{ obs.recorded_at|date:"M d, H:i" }}</td>
+            <td class="px-5 py-3 text-small">{{ obs.temperature_c|default:"—" }}</td>
+            <td class="px-5 py-3 text-small">{{ obs.respiratory_rate_min|default:"—" }}</td>
+            <td class="px-5 py-3 text-small">{{ obs.current_weight_g|default:"—" }}g</td>
+            <td class="px-5 py-3">{% if obs.worker_judgement_critical %}<span class="urgency-badge urgency-red"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>Yes</span>{% else %}—{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="px-5 py-10 text-center text-base-content/40">No observations recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </div>
+  </section>
 </div>
 {% endblock %}

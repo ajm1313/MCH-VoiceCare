@@ -42,6 +42,9 @@ from .serializers import (
     audit_event_to_fhir,
     package_to_library,
     package_to_plan_definition,
+    organisation_to_fhir,
+    organisation_to_location,
+    assessment_to_questionnaire_response,
 )
 
 
@@ -664,6 +667,204 @@ class FHIRPlanDefinitionDetailView(APIView):
         return Response(package_to_plan_definition(pkg))
 
 
+# --- Organization (OrganisationUnit, spec §8.3) ---
+
+class FHIROrganizationListView(APIView):
+    """GET /fhir/R4/Organization — search organisation units (spec §8.3)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.organisations.models import OrganisationUnit
+
+        qs = OrganisationUnit.objects.all()
+        name = request.query_params.get("name")
+        if name:
+            qs = qs.filter(name__icontains=name)
+        unit_type = request.query_params.get("type", "").upper()
+        if unit_type:
+            qs = qs.filter(unit_type=unit_type)
+        count = _get_count(request)
+
+        orgs = list(qs[:count])
+        entries = [organisation_to_fhir(o) for o in orgs]
+
+        log_audit(
+            actor=request.user.username,
+            action="FHIR_ORGANIZATION_SEARCH",
+            actor_role=request.user.system_role,
+            purpose="DIRECT_CARE",
+            metadata={"count": len(entries), "filters": {"name": name, "type": unit_type}},
+        )
+
+        return _bundle(entries)
+
+
+class FHIROrganizationDetailView(APIView):
+    """GET /fhir/R4/Organization/{id} — retrieve a single organisation."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from apps.organisations.models import OrganisationUnit
+
+        uid = _parse_uuid(pk)
+        if not uid:
+            return _operation_outcome("error", "invalid", "Invalid UUID", status.HTTP_400_BAD_REQUEST)
+
+        org = OrganisationUnit.objects.filter(id=uid).first()
+        if not org:
+            return _operation_outcome("error", "not-found", "Organization not found", status.HTTP_404_NOT_FOUND)
+
+        log_audit(
+            actor=request.user.username,
+            action="FHIR_ORGANIZATION_READ",
+            actor_role=request.user.system_role,
+            purpose="DIRECT_CARE",
+            entity_type="Organization",
+            entity_id=str(org.id),
+            metadata={"name": org.name, "unit_type": org.unit_type},
+        )
+
+        return Response(organisation_to_fhir(org))
+
+
+# --- Location (OrganisationUnit with geographic coords, spec §8.3) ---
+
+class FHIRLocationListView(APIView):
+    """GET /fhir/R4/Location — search facility locations (spec §8.3)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.organisations.models import OrganisationUnit
+
+        qs = OrganisationUnit.objects.all()
+        name = request.query_params.get("name")
+        if name:
+            qs = qs.filter(name__icontains=name)
+        count = _get_count(request)
+
+        orgs = list(qs[:count])
+        entries = [organisation_to_location(o) for o in orgs]
+
+        log_audit(
+            actor=request.user.username,
+            action="FHIR_LOCATION_SEARCH",
+            actor_role=request.user.system_role,
+            purpose="DIRECT_CARE",
+            metadata={"count": len(entries)},
+        )
+
+        return _bundle(entries)
+
+
+class FHIRLocationDetailView(APIView):
+    """GET /fhir/R4/Location/{id} — retrieve a single location."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from apps.organisations.models import OrganisationUnit
+
+        uid = _parse_uuid(pk)
+        if not uid:
+            return _operation_outcome("error", "invalid", "Invalid UUID", status.HTTP_400_BAD_REQUEST)
+
+        org = OrganisationUnit.objects.filter(id=uid).first()
+        if not org:
+            return _operation_outcome("error", "not-found", "Location not found", status.HTTP_404_NOT_FOUND)
+
+        log_audit(
+            actor=request.user.username,
+            action="FHIR_LOCATION_READ",
+            actor_role=request.user.system_role,
+            purpose="DIRECT_CARE",
+            entity_type="Location",
+            entity_id=str(org.id),
+            metadata={"name": org.name},
+        )
+
+        return Response(organisation_to_location(org))
+
+
+# --- QuestionnaireResponse (clinical assessments, spec §8.3) ---
+
+class FHIRQuestionnaireResponseListView(APIView):
+    """GET /fhir/R4/QuestionnaireResponse — search clinical assessments (spec §8.3)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.pregnancy.models import PregnancyAssessment
+        from apps.newborn.models import NewbornAssessment
+
+        patient_id = request.query_params.get("patient")
+        count = _get_count(request)
+
+        entries = []
+
+        # Pregnancy assessments
+        preg_qs = PregnancyAssessment.objects.all()
+        if patient_id:
+            try:
+                pid = uuid.UUID(str(patient_id))
+                preg_qs = preg_qs.filter(episode__woman_id=pid)
+            except (ValueError, TypeError):
+                pass
+        for a in preg_qs[:count]:
+            entries.append(assessment_to_questionnaire_response(a))
+
+        # Newborn assessments (if we haven't filled the count)
+        remaining = count - len(entries)
+        if remaining > 0:
+            nb_qs = NewbornAssessment.objects.all()
+            if patient_id:
+                try:
+                    pid = uuid.UUID(str(patient_id))
+                    nb_qs = nb_qs.filter(episode__child_id=pid)
+                except (ValueError, TypeError):
+                    pass
+            for a in nb_qs[:remaining]:
+                entries.append(assessment_to_questionnaire_response(a))
+
+        log_audit(
+            actor=request.user.username,
+            action="FHIR_QUESTIONNAIRE_RESPONSE_SEARCH",
+            actor_role=request.user.system_role,
+            purpose="DIRECT_CARE",
+            metadata={"count": len(entries), "patient_filter": patient_id or ""},
+        )
+
+        return _bundle(entries)
+
+
+class FHIRQuestionnaireResponseDetailView(APIView):
+    """GET /fhir/R4/QuestionnaireResponse/{id} — retrieve a single assessment."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from apps.pregnancy.models import PregnancyAssessment
+        from apps.newborn.models import NewbornAssessment
+
+        uid = _parse_uuid(pk)
+        if not uid:
+            return _operation_outcome("error", "invalid", "Invalid UUID", status.HTTP_400_BAD_REQUEST)
+
+        # Try pregnancy assessment first, then newborn
+        assessment = PregnancyAssessment.objects.filter(id=uid).first()
+        if not assessment:
+            assessment = NewbornAssessment.objects.filter(id=uid).first()
+        if not assessment:
+            return _operation_outcome("error", "not-found", "QuestionnaireResponse not found", status.HTTP_404_NOT_FOUND)
+
+        log_audit(
+            actor=request.user.username,
+            action="FHIR_QUESTIONNAIRE_RESPONSE_READ",
+            actor_role=request.user.system_role,
+            purpose="DIRECT_CARE",
+            entity_type="QuestionnaireResponse",
+            entity_id=str(assessment.id),
+        )
+
+        return Response(assessment_to_questionnaire_response(assessment))
+
+
 # --- CapabilityStatement ---
 
 class FHIRCapabilityStatementView(APIView):
@@ -694,6 +895,12 @@ class FHIRCapabilityStatementView(APIView):
              "searchParam": [{"name": "status", "type": "token"}, {"name": "_count", "type": "number"}]},
             {"type": "PlanDefinition", "interaction": [{"code": "read"}, {"code": "search-type"}],
              "searchParam": [{"name": "status", "type": "token"}, {"name": "_count", "type": "number"}]},
+            {"type": "Organization", "interaction": [{"code": "read"}, {"code": "search-type"}],
+             "searchParam": [{"name": "name", "type": "string"}, {"name": "type", "type": "token"}, {"name": "_count", "type": "number"}]},
+            {"type": "Location", "interaction": [{"code": "read"}, {"code": "search-type"}],
+             "searchParam": [{"name": "name", "type": "string"}, {"name": "_count", "type": "number"}]},
+            {"type": "QuestionnaireResponse", "interaction": [{"code": "read"}, {"code": "search-type"}],
+             "searchParam": [{"name": "patient", "type": "reference"}, {"name": "_count", "type": "number"}]},
         ]
         return Response({
             "resourceType": "CapabilityStatement",

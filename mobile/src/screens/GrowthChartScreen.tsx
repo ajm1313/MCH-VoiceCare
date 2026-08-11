@@ -5,20 +5,27 @@
  */
 import React, {useCallback, useEffect, useState} from 'react';
 import {
-  ActivityIndicator,
   Image,
   LayoutChangeEvent,
   Pressable,
-  ScrollView,
   StyleSheet,
-  Text,
   View,
-  useColorScheme,
 } from 'react-native';
 import {useRoute} from '@react-navigation/native';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
+import {urgency} from '../theme/colors';
 import {query} from '../core/db/database';
+import {
+  Screen,
+  Card,
+  Badge,
+  EmptyState,
+  LoadingState,
+  AppText,
+  type BadgeTone,
+} from '../components/ui';
+import {border, radius, space} from '../theme/tokens';
 
 type MeasurementRow = {
   id: string;
@@ -170,14 +177,20 @@ function indicatorColor(ind: string): string {
   return urgency.GREEN;
 }
 
+function indicatorTone(ind: string): BadgeTone {
+  if (ind.includes('SEVERELY') || ind.includes('SAM') || ind.includes('OEDEMA')) return 'danger';
+  if (ind.includes('WASTED') || ind.includes('STUNTED') || ind.includes('UNDERWEIGHT') || ind.includes('MAM')) return 'warning';
+  if (ind.includes('OVERWEIGHT') || ind.includes('OBESE')) return 'warning';
+  return 'success';
+}
+
 function dataToPercent(value: number, min: number, max: number): number {
   const clamped = Math.max(min, Math.min(max, value));
   return ((clamped - min) / (max - min)) * 100;
 }
 
 export function GrowthChartScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const route = useRoute();
   const childId = (route.params as {childId: string}).childId;
 
@@ -274,54 +287,53 @@ export function GrowthChartScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, {backgroundColor: colors.background}]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <Screen>
+        <LoadingState message="Loading growth charts…" />
+      </Screen>
     );
   }
 
   return (
-    <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
+    <Screen scroll padded={false}>
       {/* Header */}
-      <View style={[styles.header, {backgroundColor: colors.surface}]}>
-        <Text style={[styles.title, {color: colors.textPrimary}]}>{childName}</Text>
-        <Text style={[styles.subtitle, {color: colors.textSecondary}]}>
+      <Card style={styles.header}>
+        <AppText variant="h2">{childName}</AppText>
+        <AppText variant="small" tone="secondary" style={styles.subtitle}>
           WHO Growth Charts · {sex === 'boys' ? 'Boys' : 'Girls'} · {measurements.length} measurement{measurements.length !== 1 ? 's' : ''}
-        </Text>
-      </View>
+        </AppText>
+      </Card>
 
       {/* Chart tabs */}
-      <View style={[styles.tabBar, {borderColor: colors.border}]}>
+      <View style={[styles.tabBar, {borderBottomColor: colors.border}]}>
         {CHART_CONFIGS.map(cfg => (
           <Pressable
             key={cfg.key}
             onPress={() => setActiveChart(cfg)}
+            accessibilityRole="tab"
+            accessibilityState={{selected: activeChart.key === cfg.key}}
             style={[
               styles.tab,
-              activeChart.key === cfg.key && {borderColor: colors.primary},
+              activeChart.key === cfg.key && {borderBottomColor: colors.primary},
             ]}>
-            <Text
-              style={[
-                styles.tabText,
-                {color: activeChart.key === cfg.key ? colors.primary : colors.textSecondary},
-                activeChart.key === cfg.key && {fontWeight: '700'},
-              ]}>
+            <AppText
+              variant="smallStrong"
+              tone={activeChart.key === cfg.key ? 'brand' : 'secondary'}>
               {cfg.key === 'lfa' ? 'LFA' : cfg.key === 'wfa' ? 'WFA' : 'WFL'}
-            </Text>
+            </AppText>
           </Pressable>
         ))}
       </View>
 
       {/* Chart title */}
       <View style={styles.chartHeader}>
-        <Text style={[styles.chartTitle, {color: colors.textPrimary}]}>{activeChart.title}</Text>
-        <Text style={[styles.chartSub, {color: colors.textSecondary}]}>
+        <AppText variant="h3">{activeChart.title}</AppText>
+        <AppText variant="caption" tone="secondary" style={styles.chartSub}>
           {activeChart.xLabel} vs {activeChart.yLabel}
-        </Text>
+        </AppText>
       </View>
 
       {/* Chart image with overlay */}
-      <View style={[styles.chartContainer, {backgroundColor: colors.surface}]}>
+      <Card style={styles.chartContainer}>
         {chartPoints.length > 0 ? (
           <View
             style={styles.imageWrapper}
@@ -354,7 +366,9 @@ export function GrowthChartScreen() {
                       styles.zoneLabel,
                       {top: (zoneYTop + zoneYBottom) / 2 - 8, backgroundColor: zone.color + '20'},
                     ]}>
-                    <Text style={[styles.zoneLabelText, {color: zone.color}]}>{zone.label}</Text>
+                    <AppText variant="caption" tone="inherit" style={[styles.zoneLabelText, {color: zone.color}]}>
+                      {zone.label}
+                    </AppText>
                   </View>
                 );
               })
@@ -386,23 +400,25 @@ export function GrowthChartScreen() {
                         left: p.px - 6,
                         top: p.py - 6,
                         backgroundColor: color,
-                        borderColor: '#fff',
+                        borderColor: colors.surface,
                       },
                     ]}
                   />
                   {/* Trend arrow */}
                   {i > 0 && (
-                    <Text
+                    <AppText
+                      variant="bodyStrong"
+                      tone="inherit"
                       style={[
                         styles.trendArrow,
                         {
                           left: p.px + 8,
                           top: p.py - 8,
-                          color: trend === 'up' ? urgency.GREEN : trend === 'down' ? urgency.RED : urgency.GREY,
+                          color: trend === 'up' ? colors.success : trend === 'down' ? colors.danger : colors.textTertiary,
                         },
                       ]}>
                       {TREND_ARROW[trend]}
-                    </Text>
+                    </AppText>
                   )}
                 </View>
               );
@@ -433,44 +449,38 @@ export function GrowthChartScreen() {
             })}
           </View>
         ) : (
-          <View style={styles.emptyChart}>
-            <Text style={[styles.emptyText, {color: colors.textSecondary}]}>
-              No measurements with the required data for this chart.
-            </Text>
-          </View>
+          <EmptyState
+            icon="chart"
+            title="No chart data"
+            message="No measurements with the required data for this chart."
+          />
         )}
-      </View>
+      </Card>
 
       {/* Plotted measurements table */}
       {chartPoints.length > 0 && (
-        <View style={[styles.tableContainer, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.tableTitle, {color: colors.textSecondary}]}>
-            PLOTTED MEASUREMENTS
-          </Text>
+        <Card style={styles.tableContainer}>
+          <AppText variant="overline" tone="secondary" uppercase>
+            Plotted Measurements
+          </AppText>
           {chartPoints.map((p, i) => (
             <View
               key={`row-${i}`}
-              style={[styles.tableRow, {borderColor: colors.border}]}>
+              style={[styles.tableRow, {borderBottomColor: colors.border}]}>
               <View style={styles.tableDateCol}>
-                <Text style={[styles.tableDate, {color: colors.textPrimary}]}>
-                  {p.date}
-                </Text>
+                <AppText variant="smallStrong">{p.date}</AppText>
                 {p.age_months != null && (
-                  <Text style={[styles.tableAge, {color: colors.textSecondary}]}>
+                  <AppText variant="caption" tone="secondary">
                     {p.age_months} mo
-                  </Text>
+                  </AppText>
                 )}
               </View>
               <View style={styles.tableMetricsCol}>
                 {p.weight_kg != null && (
-                  <Text style={[styles.tableMetric, {color: colors.textPrimary}]}>
-                    {p.weight_kg} kg
-                  </Text>
+                  <AppText variant="small">{p.weight_kg} kg</AppText>
                 )}
                 {p.length_cm != null && (
-                  <Text style={[styles.tableMetric, {color: colors.textPrimary}]}>
-                    {p.length_cm} cm
-                  </Text>
+                  <AppText variant="small">{p.length_cm} cm</AppText>
                 )}
               </View>
               <View style={styles.tableRightCol}>
@@ -481,59 +491,59 @@ export function GrowthChartScreen() {
                     <View style={styles.tableBadgeRow}>
                       {zone && (
                         <View style={[styles.zScoreBadge, {backgroundColor: zone.color + '20', borderColor: zone.color}]}>
-                          <Text style={[styles.zScoreBadgeText, {color: zone.color}]}>{zone.label}</Text>
+                          <AppText variant="caption" tone="inherit" style={[styles.zScoreBadgeText, {color: zone.color}]}>
+                            {zone.label}
+                          </AppText>
                         </View>
                       )}
                       {i > 0 && (
-                        <Text style={[styles.trendArrowText, {color: trend === 'up' ? urgency.GREEN : trend === 'down' ? urgency.RED : urgency.GREY}]}>
+                        <AppText
+                          variant="bodyStrong"
+                          tone="inherit"
+                          style={[
+                            styles.trendArrowText,
+                            {color: trend === 'up' ? colors.success : trend === 'down' ? colors.danger : colors.textTertiary},
+                          ]}>
                           {TREND_ARROW[trend]}
-                        </Text>
+                        </AppText>
                       )}
-                      <View style={[styles.tableBadge, {backgroundColor: indicatorColor(p.indicator)}]}>
-                        <Text style={styles.tableBadgeText}>
-                          {p.indicator.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
-                        </Text>
-                      </View>
+                      <Badge
+                        label={p.indicator.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                        tone={indicatorTone(p.indicator)}
+                        size="sm"
+                        solid
+                      />
                     </View>
                   );
                 })()}
               </View>
             </View>
           ))}
-        </View>
+        </Card>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  header: {margin: 16, padding: 16, borderRadius: 12},
-  title: {fontSize: 20, fontWeight: '700'},
-  subtitle: {fontSize: 13, marginTop: 4},
+  header: {marginVertical: space[2]},
+  subtitle: {marginTop: 2},
   tabBar: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    borderBottomWidth: 2,
+    borderBottomWidth: border.heavy,
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: space[3],
     alignItems: 'center',
-    borderBottomWidth: 2,
+    borderBottomWidth: border.heavy,
     borderBottomColor: 'transparent',
     marginBottom: -2,
   },
-  tabText: {fontSize: 14, fontWeight: '500'},
-  chartHeader: {paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8},
-  chartTitle: {fontSize: 16, fontWeight: '600'},
-  chartSub: {fontSize: 12, marginTop: 2},
+  chartHeader: {paddingTop: space[4], paddingBottom: space[2]},
+  chartSub: {marginTop: 2},
   chartContainer: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 12,
+    marginVertical: space[4],
     overflow: 'hidden',
   },
   imageWrapper: {
@@ -541,7 +551,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   chartImage: {
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
   dot: {
     position: 'absolute',
@@ -561,36 +571,18 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     transformOrigin: 'left center',
   },
-  emptyChart: {
-    paddingVertical: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {fontSize: 14, textAlign: 'center'},
   tableContainer: {
-    marginHorizontal: 16,
-    marginBottom: 24,
-    borderRadius: 12,
-    padding: 16,
-  },
-  tableTitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 12,
+    marginBottom: space[6],
   },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
+    paddingVertical: space[2] + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   tableDateCol: {flex: 1},
-  tableDate: {fontSize: 14, fontWeight: '500'},
-  tableAge: {fontSize: 11, marginTop: 2},
   tableMetricsCol: {flex: 1, alignItems: 'center'},
-  tableMetric: {fontSize: 13},
   tableRightCol: {
     flex: 1,
     alignItems: 'flex-end',
@@ -600,12 +592,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  tableBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  tableBadgeText: {color: '#fff', fontSize: 9, fontWeight: '700'},
   zScoreRing: {
     position: 'absolute',
     width: 20,
@@ -633,7 +619,7 @@ const styles = StyleSheet.create({
   zScoreBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: radius.xs,
     borderWidth: 1,
   },
   zScoreBadgeText: {

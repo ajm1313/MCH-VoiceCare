@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.facebook.react")
+    id("com.google.gms.google-services")
 }
 
 react {
@@ -16,9 +17,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.mchvoicecare"
+    namespace "com.mchvoicecare.mch_voicecare_mobile"
     defaultConfig {
-        applicationId "com.mchvoicecare"
+        applicationId "com.mchvoicecare.mch_voicecare_mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 8
@@ -52,6 +53,16 @@ android {
 
 dependencies {
     implementation("com.facebook.react:react-android")
+
+    // Biometric authentication (spec §22)
+    implementation("androidx.biometric:biometric:1.1.0")
+
+    // Firebase Cloud Messaging (spec §27)
+    implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
+    implementation("com.google.firebase:firebase-messaging")
+
+    // ML Kit Text Recognition for on-device OCR (spec §16)
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 
     def isHermesEnabled = project.hasProperty("reactNative.enableHermes") ? project.getProperty("reactNative.enableHermes").toBoolean() : true
     if (isHermesEnabled) {

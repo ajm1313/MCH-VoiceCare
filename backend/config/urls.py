@@ -14,11 +14,14 @@ from drf_spectacular.views import (
 import config.admin  # noqa: F401
 
 from apps.organisations.api.views import OrganisationUnitViewSet
+from apps.core.api.prometheus_views import prometheus_metrics_view
 
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", include("config.api_urls")),
+    # Prometheus metrics endpoint at root /metrics (spec §27.1)
+    path("metrics", prometheus_metrics_view, name="prometheus-metrics-root"),
     path("fhir/R4/", include("apps.fhir.urls")),
     path("", include("config.web_urls")),
     # Facility endpoint alias (spec §20.2): /api/v1/facilities/{id}/referral-options

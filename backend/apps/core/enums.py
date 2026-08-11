@@ -193,7 +193,6 @@ class IntegrationType(models.TextChoices):
     FHIR = "FHIR", "FHIR Server"
     TELEPHONY = "TELEPHONY", "Telephony Gateway"
     SMS_GATEWAY = "SMS_GATEWAY", "SMS Gateway"
-    OIDC = "OIDC", "OIDC Provider"
 
 
 class SystemRole(models.TextChoices):

@@ -38,6 +38,7 @@ const ENTITY_TO_RESOURCE_TYPE: Record<string, string> = {
   vaccine_doses: 'VaccineDose',
   growth_measurements: 'GrowthMeasurement',
   referrals: 'Referral',
+  clinician_overrides: 'ClinicianOverride',
 };
 
 let _postFn: PostFn | null = null;

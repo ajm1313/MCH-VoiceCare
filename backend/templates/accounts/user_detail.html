@@ -1,63 +1,72 @@
 {% extends "base.html" %}
-{% block title %}{{ user_obj.full_name|default:user_obj.username }}{% endblock %}
+{% block title %}{{ user_obj.full_name|default:user_obj.username }} · MCH VoiceCare{% endblock %}
 {% block navbar_title %}User Detail{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'user_list' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'user_list' %}" class="btn-back" aria-label="Back to users">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">{{ user_obj.full_name|default:user_obj.username }}</h1>
+    <div class="flex-1 flex items-center gap-4 min-w-0">
+      <span class="w-12 h-12 rounded-full grid place-items-center shrink-0 bg-gradient-to-br from-primary to-teal-700 text-white font-bold shadow-soft">
+        {{ user_obj.full_name|slice:":1"|default:user_obj.username|slice:":1"|upper }}
+      </span>
+      <div class="min-w-0">
+        <h1 class="page-title truncate">{{ user_obj.full_name|default:user_obj.username }}</h1>
+        <p class="page-subtitle">{{ user_obj.get_system_role_display|default:user_obj.username }}</p>
+      </div>
+    </div>
     {% if can_manage %}
-    <a href="{% url 'user_edit' user_obj.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+    <a href="{% url 'user_edit' user_obj.pk %}" class="btn btn-ghost btn-sm gap-2">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+      Edit
+    </a>
     {% endif %}
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Profile</h2>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-base-content/50">Username</span><span>{{ user_obj.username }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Full Name</span><span>{{ user_obj.full_name|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Mobile</span><span>{{ user_obj.mobile_number|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Email</span><span>{{ user_obj.email|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Role</span><span class="badge badge-sm">{{ user_obj.get_system_role_display }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Org Unit</span><span>{{ user_obj.organisation_unit|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Active</span>{% if user_obj.is_active %}<span class="badge badge-success badge-sm">Yes</span>{% else %}<span class="badge badge-error badge-sm">No</span>{% endif %}</div>
-          <div class="flex justify-between"><span class="text-base-content/50">Super Admin</span>{% if user_obj.is_super_admin %}<span class="badge badge-warning badge-sm">Yes</span>{% else %}No{% endif %}</div>
-        </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <section class="card-section animate-in">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Profile</h2></div>
+      <div class="card-body space-y-3">
+        <div class="kv-row"><span class="kv-key">Username</span><span class="kv-value font-mono">{{ user_obj.username }}</span></div>
+        <div class="kv-row"><span class="kv-key">Full Name</span><span class="kv-value">{{ user_obj.full_name|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Mobile</span><span class="kv-value">{{ user_obj.mobile_number|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Email</span><span class="kv-value">{{ user_obj.email|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Role</span><span class="kv-value"><span class="pill pill-neutral">{{ user_obj.get_system_role_display }}</span></span></div>
+        <div class="kv-row"><span class="kv-key">Org Unit</span><span class="kv-value">{{ user_obj.organisation_unit|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Active</span><span class="kv-value">{% if user_obj.is_active %}<span class="pill pill-success">Yes</span>{% else %}<span class="pill pill-error">No</span>{% endif %}</span></div>
+        <div class="kv-row"><span class="kv-key">Super Admin</span><span class="kv-value">{% if user_obj.is_super_admin %}<span class="pill pill-warning">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}</span></div>
       </div>
-    </div>
+    </section>
 
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Role Scopes</h2>
-        <div class="space-y-2">
-          {% for scope in role_scopes %}
-          <div class="flex items-center justify-between bg-base-200 rounded-lg p-2">
-            <div>
-              <span class="badge badge-sm">{{ scope.get_role_code_display }}</span>
-              <span class="text-sm ml-2">{{ scope.scope_unit }}</span>
-            </div>
-            {% if can_manage %}
-            <form method="post" action="{% url 'role_scope_delete' scope.pk %}" class="inline">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-ghost btn-xs text-error" onclick="return confirm('Remove this scope?')">Remove</button>
-            </form>
-            {% endif %}
+    <section class="card-section animate-in stagger-1">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Role Scopes</h2></div>
+      <div class="card-body space-y-3">
+        {% for scope in role_scopes %}
+        <div class="flex items-center justify-between bg-base-200/60 rounded-lg p-3 gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="pill pill-neutral">{{ scope.get_role_code_display }}</span>
+            <span class="text-small text-base-content/70 truncate">{{ scope.scope_unit }}</span>
           </div>
-          {% empty %}
-          <p class="text-sm text-base-content/50">No role scopes assigned.</p>
-          {% endfor %}
+          {% if can_manage %}
+          <form method="post" action="{% url 'role_scope_delete' scope.pk %}" class="inline shrink-0">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-xs text-error" onclick="return confirm('Remove this scope?')">Remove</button>
+          </form>
+          {% endif %}
         </div>
+        {% empty %}
+        <div class="empty-state empty-state-compact">
+          <p class="empty-state-body">No role scopes assigned.</p>
+        </div>
+        {% endfor %}
 
         {% if can_manage %}
         <div class="divider"></div>
-        <h3 class="text-sm font-semibold mb-2">Assign New Scope</h3>
-        <form method="post" action="{% url 'role_scope_assign' user_obj.pk %}" class="space-y-3">
+        <h3 class="text-sm font-semibold mb-3">Assign New Scope</h3>
+        <form method="post" action="{% url 'role_scope_assign' user_obj.pk %}" class="space-y-4">
           {% csrf_token %}
           <div class="form-field">
             <label>Role</label>
@@ -78,11 +87,14 @@
               {% endfor %}
             </select>
           </div>
-          <button type="submit" class="btn btn-primary btn-sm">Assign Scope</button>
+          <button type="submit" class="btn btn-primary btn-sm gap-2">
+            <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Assign Scope
+          </button>
         </form>
         {% endif %}
       </div>
-    </div>
+    </section>
   </div>
 </div>
 {% endblock %}

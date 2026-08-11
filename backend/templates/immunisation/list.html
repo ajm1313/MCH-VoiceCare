@@ -1,75 +1,86 @@
 {% extends "base.html" %}
 {% load mch_tags %}
-{% block title %}Immunisation — MCH VoiceCare{% endblock %}
+{% block title %}Immunisation · MCH VoiceCare{% endblock %}
 {% block navbar_title %}Immunisation{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold">Immunisation Records</h1>
-      <p class="text-sm text-base-content/50">Children enrolled in immunisation programme</p>
+<div class="space-y-7">
+  <div class="page-header">
+    <div class="flex-1">
+      <p class="overline">Child welfare</p>
+      <h1 class="page-title">Immunisation Records</h1>
+      <p class="page-subtitle">Children enrolled in the immunisation programme.</p>
     </div>
-    <a href="{% url 'unified_register' %}" class="btn btn-primary btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+    <a href="{% url 'unified_register' %}" class="btn btn-primary btn-sm gap-2 shadow-card">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
       Register Client
     </a>
   </div>
 
-  <div class="flex gap-2">
-    <a href="{% url 'immunisation_list' %}" class="btn btn-sm btn-primary">Children</a>
-    <a href="{% url 'cwc_session_list' %}" class="btn btn-sm btn-outline">CWC Sessions</a>
-    <a href="{% url 'defaulter_list' %}" class="btn btn-sm btn-outline">Defaulters</a>
+  <div class="segmented-control">
+    <a href="{% url 'immunisation_list' %}" class="segmented-item segmented-item-active">Children</a>
+    <a href="{% url 'cwc_session_list' %}" class="segmented-item">CWC Sessions</a>
+    <a href="{% url 'defaulter_list' %}" class="segmented-item">Defaulters</a>
   </div>
 
-  <form method="get" class="flex gap-2">
-    <input type="text" name="q" value="{{ q }}" class="input input-bordered flex-1" placeholder="Search by child name...">
+  <form method="get" class="search-bar">
+    <span class="search-bar-icon">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
+    </span>
+    <input type="text" name="q" value="{{ q }}" class="search-bar-input" placeholder="Search by child name…">
     <button type="submit" class="btn btn-primary btn-sm">Search</button>
   </form>
 
-  <div class="overflow-x-auto card-section">
-    <table class="table table-zebra">
-      <thead>
-        <tr>
-          <th>Child</th>
-          <th>DOB</th>
-          <th>CWC Card</th>
-          <th>CHPS</th>
-          <th>Defaulter</th>
-          <th>Overdue</th>
-          <th class="text-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for rec in records %}
-        <tr>
-          <td class="font-medium">{{ rec.child.full_name }}</td>
-          <td>{{ rec.date_of_birth|default:"—" }}</td>
-          <td>{{ rec.cwc_card_number|default:"—" }}</td>
-          <td>{{ rec.current_chps|default:"—" }}</td>
-          <td><span class="badge badge-sm {{ rec.defaulter_status|status_badge }}">{{ rec.defaulter_status }}</span></td>
-          <td>{{ rec.overdue_count }}</td>
-          <td class="text-right">
-            <a href="{% url 'immunisation_child_detail' rec.pk %}" class="btn btn-ghost btn-xs">View</a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="7" class="text-center text-base-content/50 py-8">No children found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <section class="card-section animate-in">
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead>
+          <tr>
+            <th class="px-5 py-3 text-left">Child</th>
+            <th class="px-5 py-3 text-left">DOB</th>
+            <th class="px-5 py-3 text-left">CWC Card</th>
+            <th class="px-5 py-3 text-left">CHPS</th>
+            <th class="px-5 py-3 text-left">Defaulter</th>
+            <th class="px-5 py-3 text-left">Overdue</th>
+            <th class="px-5 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in records %}
+          <tr class="{% if rec.defaulter_status == 'ACTIVE' %}row-accent-amber{% endif %}">
+            <td class="px-5 py-3 font-medium">{{ rec.child.full_name }}</td>
+            <td class="px-5 py-3 text-base-content/70">{{ rec.date_of_birth|default:"—" }}</td>
+            <td class="px-5 py-3 font-mono text-small">{{ rec.cwc_card_number|default:"—" }}</td>
+            <td class="px-5 py-3 text-base-content/70">{{ rec.current_chps|default:"—" }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ rec.defaulter_status }}</span></td>
+            <td class="px-5 py-3 {% if rec.overdue_count > 0 %}text-warning font-semibold{% else %}text-base-content/55{% endif %}">{{ rec.overdue_count }}</td>
+            <td class="px-5 py-3 text-right">
+              <a href="{% url 'immunisation_child_detail' rec.pk %}" class="btn btn-ghost btn-xs gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                View
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="px-5 py-12 text-center">
+            <div class="empty-state">
+              <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/></svg>
+              <p class="empty-state-title">No children found</p>
+              <p class="empty-state-body">Try a different search, or register a new client.</p>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   {% if is_paginated %}
   <div class="flex justify-center">
     <div class="join">
-      {% if page_obj.has_previous %}
-        <a href="?q={{ q }}&page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>
-      {% endif %}
+      {% if page_obj.has_previous %}<a href="?q={{ q }}&page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>{% endif %}
       <span class="join-item btn btn-sm btn-active">Page {{ page_obj.number }}</span>
-      {% if page_obj.has_next %}
-        <a href="?q={{ q }}&page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>
-      {% endif %}
+      {% if page_obj.has_next %}<a href="?q={{ q }}&page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>{% endif %}
     </div>
   </div>
   {% endif %}

@@ -1,6 +1,9 @@
 /**
  * Pregnancy list screen — shows episodes cached in local SQLite.
  * Offline-created episodes appear with a sync-status indicator.
+ *
+ * UX-003: restyled with the shared design system primitives and SVG icons.
+ * Clinical behaviour, queries, navigation and accessibility are unchanged.
  */
 import React, {useEffect, useState} from 'react';
 import {
@@ -8,16 +11,21 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {query} from '../core/db/database';
-import {brand, urgency, lightColors} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
+import {border, radius, space} from '../theme/tokens';
 import {SearchBar, FilterChips} from '../components/SearchFilter';
 import {BottomTabBar} from '../components/BottomTabBar';
+import {AppText} from '../components/ui/Text';
+import {Icon} from '../components/ui/Icon';
+import {Button} from '../components/ui/Button';
+import {UrgencyBadge} from '../components/ui/Badge';
+import {EmptyState} from '../components/ui/Layout';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PregnancyList'>;
@@ -32,6 +40,7 @@ interface EpisodeRow {
 }
 
 export function PregnancyListScreen({navigation}: Props) {
+  const {colors} = useTheme();
   const [episodes, setEpisodes] = useState<EpisodeRow[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -68,45 +77,55 @@ export function PregnancyListScreen({navigation}: Props) {
   const renderEpisode = ({item}: {item: EpisodeRow}) => {
     const snapshot = JSON.parse(item.snapshot) as {woman_name?: string; ga_weeks?: number};
     const cls = item.minimum_class;
-    const urgencyColor = cls ? urgency[cls as keyof typeof urgency] || lightColors.textSecondary : lightColors.textSecondary;
     const initials = (snapshot.woman_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
     return (
       <Pressable
-        style={[styles.card, {borderLeftColor: urgencyColor}]}
-        onPress={() => navigation.navigate('PregnancyDetail', {episodeId: item.id})}>
-        <View style={[styles.avatar, {backgroundColor: urgencyColor + '20'}]}>
-          <Text style={[styles.avatarText, {color: urgencyColor}]}>{initials}</Text>
+        style={({pressed}) => [
+          styles.card,
+          {backgroundColor: colors.surface, borderColor: colors.border},
+          pressed && styles.cardPressed,
+        ]}
+        onPress={() => navigation.navigate('PregnancyDetail', {episodeId: item.id})}
+        accessibilityRole="button"
+        accessibilityLabel={`Open pregnancy for ${snapshot.woman_name || 'Unknown'}`}>
+        <View style={[styles.avatar, {backgroundColor: colors.primarySubtle, borderColor: colors.border}]}>
+          <AppText variant="smallStrong" tone="brand">{initials}</AppText>
         </View>
-        <View style={styles.cardLeft}>
-          <Text style={styles.womanName}>{snapshot.woman_name || 'Unknown'}</Text>
+        <View style={styles.cardBody}>
+          <AppText variant="bodyStrong" numberOfLines={1}>
+            {snapshot.woman_name || 'Unknown'}
+          </AppText>
           {snapshot.ga_weeks != null && (
-            <Text style={styles.ga}>GA: {snapshot.ga_weeks} weeks</Text>
+            <AppText variant="small" tone="secondary" style={styles.ga}>
+              GA: {snapshot.ga_weeks} weeks
+            </AppText>
           )}
           {item.sync_status !== 'SYNCED' && (
-            <Text style={styles.syncBadge}>
-              {item.sync_status === 'NOT_SYNCED' ? 'Pending sync' : item.sync_status}
-            </Text>
+            <View style={styles.syncRow}>
+              <Icon name="refresh" size={12} color={colors.warning} strokeWidth={2} />
+              <AppText variant="caption" tone="warning">
+                {item.sync_status === 'NOT_SYNCED' ? 'Pending sync' : item.sync_status}
+              </AppText>
+            </View>
           )}
         </View>
-        {cls && (
-          <View style={[styles.urgencyBadge, {borderColor: urgencyColor}]}>
-            <Text style={[styles.urgencyText, {color: urgencyColor}]}>{cls}</Text>
-          </View>
-        )}
+        {cls && <UrgencyBadge value={cls} size="sm" />}
       </Pressable>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Active Pregnancies</Text>
-        <Pressable
-          style={styles.addButton}
-          onPress={() => navigation.navigate('PregnancyRegister')}>
-          <Text style={styles.addButtonText}>+ Register</Text>
-        </Pressable>
+        <AppText variant="h2">Active Pregnancies</AppText>
+        <Button
+          label="Register"
+          onPress={() => navigation.navigate('PregnancyRegister')}
+          icon="plus"
+          size="sm"
+          accessibilityLabel="Register a new pregnancy"
+        />
       </View>
 
       <SearchBar value={search} onChange={setSearch} placeholder="Search by woman name..." />
@@ -116,13 +135,15 @@ export function PregnancyListScreen({navigation}: Props) {
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={renderEpisode}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadEpisodes} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadEpisodes} tintColor={colors.primary} colors={[colors.primary]} />}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No active pregnancies</Text>
-            <Text style={styles.emptySub}>Pull to refresh or register a new episode</Text>
-          </View>
+          <EmptyState
+            icon="heart"
+            title="No active pregnancies"
+            message="Pull to refresh or register a new episode."
+            action={{label: 'Register Pregnancy', onPress: () => navigation.navigate('PregnancyRegister')}}
+          />
         }
       />
       <BottomTabBar activeRoute="PregnancyList" />
@@ -131,54 +152,33 @@ export function PregnancyListScreen({navigation}: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: lightColors.background},
+  container: {flex: 1},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
   },
-  title: {fontSize: 20, fontWeight: '700', color: lightColors.textPrimary},
-  addButton: {
-    backgroundColor: brand.teal,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  addButtonText: {color: '#fff', fontSize: 14, fontWeight: '600'},
-  list: {padding: 16, gap: 10},
+  list: {padding: space[4], gap: space[2]},
   card: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: lightColors.surface,
-    borderWidth: 1,
-    borderColor: lightColors.border,
-    borderLeftWidth: 4,
-    borderLeftColor: lightColors.border,
-    borderRadius: 12,
-    padding: 16,
+    gap: space[3],
+    borderWidth: border.hairline,
+    borderRadius: radius.lg,
+    padding: space[3],
   },
-  avatar: {width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 12},
-  avatarText: {fontSize: 14, fontWeight: '700'},
-  cardLeft: {flex: 1},
-  womanName: {fontSize: 16, fontWeight: '600', color: lightColors.textPrimary},
-  ga: {fontSize: 13, color: lightColors.textSecondary, marginTop: 4},
-  syncBadge: {
-    fontSize: 11,
-    color: urgency.AMBER,
-    marginTop: 4,
-    fontWeight: '500',
+  cardPressed: {opacity: 0.9, transform: [{scale: 0.985}]},
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: border.hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  urgencyBadge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  urgencyText: {fontSize: 11, fontWeight: '700'},
-  empty: {alignItems: 'center', paddingVertical: 48},
-  emptyText: {fontSize: 16, color: lightColors.textSecondary},
-  emptySub: {fontSize: 13, color: lightColors.textSecondary, marginTop: 4},
+  cardBody: {flex: 1},
+  ga: {marginTop: 2},
+  syncRow: {flexDirection: 'row', alignItems: 'center', gap: space[1], marginTop: 2},
 });

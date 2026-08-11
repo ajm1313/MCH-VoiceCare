@@ -2,35 +2,540 @@
 @tailwind components;
 @tailwind utilities;
 
-/* MCH VoiceCare custom styles */
+/**
+ * MCH VoiceCare web design system.
+ *
+ * UX-001: mirrors the mobile UI kit (mobile/src/components/ui). Component
+ * classes here are the web equivalents of Card, Button, Field, Badge,
+ * SectionHeader, EmptyState, ListRow and StatCard.
+ *
+ * UX-002: urgency must never be communicated by colour alone. The
+ * `.urgency-badge` classes always render alongside a text label, and templates
+ * pair them with an icon.
+ */
+
 @layer base {
-  h1 { @apply text-2xl font-bold; }
-  h2 { @apply text-xl font-semibold; }
+  :root {
+    /* Mirrors mobile/src/theme/tokens.ts */
+    --mch-radius-md: 12px;
+    --mch-radius-lg: 16px;
+    --mch-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply font-sans antialiased;
+    /* Subtle depth behind the app chrome rather than a flat grey. */
+    background-image: radial-gradient(
+      1200px 600px at 100% -10%,
+      rgba(30, 154, 168, 0.06),
+      transparent 60%
+    );
+    background-attachment: fixed;
+  }
+
+  h1 { @apply text-2xl font-bold tracking-tight; }
+  h2 { @apply text-xl font-semibold tracking-tight; }
   h3 { @apply text-lg font-semibold; }
+
+  /* Visible, branded focus ring for keyboard navigation (accessibility). */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary/50 ring-offset-2 ring-offset-base-100;
+  }
+
+  /* Quieter, thinner scrollbars — reads more refined than the OS default. */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-base-300 rounded-full border-[3px] border-solid border-transparent bg-clip-content;
+  }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-base-content/25; }
 }
 
 @layer components {
+  /* ─────────────────────────── Typography ─────────────────────────── */
+
+  .overline {
+    @apply text-overline uppercase tracking-wider text-base-content/45 font-bold;
+  }
+
+  .page-header {
+    @apply flex flex-wrap items-end justify-between gap-4 mb-6;
+  }
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-base-content;
+  }
+  .page-subtitle {
+    @apply text-small text-base-content/60 mt-1;
+  }
+
+  /* ───────────────────────────── Surfaces ──────────────────────────── */
+
+  /* Web equivalent of the mobile <Card>. */
+  .card-section {
+    @apply bg-base-100 rounded-lg border border-base-300 shadow-card;
+  }
+  .card-section > .card-body {
+    @apply p-6;
+  }
+
+  .panel {
+    @apply bg-base-100 rounded-lg border border-base-300 shadow-soft;
+  }
+
+  .panel-header {
+    @apply flex items-center justify-between gap-3 px-5 py-4 border-b border-base-300;
+  }
+
+  .panel-body { @apply p-5; }
+
+  /* Inset/recessed area — table headers, read-only blocks. */
+  .surface-sunken {
+    @apply bg-base-200/70 rounded-md border border-base-300;
+  }
+
+  /* Tappable card — used for module tiles and quick actions. */
+  .card-interactive {
+    @apply bg-base-100 rounded-lg border border-base-300 shadow-soft
+           transition-all duration-base ease-out
+           hover:shadow-card hover:-translate-y-0.5 hover:border-primary/40
+           active:translate-y-0 active:shadow-soft;
+  }
+
+  /* ────────────────────────────── Metrics ─────────────────────────── */
+
+  /* Web equivalent of the mobile <StatCard>. */
+  .stat-card {
+    @apply relative bg-base-100 rounded-lg border border-base-300 shadow-soft p-5
+           overflow-hidden transition-all duration-base ease-out;
+  }
+  .stat-card::before {
+    content: "";
+    @apply absolute inset-x-0 top-0 h-[3px] bg-primary;
+  }
+  .stat-card.is-clickable {
+    @apply hover:shadow-card hover:-translate-y-0.5;
+  }
+  .stat-card-label {
+    @apply text-caption font-medium text-base-content/55 truncate;
+  }
+  .stat-card-value {
+    @apply text-metric font-extrabold tracking-tight leading-none mt-2;
+  }
+  .stat-card-caption {
+    @apply text-caption text-base-content/45 mt-1;
+  }
+  .stat-card-icon {
+    @apply w-8 h-8 rounded-sm grid place-items-center shrink-0;
+  }
+
+  /* Accent variants for the top stripe. */
+  .stat-red::before    { @apply bg-urgency-red; }
+  .stat-orange::before { @apply bg-urgency-orange; }
+  .stat-amber::before  { @apply bg-urgency-amber; }
+  .stat-green::before  { @apply bg-urgency-green; }
+  .stat-grey::before   { @apply bg-urgency-grey; }
+  .stat-info::before   { @apply bg-info; }
+
+  /* ────────────────────────── Urgency (UX-002) ────────────────────── */
+
+  /**
+   * Always render these with a text label. The icon is supplied by the
+   * template so risk is never conveyed by colour alone.
+   */
+  .urgency-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-badge
+           text-caption font-semibold border whitespace-nowrap;
+  }
+  .urgency-red {
+    @apply bg-red-50 text-red-800 border-red-200
+           dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/40;
+  }
+  .urgency-orange {
+    @apply bg-orange-50 text-orange-800 border-orange-200
+           dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/40;
+  }
+  .urgency-amber {
+    @apply bg-amber-50 text-amber-800 border-amber-200
+           dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/40;
+  }
+  .urgency-green {
+    @apply bg-green-50 text-green-800 border-green-200
+           dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/40;
+  }
+  .urgency-grey {
+    @apply bg-slate-100 text-slate-700 border-slate-200
+           dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-500/40;
+  }
+
+  /* Solid variants — used on the printable referral slip where the page may
+     be photocopied in greyscale. */
+  .urgency-solid-red    { @apply bg-urgency-red text-white border-urgency-red; }
+  .urgency-solid-orange { @apply bg-urgency-orange text-white border-urgency-orange; }
+  .urgency-solid-amber  { @apply bg-urgency-amber text-white border-urgency-amber; }
+  .urgency-solid-green  { @apply bg-urgency-green text-white border-urgency-green; }
+  .urgency-solid-grey   { @apply bg-urgency-grey text-white border-urgency-grey; }
+
+  /* Left-edge accent for urgency list rows. */
+  .row-accent-red    { @apply border-l-4 border-l-urgency-red; }
+  .row-accent-orange { @apply border-l-4 border-l-urgency-orange; }
+  .row-accent-amber  { @apply border-l-4 border-l-urgency-amber; }
+  .row-accent-green  { @apply border-l-4 border-l-urgency-green; }
+  .row-accent-grey   { @apply border-l-4 border-l-urgency-grey; }
+
+  /* ───────────────────────────── Badges ──────────────────────────── */
+
+  .stat-pill {
+    @apply badge badge-lg font-semibold;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-badge
+           text-caption font-semibold border whitespace-nowrap;
+  }
+  .pill-neutral {
+    @apply bg-base-200 text-base-content/70 border-base-300;
+  }
+  .pill-brand {
+    @apply bg-teal-100 text-teal-700 border-teal-300
+           dark:bg-primary/15 dark:text-teal-300 dark:border-primary/40;
+  }
+
+  /* Monospace identifier chip — UUIDs, versions, rule IDs. */
+  .code-chip {
+    @apply inline-flex items-center px-2 py-0.5 rounded-xs font-mono text-caption
+           bg-base-200 text-base-content/70 border border-base-300;
+  }
+
+  /* ────────────────────────────── Forms ──────────────────────────── */
+
   .form-field {
     @apply form-control w-full;
   }
-  .form-field label {
-    @apply label label-text font-medium;
+  .form-field > label {
+    @apply block text-small font-semibold text-base-content/70 pb-1.5;
   }
   .form-field input,
   .form-field select,
   .form-field textarea {
-    @apply input input-bordered w-full;
+    @apply input input-bordered w-full bg-base-200/60
+           transition-all duration-base ease-out
+           focus:bg-base-100 focus:border-primary focus:shadow-ring focus:outline-none;
   }
-  .form-field .error {
-    @apply text-error text-sm mt-1;
+  .form-field textarea {
+    @apply textarea textarea-bordered min-h-24 leading-relaxed;
   }
-  .card-section {
-    @apply card bg-base-100 shadow-sm border border-base-300;
+  .form-field select {
+    @apply select select-bordered;
   }
-  .card-section .card-body {
-    @apply p-6;
+  .form-field .error,
+  .form-field .errorlist {
+    @apply text-error text-caption mt-1.5 list-none pl-0 flex items-center gap-1;
   }
-  .stat-pill {
-    @apply badge badge-lg;
+  .form-field .helper {
+    @apply text-caption text-base-content/45 mt-1.5;
+  }
+
+  /* Marks a field required for the current workflow (spec §11). */
+  .required-mark { @apply text-error font-bold; }
+
+  .form-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-1;
+  }
+
+  .form-actions {
+    @apply flex flex-wrap items-center justify-end gap-3 pt-5 mt-5 border-t border-base-300;
+  }
+
+  /* Grouping label inside long forms. */
+  .fieldset-title {
+    @apply text-overline uppercase tracking-wider text-base-content/45 font-bold
+           pb-2 mb-4 border-b border-base-300;
+  }
+
+  /* ────────────────────────────── Tables ─────────────────────────── */
+
+  .table-surface {
+    @apply bg-base-100 rounded-lg border border-base-300 shadow-card overflow-hidden;
+  }
+  .table-premium {
+    @apply table w-full;
+  }
+  .table-premium thead th {
+    @apply bg-base-200/80 text-overline uppercase tracking-wider
+           text-base-content/50 font-bold border-b border-base-300;
+  }
+  .table-premium tbody tr {
+    @apply border-b border-base-300/70 transition-colors duration-fast;
+  }
+  .table-premium tbody tr:last-child {
+    @apply border-b-0;
+  }
+  .table-premium tbody tr:hover {
+    @apply bg-primary/[0.035];
+  }
+  .table-premium td {
+    @apply align-middle;
+  }
+
+  /* ───────────────────────────── List rows ───────────────────────── */
+
+  /* Web equivalent of the mobile <ListRow>. */
+  .list-row {
+    @apply flex items-center gap-4 p-4 bg-base-100 rounded-lg border border-base-300
+           shadow-xs transition-all duration-base ease-out;
+  }
+  .list-row-interactive {
+    @apply hover:shadow-card hover:border-primary/40 hover:-translate-y-px;
+  }
+  .list-row-icon {
+    @apply w-10 h-10 rounded-md grid place-items-center shrink-0
+           bg-primary/10 text-primary border border-base-300;
+  }
+  .list-row-title {
+    @apply font-semibold text-base-content truncate;
+  }
+  .list-row-subtitle {
+    @apply text-small text-base-content/55 truncate;
+  }
+
+  /* ──────────────────────────── Empty state ─────────────────────── */
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center text-center py-16 px-6;
+  }
+  .empty-state-icon {
+    @apply w-16 h-16 rounded-2xl grid place-items-center mb-4
+           bg-base-200 border border-base-300 text-base-content/35;
+  }
+  .empty-state-title {
+    @apply text-lg font-semibold text-base-content;
+  }
+  .empty-state-message {
+    @apply text-small text-base-content/55 mt-1 max-w-sm;
+  }
+
+  /* ───────────────────────────── Navigation ─────────────────────── */
+
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-small font-medium
+           text-base-content/70 transition-all duration-fast
+           hover:bg-base-200 hover:text-base-content;
+  }
+  .nav-item-active {
+    @apply bg-primary/10 text-primary font-semibold
+           shadow-[inset_2px_0_0_0_theme(colors.primary)];
+  }
+  .nav-section-label {
+    @apply px-3 pt-5 pb-2 text-overline uppercase tracking-wider text-base-content/35 font-bold;
+  }
+
+  /* ───────────────────────── Key/value display ──────────────────── */
+
+  .kv-list { @apply divide-y divide-base-300/70; }
+  .kv-row  { @apply flex flex-wrap items-start gap-x-4 gap-y-1 py-3; }
+  .kv-key  { @apply text-small text-base-content/55 w-full sm:w-52 shrink-0; }
+  .kv-val  { @apply text-body font-medium text-base-content flex-1 min-w-0; }
+  /* Missing clinical values must be visibly absent, never faked (spec §11). */
+  .kv-empty { @apply text-body text-base-content/35 italic; }
+
+  /* ──────────────────────────── Utilities ───────────────────────── */
+
+  .toolbar {
+    @apply flex flex-wrap items-center gap-3 mb-5;
+  }
+
+  .divider-label {
+    @apply flex items-center gap-3 text-overline uppercase tracking-wider
+           text-base-content/40 font-bold my-4
+           before:h-px before:flex-1 before:bg-base-300
+           after:h-px after:flex-1 after:bg-base-300;
+  }
+
+  /* Deep navy hero band — used on auth and print headers. */
+  .hero-navy {
+    @apply relative overflow-hidden text-white;
+    background-image: linear-gradient(135deg, #0A1B33 0%, #102845 55%, #14707B 100%);
+  }
+  .hero-navy::after {
+    content: "";
+    @apply absolute inset-0 pointer-events-none;
+    background-image: radial-gradient(
+      600px 300px at 85% -20%,
+      rgba(30, 154, 168, 0.35),
+      transparent 65%
+    );
+  }
+
+  .skeleton-line {
+    @apply relative overflow-hidden bg-base-300/60 rounded-sm;
+  }
+
+  /* ──────────────────────── Premium additions ──────────────────────── */
+
+  /* Back button — used in page headers. */
+  .btn-back {
+    @apply inline-flex items-center gap-1.5 text-small font-medium text-base-content/60
+           hover:text-primary transition-colors duration-fast shrink-0;
+  }
+
+  /* Search bar — list filtering. */
+  .search-bar {
+    @apply flex items-center gap-2;
+  }
+  .search-bar-icon {
+    @apply text-base-content/35 shrink-0 ml-3 -mr-1 relative;
+  }
+  .search-bar-input {
+    @apply input input-bordered flex-1 pl-10;
+  }
+
+  /* Segmented control — tab-like filters (e.g. immunisation sub-pages). */
+  .segmented-control {
+    @apply inline-flex flex-wrap items-center gap-1 p-1 rounded-lg
+           bg-base-200 border border-base-300;
+  }
+  .segmented-item {
+    @apply px-3.5 py-1.5 rounded-md text-small font-medium text-base-content/60
+           transition-all duration-fast cursor-pointer
+           hover:text-base-content hover:bg-base-100/60;
+  }
+  .segmented-item-active {
+    @apply bg-base-100 text-primary shadow-soft;
+  }
+
+  /* Registration type card — unified register. */
+  .reg-type-card {
+    @apply cursor-pointer rounded-lg border-2 border-base-300 p-5 text-center
+           transition-all duration-base ease-out hover:border-primary/50
+           hover:shadow-soft flex flex-col items-center gap-2;
+  }
+  .reg-type-card-active {
+    @apply border-primary bg-primary/5 shadow-soft;
+  }
+  .reg-type-icon {
+    @apply w-14 h-14 rounded-lg grid place-items-center shrink-0;
+  }
+  .reg-type-label {
+    @apply text-small font-semibold text-base-content;
+  }
+  .reg-type-sub {
+    @apply text-caption text-base-content/50;
+  }
+
+  /* Compact key-value block (vertical stack, used in growth detail). */
+  .kv-block {
+    @apply space-y-1;
+  }
+  .kv-block .kv-key {
+    @apply text-caption uppercase tracking-wide;
+  }
+  .kv-block .kv-value {
+    @apply text-base font-medium text-base-content;
+  }
+
+  /* Mini stat tile — monitoring dashboard. */
+  .stat-mini {
+    @apply rounded-lg p-4 bg-base-200/60 border border-base-300;
+  }
+  .stat-mini-label {
+    @apply text-caption text-base-content/55 font-medium;
+  }
+  .stat-mini-value {
+    @apply text-2xl font-bold tracking-tight mt-1;
+  }
+
+  /* Feature flag row — config page. */
+  .flag-row {
+    @apply flex items-center gap-3 cursor-pointer py-1
+           hover:text-base-content transition-colors duration-fast;
+  }
+  .flag-label {
+    @apply text-small text-base-content/80;
+  }
+
+  /* Pill size and tone variants. */
+  .pill-xs { @apply px-1.5 py-0.5 text-[10px]; }
+  .pill-lg { @apply px-3.5 py-1.5 text-small; }
+  .pill-success {
+    @apply bg-success/10 text-success border-success/25;
+  }
+  .pill-warning {
+    @apply bg-warning/10 text-warning border-warning/25;
+  }
+  .pill-error {
+    @apply bg-error/10 text-error border-error/25;
+  }
+  .pill-info {
+    @apply bg-info/10 text-info border-info/25;
+  }
+
+  /* Urgency badge large — used in detail headers. */
+  .urgency-badge-lg {
+    @apply px-3.5 py-1.5 text-small;
+  }
+
+  /* Empty state compact — inline empty message inside a card. */
+  .empty-state-compact {
+    @apply py-8 px-4;
+  }
+  .empty-state-body {
+    @apply text-small text-base-content/55 mt-1 max-w-sm;
+  }
+
+  /* Form helpers — error and help text. */
+  .form-error {
+    @apply text-error text-caption mt-1.5;
+  }
+  .form-help {
+    @apply text-caption text-base-content/45 mt-1.5;
+  }
+}
+
+@layer utilities {
+  .animate-in { animation: fade-in-up 320ms var(--mch-ease) both; }
+
+  /* Stagger helpers for lists and dashboard grids. */
+  .stagger-1 { animation-delay: 40ms; }
+  .stagger-2 { animation-delay: 80ms; }
+  .stagger-3 { animation-delay: 120ms; }
+  .stagger-4 { animation-delay: 160ms; }
+  .stagger-5 { animation-delay: 200ms; }
+  .stagger-6 { animation-delay: 240ms; }
+
+  .text-balance { text-wrap: balance; }
+}
+
+/* Respect users who prefer reduced motion (accessibility). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print — referral slips and reports must stay legible in greyscale. */
+@media print {
+  .no-print { display: none !important; }
+  body {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  .card-section,
+  .panel,
+  .table-surface {
+    box-shadow: none !important;
+    border-color: #94a3b8 !important;
+  }
+  .urgency-badge {
+    border-width: 2px !important;
   }
 }

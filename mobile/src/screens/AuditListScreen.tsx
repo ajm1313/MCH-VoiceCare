@@ -2,12 +2,23 @@
  * AuditListScreen — list audit events from API with local DB fallback.
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View, useColorScheme} from 'react-native';
+import {FlatList, StyleSheet, View} from 'react-native';
 
-import {darkColors, lightColors} from '../theme/colors';
 import {useAuthStore} from '../core/auth/authStore';
 import {AppConfig} from '../config/appConfig';
 import {query} from '../core/db/database';
+import {apiFetch} from '../core/security/secureFetch';
+import {useTheme} from '../theme/useTheme';
+import {space} from '../theme/tokens';
+import {
+  AppText,
+  Card,
+  EmptyState,
+  Icon,
+  LoadingState,
+  Screen,
+  SectionHeader,
+} from '../components/ui';
 
 interface ApiAuditEvent {
   id: string;
@@ -22,8 +33,7 @@ interface ApiAuditEvent {
 type LocalAuditEvent = { id: string; actor: string; action: string; entity_type: string | null; entity_id: string | null; timestamp: string; details: string | null };
 
 export function AuditListScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const {token} = useAuthStore();
   const [apiRows, setApiRows] = useState<ApiAuditEvent[]>([]);
   const [localRows, setLocalRows] = useState<LocalAuditEvent[]>([]);
@@ -34,7 +44,7 @@ export function AuditListScreen() {
   const loadData = useCallback(async () => {
     if (useApi) {
       try {
-        const resp = await fetch(`${AppConfig.apiBaseUrl}/audit/events/`, {
+        const resp = await apiFetch(`${AppConfig.apiBaseUrl}/audit/events/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (resp.ok) {
@@ -62,56 +72,115 @@ export function AuditListScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  if (loading) return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.primary} /></View>;
+  if (loading) {
+    return (
+      <Screen>
+        <LoadingState message="Loading audit events…" />
+      </Screen>
+    );
+  }
 
   if (useApi) {
     return (
-      <FlatList
-        style={[styles.container, {backgroundColor: colors.background}]}
-        data={apiRows} keyExtractor={item => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} colors={[colors.primary]} />}
-        ListEmptyComponent={<View style={styles.center}><Text style={[styles.empty, {color: colors.textSecondary}]}>No audit events</Text></View>}
-        renderItem={({item}) => (
-          <View style={[styles.card, {backgroundColor: colors.surface}]}>
-            <View style={styles.cardHeader}>
-              <Text style={[styles.cardAction, {color: colors.textPrimary}]}>{item.event_type}</Text>
-              <Text style={[styles.cardTime, {color: colors.textSecondary}]}>{item.occurred_at}</Text>
-            </View>
-            <Text style={[styles.cardActor, {color: colors.textSecondary}]}>by {item.actor_name ?? 'System'}</Text>
-            {item.subject_model && <Text style={[styles.cardSub, {color: colors.textSecondary}]}>{item.subject_model}: {item.subject_id ?? '—'}</Text>}
-            {item.summary && <Text style={[styles.cardSub, {color: colors.textSecondary}]}>{item.summary}</Text>}
-          </View>
-        )}
-      />
+      <Screen scroll={false} padded={false}>
+        <SectionHeader
+          title="Audit Log"
+          overline="Compliance"
+          subtitle="System audit events from the server."
+          style={styles.header}
+        />
+        <FlatList
+          style={styles.flex}
+          data={apiRows}
+          keyExtractor={item => item.id}
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); loadData(); }}
+          ListEmptyComponent={
+            <EmptyState
+              icon="clipboard"
+              title="No audit events"
+              message="Audit events will appear here once recorded."
+            />
+          }
+          renderItem={({item}) => (
+            <Card style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.titleRow}>
+                  <Icon name="clipboard" size={16} color={colors.primary} />
+                  <AppText variant="bodyStrong">{item.event_type}</AppText>
+                </View>
+                <AppText variant="caption" tone="tertiary">{item.occurred_at}</AppText>
+              </View>
+              <AppText variant="small" tone="secondary">
+                by {item.actor_name ?? 'System'}
+              </AppText>
+              {item.subject_model ? (
+                <AppText variant="small" tone="secondary">
+                  {item.subject_model}: {item.subject_id ?? '—'}
+                </AppText>
+              ) : null}
+              {item.summary ? (
+                <AppText variant="small" tone="secondary" style={styles.summary}>
+                  {item.summary}
+                </AppText>
+              ) : null}
+            </Card>
+          )}
+        />
+      </Screen>
     );
   }
 
   return (
-    <FlatList
-      style={[styles.container, {backgroundColor: colors.background}]}
-      data={localRows} keyExtractor={item => item.id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} colors={[colors.primary]} />}
-      ListEmptyComponent={<View style={styles.center}><Text style={[styles.empty, {color: colors.textSecondary}]}>No audit events</Text></View>}
-      renderItem={({item}) => (
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardAction, {color: colors.textPrimary}]}>{item.action}</Text>
-            <Text style={[styles.cardTime, {color: colors.textSecondary}]}>{item.timestamp}</Text>
-          </View>
-          <Text style={[styles.cardActor, {color: colors.textSecondary}]}>by {item.actor}</Text>
-          {item.entity_type && <Text style={[styles.cardSub, {color: colors.textSecondary}]}>{item.entity_type}: {item.entity_id ?? '—'}</Text>}
-        </View>
-      )}
-    />
+    <Screen scroll={false} padded={false}>
+      <SectionHeader
+        title="Audit Log"
+        overline="Compliance · Offline"
+        subtitle="Local audit events (server unavailable)."
+        style={styles.header}
+      />
+      <FlatList
+        style={styles.flex}
+        data={localRows}
+        keyExtractor={item => item.id}
+        refreshing={refreshing}
+        onRefresh={() => { setRefreshing(true); loadData(); }}
+        ListEmptyComponent={
+          <EmptyState
+            icon="clipboard"
+            title="No audit events"
+            message="Local audit events will appear here once recorded."
+          />
+        }
+        renderItem={({item}) => (
+          <Card style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.titleRow}>
+                <Icon name="clipboard" size={16} color={colors.primary} />
+                <AppText variant="bodyStrong">{item.action}</AppText>
+              </View>
+              <AppText variant="caption" tone="tertiary">{item.timestamp}</AppText>
+            </View>
+            <AppText variant="small" tone="secondary">
+              by {item.actor}
+            </AppText>
+            {item.entity_type ? (
+              <AppText variant="small" tone="secondary">
+                {item.entity_type}: {item.entity_id ?? '—'}
+              </AppText>
+            ) : null}
+          </Card>
+        )}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1}, center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24}, empty: {fontSize: 14},
-  card: {marginHorizontal: 16, marginVertical: 6, padding: 14, borderRadius: 12},
-  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  cardAction: {fontSize: 14, fontWeight: '600'},
-  cardTime: {fontSize: 11},
-  cardActor: {fontSize: 12, marginTop: 2},
-  cardSub: {fontSize: 12, marginTop: 2},
+  flex: {flex: 1},
+  header: {paddingHorizontal: space[4], marginBottom: space[2]},
+  card: {marginHorizontal: space[4], marginVertical: space[1]},
+  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space[1]},
+  titleRow: {flexDirection: 'row', alignItems: 'center', gap: space[2]},
+  summary: {marginTop: space[1]},
 });

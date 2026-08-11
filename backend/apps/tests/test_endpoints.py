@@ -361,3 +361,57 @@ class BatchSyncAPITests(TestCase):
         data = resp.json()
         self.assertIn("serverChanges", data)
         self.assertIn("nextServerCursor", data)
+
+    def test_batch_sync_clinician_override_accepted(self):
+        """ClinicianOverride resource type is accepted via batch sync (spec §10.2 #14)."""
+        from apps.audit.models import AuditEvent
+        episode_id = str(uuid.uuid4())
+        resp = self.client.post("/api/v1/sync/batch", {
+            "deviceId": "test-device",
+            "events": [
+                {
+                    "eventId": str(uuid.uuid4()),
+                    "resourceType": "ClinicianOverride",
+                    "resource": {
+                        "episode_type": "PregnancyEpisode",
+                        "episode_id": episode_id,
+                        "prior_recommendation": "PRIORITY_REVIEW",
+                        "resulting_action": "CONFIRM",
+                        "override_reason": "Patient stable on re-check",
+                    },
+                },
+            ],
+        }, format="json")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data["acceptedEventIds"]), 1)
+        self.assertEqual(len(data["rejectedEvents"]), 0)
+        # Verify audit event was created
+        audit = AuditEvent.objects.filter(
+            action="CLINICIAN_OVERRIDE",
+            entity_id=episode_id,
+        ).first()
+        self.assertIsNotNone(audit, "Audit event should be created for override")
+
+    def test_batch_sync_clinician_override_emergency_deescalate_rejected(self):
+        """Non-downgrade invariant enforced for synced overrides (spec §3.1)."""
+        resp = self.client.post("/api/v1/sync/batch", {
+            "deviceId": "test-device",
+            "events": [
+                {
+                    "eventId": str(uuid.uuid4()),
+                    "resourceType": "ClinicianOverride",
+                    "resource": {
+                        "episode_type": "PregnancyEpisode",
+                        "episode_id": str(uuid.uuid4()),
+                        "prior_recommendation": "EMERGENCY",
+                        "resulting_action": "DEESCALATE",
+                        "override_reason": "Rule fired in error",
+                    },
+                },
+            ],
+        }, format="json")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data["rejectedEvents"]), 1)
+        self.assertEqual(data["rejectedEvents"][0]["code"], "CONFLICT")

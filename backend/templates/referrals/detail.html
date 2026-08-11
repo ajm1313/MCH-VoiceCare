@@ -4,39 +4,66 @@
 {% block navbar_title %}Referral Detail{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'referral_list' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'referral_list' %}" class="btn-back" aria-label="Back to referrals">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">{{ referral.patient.full_name }}</h1>
-    <span class="badge badge-lg {{ referral.urgency|urgency_badge }}">{{ referral.urgency }}</span>
-    <span class="badge badge-lg {{ referral.status|status_badge }}">{{ referral.status }}</span>
+    <div class="flex-1 flex items-center gap-4 min-w-0">
+      <span class="w-12 h-12 rounded-full grid place-items-center shrink-0 bg-gradient-to-br from-warning to-amber-700 text-white font-bold shadow-soft">
+        {{ referral.patient.full_name|slice:":1"|upper }}
+      </span>
+      <div class="min-w-0">
+        <h1 class="page-title truncate">{{ referral.patient.full_name }}</h1>
+        <p class="page-subtitle">Referral · {{ referral.short_code|default:"—" }}</p>
+      </div>
+    </div>
+    <div class="flex gap-2 shrink-0">
+      {% include "partials/urgency_badge.html" with value=referral.urgency size="lg" %}
+      <span class="pill pill-neutral pill-lg">{{ referral.status }}</span>
+    </div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Referral Info</h2>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-base-content/50">From</span><span>{{ referral.referring_facility.name|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">To</span><span>{{ referral.destination_facility.name|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Created</span><span>{{ referral.created_at|date:"M d, Y H:i" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Short code</span><span>{{ referral.short_code|default:"—" }}</span></div>
-        </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <section class="card-section animate-in">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Referral Info</h2></div>
+      <div class="card-body space-y-3">
+        <div class="kv-row"><span class="kv-key">From</span><span class="kv-value">{{ referral.referring_facility.name|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">To</span><span class="kv-value">{{ referral.destination_facility.name|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Created</span><span class="kv-value">{{ referral.created_at|date:"M d, Y H:i" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Short code</span><span class="kv-value font-mono font-semibold">{{ referral.short_code|default:"—" }}</span></div>
       </div>
-    </div>
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Reason & Care</h2>
-        <p class="text-sm"><span class="text-base-content/50">Reason:</span> {{ referral.referral_reason|default:"—" }}</p>
-        <p class="text-sm mt-2"><span class="text-base-content/50">Pre-referral care:</span> {{ referral.pre_referral_care|default:"—" }}</p>
+    </section>
+
+    <section class="card-section animate-in stagger-1">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Reason &amp; Care</h2></div>
+      <div class="card-body space-y-3">
+        <div class="kv-block">
+          <p class="kv-key">Reason</p>
+          <p class="kv-value">{{ referral.referral_reason|default:"—" }}</p>
+        </div>
+        <div class="kv-block">
+          <p class="kv-key">Pre-referral care</p>
+          <p class="kv-value">{{ referral.pre_referral_care|default:"—" }}</p>
+        </div>
         {% if referral.disposition %}
-        <p class="text-sm mt-2"><span class="text-base-content/50">Disposition:</span> {{ referral.disposition }}</p>
+        <div class="kv-block">
+          <p class="kv-key">Disposition</p>
+          <p class="kv-value">{% include "partials/urgency_badge.html" with value=referral.disposition %}</p>
+        </div>
         {% endif %}
       </div>
-    </div>
+    </section>
+  </div>
+
+  <div class="flex gap-2 no-print">
+    {% if referral.short_code %}
+    <a href="{% url 'referral_slip' referral.pk %}" class="btn btn-outline btn-sm gap-2" target="_blank" rel="noopener">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .66-1.035a3 3 0 0 0-1.66-4.592V9m0 0V6m0 0H9m6 0H6m6 0v3m0 0v.382c0 .355-.19.685-.5.866L9 12m6-2.618V9"/></svg>
+      View Slip
+    </a>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

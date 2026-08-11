@@ -35,6 +35,9 @@ from apps.immunisation.api.serializers import (
 from apps.growth.api.serializers import GrowthMeasurementSerializer
 from apps.referrals.api.serializers import ReferralSerializer
 
+from apps.audit.services import log_clinician_override
+from apps.core.enums import UrgencyLevel
+
 
 class VersionConflict(Exception):
     """Raised when optimistic concurrency version check fails (spec §19.4)."""
@@ -348,6 +351,7 @@ class SyncViewSet(viewsets.ViewSet):
             "VaccineDose": "vaccine_doses",
             "GrowthMeasurement": "growth_measurements",
             "Referral": "referrals",
+            "ClinicianOverride": "clinician_overrides",
         }
 
         for event in events:
@@ -362,6 +366,40 @@ class SyncViewSet(viewsets.ViewSet):
                     "code": "VALIDATION_ERROR",
                     "message": f"Unknown resourceType: {resource_type}",
                 })
+                continue
+
+            # Clinician overrides are handled as audit events, not model records
+            if entity_type == "clinician_overrides":
+                try:
+                    prior_rec = resource.get("prior_recommendation", "")
+                    resulting = resource.get("resulting_action", "")
+                    # Enforce non-downgrade invariant (spec §3.1)
+                    if (prior_rec == UrgencyLevel.EMERGENCY
+                            and resulting == "DEESCALATE"):
+                        rejected.append({
+                            "eventId": event_id,
+                            "code": "CONFLICT",
+                            "message": "Emergency rules cannot be de-escalated by "
+                                      "clinician override.",
+                        })
+                        continue
+                    event = log_clinician_override(
+                        actor=request.user.username,
+                        actor_role=request.user.system_role,
+                        episode_type=resource.get("episode_type", ""),
+                        episode_id=resource.get("episode_id"),
+                        prior_recommendation=prior_rec,
+                        resulting_action=resulting,
+                        reason=resource.get("override_reason", ""),
+                        patient_id=resource.get("patient_id"),
+                    )
+                    accepted.append(event_id)
+                except Exception as exc:
+                    rejected.append({
+                        "eventId": event_id,
+                        "code": "VALIDATION_ERROR",
+                        "message": str(exc),
+                    })
                 continue
 
             if entity_type not in SYNC_REGISTRY:

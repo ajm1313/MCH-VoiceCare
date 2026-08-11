@@ -127,33 +127,38 @@ class PregnancyRuleGoldenNegativeTests(TestCase):
         org = _make_org()
         patient = _make_patient(org)
         ep = _make_episode(patient)
-        _make_obs(ep, bp_systolic=110, bp_diastolic=70, temperature_c=36.5)
+        _make_obs(ep, bp_systolic=110, bp_diastolic=70, temperature_c=36.5, fhr_bpm=140)
         result = run_pregnancy_assessment(ep)
         self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
         self.assertEqual(len(result["fired_rules"]), 0)
+        self.assertEqual(result["missingCriticalFields"], [])
 
-    def test_no_observation_no_rules_fire(self):
+    def test_no_observation_produces_abstain(self):
+        """No observation at all → ABSTAIN (spec §3.1: missing critical fields)."""
         org = _make_org()
         patient = _make_patient(org)
         ep = _make_episode(patient)
         result = run_pregnancy_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
+        self.assertGreater(len(result["missingCriticalFields"]), 0)
 
     def test_normal_danger_signs_text_no_emergency(self):
+        """Danger signs text is normal but missing vitals → ABSTAIN (spec §3.1)."""
         org = _make_org()
         patient = _make_patient(org)
         ep = _make_episode(patient)
         _make_obs(ep, danger_signs="feeling fine, no complaints")
         result = run_pregnancy_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
 
     def test_low_bp_not_hypertension(self):
+        """Low BP with missing temp/FHR → ABSTAIN (spec §3.1)."""
         org = _make_org()
         patient = _make_patient(org)
         ep = _make_episode(patient)
         _make_obs(ep, bp_systolic=90, bp_diastolic=60)
         result = run_pregnancy_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
 
 
 class PregnancyRuleGoldenBoundaryTests(TestCase):
@@ -203,7 +208,7 @@ class PregnancyRuleGoldenBoundaryTests(TestCase):
         org = _make_org()
         patient = _make_patient(org)
         ep = _make_episode(patient)
-        _make_obs(ep, bp_systolic=139, bp_diastolic=80)
+        _make_obs(ep, bp_systolic=139, bp_diastolic=80, temperature_c=36.5, fhr_bpm=140)
         result = run_pregnancy_assessment(ep)
         self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
 
@@ -215,11 +220,12 @@ class PregnancyRuleGoldenBoundaryTests(TestCase):
         self.assertEqual(result["disposition"], UrgencyLevel.PRIORITY)
 
     def test_maternal_age_34_is_routine(self):
+        """Age 34 with no observation → ABSTAIN (missing critical fields, spec §3.1)."""
         org = _make_org()
         patient = _make_patient(org)
         ep = _make_episode(patient, maternal_age_years=34)
         result = run_pregnancy_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
 
     def test_fever_38_exact_is_priority(self):
         org = _make_org()
@@ -230,24 +236,27 @@ class PregnancyRuleGoldenBoundaryTests(TestCase):
         self.assertEqual(result["disposition"], UrgencyLevel.PRIORITY)
 
     def test_fever_37_9_is_routine(self):
+        """Temp 37.9 with missing BP/FHR → ABSTAIN (spec §3.1)."""
         org = _make_org()
         patient = _make_patient(org)
         ep = _make_episode(patient)
         _make_obs(ep, temperature_c=37.9)
         result = run_pregnancy_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
 
 
 class PregnancyRuleGoldenMissingDataTests(TestCase):
     """Missing-data scenarios — behavior when data is absent (spec §29.2)."""
 
-    def test_no_bp_values_routine(self):
+    def test_no_bp_values_abstain(self):
+        """No vitals at all → ABSTAIN (spec §3.1: missing critical fields)."""
         org = _make_org()
         patient = _make_patient(org)
         ep = _make_episode(patient)
         _make_obs(ep)  # No vitals at all
         result = run_pregnancy_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
+        self.assertGreater(len(result["missingCriticalFields"]), 0)
 
     def test_only_systolic_no_diastolic(self):
         org = _make_org()
@@ -275,12 +284,13 @@ class PregnancyRuleGoldenMissingDataTests(TestCase):
         self.assertNotIn("GH-SMP-AGE-UNDER-18", rule_ids)
 
     def test_empty_danger_signs_no_emergency(self):
+        """Empty danger signs with no vitals → ABSTAIN (spec §3.1)."""
         org = _make_org()
         patient = _make_patient(org)
         ep = _make_episode(patient)
         _make_obs(ep, danger_signs="")
         result = run_pregnancy_assessment(ep)
-        self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
 
 
 class PregnancyRuleGoldenConflictTests(TestCase):

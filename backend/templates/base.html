@@ -1,52 +1,99 @@
 {% load static %}
-{% load mch_tags %}
-<!DOCTYPE html>
+{% load mch_tags %}<!DOCTYPE html>
 <html lang="en" data-theme="mchvoicecare">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0A1B33">
   <title>{% block title %}MCH VoiceCare{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+
+  {# Apply the saved theme before first paint to avoid a flash of the wrong theme. #}
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('theme') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>body { font-family: 'Inter', sans-serif; }</style>
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-base-200 min-h-screen">
+<body class="bg-base-200 min-h-screen text-base-content">
   <div class="flex min-h-screen">
     {% if user.is_authenticated %}
       {% include "partials/sidebar.html" %}
     {% endif %}
-    <div class="flex-1 flex flex-col">
+
+    <div class="flex-1 flex flex-col min-w-0">
       {% if user.is_authenticated %}
         {% include "partials/navbar.html" %}
       {% endif %}
-      <main class="flex-1 p-6">
+
+      <main class="flex-1 px-6 py-7 max-w-[1600px] w-full mx-auto">
         {% if messages %}
-          <div class="toast toast-top toast-center z-50">
+          <div class="toast toast-top toast-end z-50 max-w-md">
             {% for message in messages %}
-              <div class="alert {% if message.tags == 'error' %}alert-error{% elif message.tags == 'success' %}alert-success{% elif message.tags == 'warning' %}alert-warning{% else %}alert-info{% endif %}">
-                <span>{{ message }}</span>
+              <div class="alert shadow-float border animate-in
+                          {% if message.tags == 'error' %}alert-error
+                          {% elif message.tags == 'success' %}alert-success
+                          {% elif message.tags == 'warning' %}alert-warning
+                          {% else %}alert-info{% endif %}">
+                {% if message.tags == 'error' %}
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
+                {% elif message.tags == 'success' %}
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                {% elif message.tags == 'warning' %}
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+                {% else %}
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
+                {% endif %}
+                <span class="text-small">{{ message }}</span>
               </div>
             {% endfor %}
           </div>
         {% endif %}
+
         {% block content %}{% endblock %}
       </main>
+
+      <footer class="px-6 py-4 border-t border-base-300 bg-base-100/60 no-print">
+        <p class="text-caption text-base-content/40">
+          MCH VoiceCare &middot; Maternal &amp; Child Health Risk Decision Support
+          {% if user.is_authenticated %}&middot; Signed in as {{ user.username }}{% endif %}
+        </p>
+      </footer>
     </div>
   </div>
+
   {% block extra_scripts %}{% endblock %}
+
   <script>
-  (function() {
+  (function () {
+    // Keep the light/dark logo pair in sync with the active theme.
     function updateLogos() {
       var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      document.querySelectorAll('.logo-light').forEach(function(el) { el.classList.toggle('hidden', isDark); });
-      document.querySelectorAll('.logo-dark').forEach(function(el) { el.classList.toggle('hidden', !isDark); });
+      document.querySelectorAll('.logo-light').forEach(function (el) { el.classList.toggle('hidden', isDark); });
+      document.querySelectorAll('.logo-dark').forEach(function (el) { el.classList.toggle('hidden', !isDark); });
     }
-    try {
-      var saved = localStorage.getItem('theme');
-      if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-    } catch(e) {}
+    window.mchUpdateLogos = updateLogos;
     updateLogos();
+
+    // Auto-dismiss transient toasts so they do not obscure clinical content.
+    setTimeout(function () {
+      document.querySelectorAll('.toast .alert').forEach(function (el) {
+        el.style.transition = 'opacity 240ms ease, transform 240ms ease';
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-8px)';
+        setTimeout(function () { el.remove(); }, 260);
+      });
+    }, 6000);
   })();
   </script>
 </body>

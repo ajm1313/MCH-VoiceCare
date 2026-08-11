@@ -41,7 +41,7 @@ export const AppConfig = {
     // Key is stored securely via react-native-keychain, not hardcoded.
     encryption: {
       enabled: true,
-      keychainService: 'com.mchvoicecare.dbkey',
+      keychainService: 'com.mchvoicecare.mch_voicecare_mobile.dbkey',
       keychainAccount: 'sqlcipher_key',
       cipherPageSize: 4096,
       kdfIterations: 256000,

@@ -14,6 +14,7 @@ from apps.core.api.package_views import (
 )
 from apps.core.api.dashboard_views import AggregateDashboardView
 from apps.core.api.monitoring_views import MonitoringHealthView
+from apps.core.api.prometheus_views import prometheus_metrics_view
 from apps.core.api.ocr_views import (
     OCRTemplateListView, OCRTemplateDetailView,
     OCRJobCreateView, OCRJobListView, OCRJobDetailView,
@@ -54,6 +55,8 @@ urlpatterns = [
     path("packages/<str:package_type>/active/", PackageActiveView.as_view(), name="package-active"),
     path("dashboard/aggregate/", AggregateDashboardView.as_view(), name="dashboard-aggregate"),
     path("monitoring/health/", MonitoringHealthView.as_view(), name="monitoring-health"),
+    # Prometheus metrics endpoint (spec §27.1) — for external observability stacks
+    path("monitoring/metrics", prometheus_metrics_view, name="prometheus-metrics"),
     # OCR (spec §16, §25)
     path("ocr/templates", OCRTemplateListView.as_view(), name="ocr-template-list"),
     path("ocr/templates/<str:pk>", OCRTemplateDetailView.as_view(), name="ocr-template-detail"),

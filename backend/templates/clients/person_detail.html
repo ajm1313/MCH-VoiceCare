@@ -1,51 +1,92 @@
 {% extends "base.html" %}
-{% block title %}{{ person.full_name }} — MCH VoiceCare{% endblock %}
+{% block title %}{{ person.full_name }} · MCH VoiceCare{% endblock %}
 {% block navbar_title %}Client Details{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'person_list' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'person_list' %}" class="btn-back" aria-label="Back to clients">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">{{ person.full_name }}</h1>
+    <div class="flex-1 flex items-center gap-4 min-w-0">
+      <span class="w-12 h-12 rounded-full grid place-items-center shrink-0 bg-gradient-to-br from-primary to-teal-700 text-white font-bold shadow-soft">
+        {{ person.full_name|slice:":1"|upper }}
+      </span>
+      <div class="min-w-0">
+        <h1 class="page-title truncate">{{ person.full_name }}</h1>
+        <p class="page-subtitle">{{ person.get_sex_display|default:"—" }} · {{ person.age_years|default:"—" }} years</p>
+      </div>
+    </div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Demographics</h2>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-base-content/50">Date of Birth</span><span>{{ person.date_of_birth|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Age</span><span>{{ person.age_years|default:"—" }} years</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Sex</span><span>{{ person.get_sex_display }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">National ID</span><span>{{ person.national_id|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Phone</span><span>{{ person.phone|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Alt Phone</span><span>{{ person.alternate_phone|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Language</span><span>{{ person.get_preferred_language_display }}</span></div>
-        </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <section class="card-section animate-in">
+      <div class="panel-header">
+        <h2 class="text-base font-semibold tracking-tight">Demographics</h2>
       </div>
-    </div>
+      <div class="card-body space-y-3">
+        <div class="kv-row"><span class="kv-key">Date of Birth</span><span class="kv-value">{{ person.date_of_birth|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Age</span><span class="kv-value">{{ person.age_years|default:"—" }} years</span></div>
+        <div class="kv-row"><span class="kv-key">Sex</span><span class="kv-value">{{ person.get_sex_display }}</span></div>
+        <div class="kv-row"><span class="kv-key">National ID</span><span class="kv-value font-mono">{{ person.national_id|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Phone</span><span class="kv-value">{{ person.phone|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Alt Phone</span><span class="kv-value">{{ person.alternate_phone|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Language</span><span class="kv-value">{{ person.get_preferred_language_display }}</span></div>
+      </div>
+    </section>
 
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Address & Consent</h2>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-base-content/50">Community</span><span>{{ person.community|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Address</span><span>{{ person.address|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Household</span><span>{{ person.household|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Consent</span><span>{% if person.sensitive_content_consent %}Yes{% else %}No{% endif %}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Opt-out</span><span>{% if person.communication_opt_out %}Yes{% else %}No{% endif %}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Deceased</span><span>{% if person.deceased %}Yes{% else %}No{% endif %}</span></div>
+    <section class="card-section animate-in stagger-1">
+      <div class="panel-header">
+        <h2 class="text-base font-semibold tracking-tight">Address &amp; Consent</h2>
+      </div>
+      <div class="card-body space-y-3">
+        <div class="kv-row"><span class="kv-key">Community</span><span class="kv-value">{{ person.community|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Address</span><span class="kv-value">{{ person.address|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Household</span><span class="kv-value">{{ person.household|default:"—" }}</span></div>
+        <div class="kv-row">
+          <span class="kv-key">Consent</span>
+          <span class="kv-value">
+            {% if person.sensitive_content_consent %}
+            <span class="pill pill-success">Yes</span>
+            {% else %}
+            <span class="pill pill-neutral">No</span>
+            {% endif %}
+          </span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-key">Opt-out</span>
+          <span class="kv-value">
+            {% if person.communication_opt_out %}
+            <span class="pill pill-warning">Yes</span>
+            {% else %}
+            <span class="pill pill-neutral">No</span>
+            {% endif %}
+          </span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-key">Deceased</span>
+          <span class="kv-value">
+            {% if person.deceased %}
+            <span class="pill pill-error">Yes</span>
+            {% else %}
+            <span class="pill pill-neutral">No</span>
+            {% endif %}
+          </span>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 
   <div class="flex gap-2">
-    <a href="{% url 'person_edit' person.pk %}" class="btn btn-primary btn-sm">Edit</a>
-    <a href="{% url 'unified_register' %}" class="btn btn-outline btn-sm">Register in Pathway</a>
+    <a href="{% url 'person_edit' person.pk %}" class="btn btn-primary btn-sm gap-2">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+      Edit
+    </a>
+    <a href="{% url 'unified_register' %}" class="btn btn-outline btn-sm gap-2">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      Register in Pathway
+    </a>
   </div>
 </div>
 {% endblock %}

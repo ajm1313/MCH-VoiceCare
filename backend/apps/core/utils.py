@@ -13,6 +13,22 @@ def urgency_badge_class(urgency: str) -> str:
     return mapping.get(urgency, "badge-ghost")
 
 
+def urgency_tone_class(urgency: str) -> str:
+    """Map urgency level to a premium tone suffix used by the new UI.
+
+    Returns one of: 'red', 'amber', 'green', 'grey'.
+    Unknown / missing urgency returns 'grey' (data-missing) — never 'green',
+    so abstention or missing data is never mistaken for routine/safe.
+    """
+    mapping = {
+        UrgencyLevel.EMERGENCY: "red",
+        UrgencyLevel.PRIORITY: "amber",
+        UrgencyLevel.ROUTINE: "green",
+        UrgencyLevel.ABSTAIN: "grey",
+    }
+    return mapping.get(urgency, "grey")
+
+
 def status_badge_class(status: str) -> str:
     """Map common statuses to badge classes."""
     status_lower = status.lower() if status else ""

@@ -4,64 +4,70 @@
 {% block navbar_title %}Pregnancy Detail{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'pregnancy_list' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'pregnancy_list' %}" class="btn-back" aria-label="Back to pregnancy list">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">{{ episode.woman.full_name }}</h1>
-    <span class="badge badge-lg {{ episode.current_urgency|urgency_badge }}">{{ episode.current_urgency }}</span>
+    <div class="flex-1 flex items-center gap-4 min-w-0">
+      <span class="w-12 h-12 rounded-full grid place-items-center shrink-0 bg-gradient-to-br from-urgency-red to-rose-700 text-white font-bold shadow-soft">
+        {{ episode.woman.full_name|slice:":1"|upper }}
+      </span>
+      <div class="min-w-0">
+        <h1 class="page-title truncate">{{ episode.woman.full_name }}</h1>
+        <p class="page-subtitle">Pregnancy episode · Gravidity {{ episode.gravidity|default:"—" }}</p>
+      </div>
+    </div>
+    {% include "partials/urgency_badge.html" with value=episode.current_urgency size="lg" %}
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Episode Info</h2>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-base-content/50">Status</span><span class="badge badge-sm {{ episode.status|status_badge }}">{{ episode.status }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">LMP</span><span>{{ episode.lmp_date|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Gravidity</span><span>{{ episode.gravidity }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Parity</span><span>{{ episode.parity }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">C/S count</span><span>{{ episode.previous_caesarean_count }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">CHPS</span><span>{{ episode.assigned_chps|default:"—" }}</span></div>
-        </div>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <section class="card-section animate-in">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Episode Info</h2></div>
+      <div class="card-body space-y-3">
+        <div class="kv-row"><span class="kv-key">Status</span><span class="kv-value"><span class="pill pill-neutral">{{ episode.status }}</span></span></div>
+        <div class="kv-row"><span class="kv-key">LMP</span><span class="kv-value">{{ episode.lmp_date|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Gravidity</span><span class="kv-value">{{ episode.gravidity }}</span></div>
+        <div class="kv-row"><span class="kv-key">Parity</span><span class="kv-value">{{ episode.parity }}</span></div>
+        <div class="kv-row"><span class="kv-key">C/S count</span><span class="kv-value">{{ episode.previous_caesarean_count }}</span></div>
+        <div class="kv-row"><span class="kv-key">CHPS</span><span class="kv-value">{{ episode.assigned_chps|default:"—" }}</span></div>
       </div>
-    </div>
+    </section>
 
-    <div class="card-section">
-      <div class="card-body">
-        <h2 class="card-title">Medical History</h2>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-base-content/50">HTN</span><span>{% if episode.chronic_hypertension %}Yes{% else %}No{% endif %}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Diabetes</span><span>{% if episode.diabetes %}Yes{% else %}No{% endif %}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Cardiac</span><span>{% if episode.cardiac_disease %}Yes{% else %}No{% endif %}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Blood group</span><span>{{ episode.blood_group|default:"—" }}</span></div>
-          <div class="flex justify-between"><span class="text-base-content/50">Rhesus</span><span>{{ episode.rhesus_status|default:"—" }}</span></div>
-        </div>
+    <section class="card-section animate-in stagger-1">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Medical History</h2></div>
+      <div class="card-body space-y-3">
+        <div class="kv-row"><span class="kv-key">HTN</span><span class="kv-value">{% if episode.chronic_hypertension %}<span class="pill pill-warning">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}</span></div>
+        <div class="kv-row"><span class="kv-key">Diabetes</span><span class="kv-value">{% if episode.diabetes %}<span class="pill pill-warning">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}</span></div>
+        <div class="kv-row"><span class="kv-key">Cardiac</span><span class="kv-value">{% if episode.cardiac_disease %}<span class="pill pill-warning">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}</span></div>
+        <div class="kv-row"><span class="kv-key">Blood group</span><span class="kv-value font-mono">{{ episode.blood_group|default:"—" }}</span></div>
+        <div class="kv-row"><span class="kv-key">Rhesus</span><span class="kv-value font-mono">{{ episode.rhesus_status|default:"—" }}</span></div>
       </div>
-    </div>
+    </section>
 
-    <div class="card-section">
+    <section class="card-section animate-in stagger-2">
+      <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Latest Assessment</h2></div>
       <div class="card-body">
-        <h2 class="card-title">Latest Assessment</h2>
         {% if assessments %}
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-base-content/50">Disposition</span><span class="badge {{ assessments.0.disposition|urgency_badge }}">{{ assessments.0.disposition }}</span></div>
-            <p class="text-xs">{{ assessments.0.recommended_action }}</p>
-            <p class="text-xs text-base-content/50">{{ assessments.0.assessed_at|date:"M d, Y H:i" }}</p>
-          </div>
+        <div class="space-y-3">
+          <div class="kv-row"><span class="kv-key">Disposition</span><span class="kv-value">{% include "partials/urgency_badge.html" with value=assessments.0.disposition %}</span></div>
+          <p class="text-small text-base-content/70">{{ assessments.0.recommended_action }}</p>
+          <p class="text-caption text-base-content/45">{{ assessments.0.assessed_at|date:"M d, Y H:i" }}</p>
+        </div>
         {% else %}
-          <p class="text-sm text-base-content/50">No assessments yet.</p>
+        <div class="empty-state empty-state-compact">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"/></svg>
+          <p class="empty-state-body">No assessments yet.</p>
+        </div>
         {% endif %}
       </div>
-    </div>
+    </section>
   </div>
 
-  <!-- Record observation -->
-  <div class="card-section">
+  <section class="card-section animate-in">
+    <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Record Observation</h2></div>
     <div class="card-body">
-      <h2 class="card-title">Record Observation</h2>
       <form method="post" action="{% url 'pregnancy_observe' episode.pk %}" class="space-y-4">
         {% csrf_token %}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -69,41 +75,41 @@
           <div class="form-field">
             <label for="{{ field.id_for_label }}">{{ field.label }}</label>
             {{ field }}
-            {% if field.errors %}<p class="text-error text-sm">{{ field.errors|join:", " }}</p>{% endif %}
+            {% if field.errors %}<p class="form-error">{{ field.errors|join:", " }}</p>{% endif %}
           </div>
           {% endfor %}
         </div>
-        <button type="submit" class="btn btn-primary btn-sm">Save Observation</button>
+        <button type="submit" class="btn btn-primary btn-sm gap-2">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          Save Observation
+        </button>
       </form>
     </div>
-  </div>
+  </section>
 
-  <!-- Recent observations -->
-  <div class="card-section">
-    <div class="card-body">
-      <h2 class="card-title">Recent Observations</h2>
-      <div class="overflow-x-auto">
-        <table class="table table-sm">
-          <thead>
-            <tr><th>Date</th><th>BP</th><th>Temp</th><th>FHR</th><th>Protein</th><th>Danger Signs</th></tr>
-          </thead>
-          <tbody>
-            {% for obs in observations %}
-            <tr>
-              <td>{{ obs.recorded_at|date:"M d, H:i" }}</td>
-              <td>{{ obs.bp_systolic|default:"—" }}/{{ obs.bp_diastolic|default:"—" }}</td>
-              <td>{{ obs.temperature_c|default:"—" }}</td>
-              <td>{{ obs.fhr_bpm|default:"—" }}</td>
-              <td>{{ obs.urine_protein|default:"—" }}</td>
-              <td class="max-w-xs truncate">{{ obs.danger_signs|default:"—" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6" class="text-center text-base-content/50 py-4">No observations recorded.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+  <section class="card-section animate-in">
+    <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Recent Observations</h2></div>
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead>
+          <tr><th class="px-5 py-3 text-left">Date</th><th class="px-5 py-3 text-left">BP</th><th class="px-5 py-3 text-left">Temp</th><th class="px-5 py-3 text-left">FHR</th><th class="px-5 py-3 text-left">Protein</th><th class="px-5 py-3 text-left">Danger Signs</th></tr>
+        </thead>
+        <tbody>
+          {% for obs in observations %}
+          <tr>
+            <td class="px-5 py-3 text-small text-base-content/55 whitespace-nowrap">{{ obs.recorded_at|date:"M d, H:i" }}</td>
+            <td class="px-5 py-3 font-mono text-small">{{ obs.bp_systolic|default:"—" }}/{{ obs.bp_diastolic|default:"—" }}</td>
+            <td class="px-5 py-3 text-small">{{ obs.temperature_c|default:"—" }}</td>
+            <td class="px-5 py-3 text-small">{{ obs.fhr_bpm|default:"—" }}</td>
+            <td class="px-5 py-3 text-small">{{ obs.urine_protein|default:"—" }}</td>
+            <td class="px-5 py-3 text-small text-base-content/70 max-w-xs truncate">{{ obs.danger_signs|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="px-5 py-10 text-center text-base-content/40">No observations recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </div>
+  </section>
 </div>
 {% endblock %}

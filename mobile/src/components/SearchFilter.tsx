@@ -5,12 +5,14 @@ import React from 'react';
 import {
   Pressable,
   StyleSheet,
-  Text,
   TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
-import {darkColors, lightColors} from '../theme/colors';
+
+import {useTheme} from '../theme/useTheme';
+import {MIN_TOUCH, border, radius, space, type as typeScale} from '../theme/tokens';
+import {Icon} from './ui/Icon';
+import {AppText} from './ui/Text';
 
 interface SearchBarProps {
   value: string;
@@ -19,18 +21,25 @@ interface SearchBarProps {
 }
 
 export function SearchBar({value, onChange, placeholder = 'Search...'}: SearchBarProps) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.surface, borderColor: colors.border}]}>
-      <Text style={styles.icon} accessibilityRole="text" accessibilityLabel="Search">🔍</Text>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.surfaceSunken,
+          borderColor: colors.border,
+          borderWidth: border.thick,
+        },
+      ]}>
+      <Icon name="search" size={18} color={colors.textTertiary} />
       <TextInput
-        style={[styles.input, {color: colors.textPrimary}]}
+        style={[styles.input, typeScale.body, {color: colors.textPrimary}]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor={colors.textSecondary}
+        placeholderTextColor={colors.textTertiary}
         autoCapitalize="none"
         autoCorrect={false}
         allowFontScaling={true}
@@ -39,12 +48,14 @@ export function SearchBar({value, onChange, placeholder = 'Search...'}: SearchBa
         accessibilityHint="Type to search the list"
       />
       {value.length > 0 && (
-        <Pressable onPress={() => onChange('')} hitSlop={12}
+        <Pressable
+          onPress={() => onChange('')}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel="Clear search"
           accessibilityHint="Clears the search text"
           style={styles.clearBtn}>
-          <Text style={[styles.clear, {color: colors.textSecondary}]} allowFontScaling={true} maxFontSizeMultiplier={1.5}>✕</Text>
+          <Icon name="close" size={16} color={colors.textTertiary} />
         </Pressable>
       )}
     </View>
@@ -58,48 +69,40 @@ interface FilterChipsProps {
 }
 
 export function FilterChips({options, selected, onSelect}: FilterChipsProps) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
+
+  const chip = (label: string, value: string | null) => {
+    const active = selected === value;
+    return (
+      <Pressable
+        key={label}
+        onPress={() => onSelect(selected === value ? null : value)}
+        style={({pressed}) => [
+          styles.chip,
+          {
+            backgroundColor: active ? colors.primary : 'transparent',
+            borderColor: active ? colors.primary : colors.border,
+          },
+          pressed && styles.chipPressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityHint={`Filter by ${label}`}
+        accessibilityState={{selected: active}}>
+        <AppText
+          variant="smallStrong"
+          tone="inherit"
+          style={{color: active ? colors.onPrimary : colors.textSecondary}}>
+          {label}
+        </AppText>
+      </Pressable>
+    );
+  };
 
   return (
     <View style={styles.chipRow}>
-      <Pressable
-        onPress={() => onSelect(null)}
-        style={[
-          styles.chip,
-          {
-            backgroundColor: selected === null ? colors.primary : 'transparent',
-            borderColor: selected === null ? colors.primary : colors.border,
-          },
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel="All"
-        accessibilityHint="Show all items"
-        accessibilityState={{selected: selected === null}}>
-        <Text style={[styles.chipText, {color: selected === null ? '#fff' : colors.textSecondary}]} allowFontScaling={true} maxFontSizeMultiplier={1.5}>
-          All
-        </Text>
-      </Pressable>
-      {options.map(opt => (
-        <Pressable
-          key={opt}
-          onPress={() => onSelect(selected === opt ? null : opt)}
-          style={[
-            styles.chip,
-            {
-              backgroundColor: selected === opt ? colors.primary : 'transparent',
-              borderColor: selected === opt ? colors.primary : colors.border,
-            },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={opt}
-          accessibilityHint={`Filter by ${opt}`}
-          accessibilityState={{selected: selected === opt}}>
-          <Text style={[styles.chipText, {color: selected === opt ? '#fff' : colors.textSecondary}]} allowFontScaling={true} maxFontSizeMultiplier={1.5}>
-            {opt}
-          </Text>
-        </Pressable>
-      ))}
+      {chip('All', null)}
+      {options.map(opt => chip(opt, opt))}
     </View>
   );
 }
@@ -108,17 +111,24 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    marginHorizontal: 16,
-    marginVertical: 8,
+    gap: space[2],
+    borderRadius: radius.md,
+    paddingHorizontal: space[3],
+    marginHorizontal: space[4],
+    marginVertical: space[2],
+    minHeight: MIN_TOUCH,
   },
-  icon: {fontSize: 16, marginRight: 8},
-  input: {flex: 1, paddingVertical: 12, fontSize: 15, minHeight: 44},
-  clearBtn: {padding: 8, minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center'},
-  clear: {fontSize: 16},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, marginBottom: 8},
-  chip: {paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, minHeight: 44},
-  chipText: {fontSize: 12, fontWeight: '600'},
+  input: {flex: 1, paddingVertical: space[3], minHeight: MIN_TOUCH},
+  clearBtn: {padding: space[2], minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, alignItems: 'center', justifyContent: 'center'},
+  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: space[2], paddingHorizontal: space[4], marginBottom: space[2]},
+  chip: {
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+    borderRadius: radius.pill,
+    borderWidth: border.thick,
+    minHeight: MIN_TOUCH,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipPressed: {opacity: 0.8, transform: [{scale: 0.97}]},
 });

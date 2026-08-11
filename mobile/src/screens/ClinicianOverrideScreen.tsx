@@ -5,27 +5,35 @@
  * Emergency rules cannot be de-escalated (spec §3.1 non-downgrade invariant).
  */
 import React, {useState} from 'react';
-import {ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Alert, StyleSheet, View} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors} from '../theme/colors';
 import {submitClinicianOverride, type OverrideAction} from '../core/services/clinicianOverride';
-import {logLocalAudit} from '../core/utils/audit';
 import type {RootStackParamList} from '../core/navigation/types';
+import {useTheme} from '../theme/useTheme';
+import {space} from '../theme/tokens';
+import {
+  AppText,
+  Button,
+  Card,
+  Field,
+  Icon,
+  Screen,
+  SectionHeader,
+  type IconName,
+} from '../components/ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ClinicianOverride'>;
 
-const ACTIONS: {label: string; value: OverrideAction; description: string}[] = [
-  {label: 'Confirm', value: 'CONFIRM', description: 'Clinician confirmed the system recommendation.'},
-  {label: 'Escalate', value: 'ESCALATE', description: 'Clinician escalated to higher urgency.'},
-  {label: 'De-escalate', value: 'DEESCALATE', description: 'Clinician de-escalated to lower urgency (with documented justification).'},
-  {label: 'Reject', value: 'REJECT', description: 'Clinician rejected the system recommendation entirely.'},
+const ACTIONS: {label: string; value: OverrideAction; description: string; icon: IconName}[] = [
+  {label: 'Confirm', value: 'CONFIRM', description: 'Clinician confirmed the system recommendation.', icon: 'checkCircle'},
+  {label: 'Escalate', value: 'ESCALATE', description: 'Clinician escalated to higher urgency.', icon: 'alertTriangle'},
+  {label: 'De-escalate', value: 'DEESCALATE', description: 'Clinician de-escalated to lower urgency (with documented justification).', icon: 'alertCircle'},
+  {label: 'Reject', value: 'REJECT', description: 'Clinician rejected the system recommendation entirely.', icon: 'close'},
 ];
 
 export function ClinicianOverrideScreen({route, navigation}: Props) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const {episodeId, episodeType, priorRecommendation} = route.params;
 
   const [action, setAction] = useState<OverrideAction>('CONFIRM');
@@ -57,18 +65,10 @@ export function ClinicianOverrideScreen({route, navigation}: Props) {
     setSubmitting(false);
 
     if (result.ok && result.data) {
-      logLocalAudit({
-        action: 'CLINICIAN_OVERRIDE',
-        entityType: episodeType,
-        entityId: episodeId,
-        metadata: {
-          override_id: result.data.override_id,
-          prior_recommendation: priorRecommendation,
-          resulting_action: action,
-          override_reason: reason,
-        },
-      });
-      Alert.alert('Override Recorded', result.data.description, [
+      const message = result.data.pending_sync
+        ? `${result.data.description}\n\nSaved offline. Will sync when network is available.`
+        : result.data.description;
+      Alert.alert('Override Recorded', message, [
         {text: 'OK', onPress: () => navigation.goBack()},
       ]);
     } else {
@@ -77,72 +77,102 @@ export function ClinicianOverrideScreen({route, navigation}: Props) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={[styles.back, {color: colors.primary}]}>‹ Back</Text>
-        </Pressable>
-        <Text style={[styles.title, {color: colors.textPrimary}]}>Clinical Override</Text>
-      </View>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Prior Recommendation</Text>
-          <Text style={[styles.value, {color: colors.textPrimary}]}>{priorRecommendation}</Text>
-          <Text style={[styles.label, {color: colors.textSecondary, marginTop: 12}]}>Episode ID</Text>
-          <Text style={[styles.value, {color: colors.textPrimary}]}>{episodeId}</Text>
+    <Screen scroll>
+      <SectionHeader
+        title="Clinical Override"
+        overline="Clinician review"
+        subtitle="Confirm, escalate, de-escalate, or reject the system recommendation."
+      />
+
+      {/* Prior recommendation + episode context */}
+      <Card style={styles.contextCard}>
+        <View style={styles.contextRow}>
+          <Icon name="alertTriangle" size={18} color={colors.warning} />
+          <AppText variant="smallStrong" tone="warning">
+            Safety-critical — all overrides are audit-logged
+          </AppText>
         </View>
+        <AppText variant="smallStrong" tone="secondary" style={styles.kvLabel}>
+          Prior Recommendation
+        </AppText>
+        <AppText variant="bodyStrong">{priorRecommendation}</AppText>
+        <AppText variant="smallStrong" tone="secondary" style={styles.kvLabel}>
+          Episode ID
+        </AppText>
+        <AppText variant="bodyStrong">{episodeId}</AppText>
+      </Card>
 
-        <Text style={[styles.sectionLabel, {color: colors.textSecondary}]}>Action</Text>
-        {ACTIONS.map(a => (
-          <Pressable
+      {/* Action selector */}
+      <SectionHeader title="Action" overline="Override decision" />
+      {ACTIONS.map(a => {
+        const selected = action === a.value;
+        return (
+          <Card
             key={a.value}
-            style={[styles.option, {borderColor: action === a.value ? colors.primary : colors.border}, action === a.value && {backgroundColor: colors.primary + '15'}]}
-            onPress={() => setAction(a.value)}>
-            <View style={{flex: 1}}>
-              <Text style={[styles.optionLabel, {color: action === a.value ? colors.primary : colors.textPrimary, fontWeight: action === a.value ? '700' : '500'}]}>{a.label}</Text>
-              <Text style={[styles.optionDesc, {color: colors.textSecondary}]}>{a.description}</Text>
+            variant={selected ? 'elevated' : 'outlined'}
+            onPress={() => setAction(a.value)}
+            accessibilityLabel={`${a.label}. ${a.description}`}
+            style={[
+              styles.option,
+              selected && {borderColor: colors.primary, backgroundColor: colors.primarySubtle},
+            ]}>
+            <View style={styles.optionRow}>
+              <Icon
+                name={a.icon}
+                size={20}
+                color={selected ? colors.primary : colors.textTertiary}
+              />
+              <View style={styles.flex}>
+                <AppText
+                  variant="bodyStrong"
+                  tone={selected ? 'brand' : 'primary'}>
+                  {a.label}
+                </AppText>
+                <AppText variant="small" tone="secondary">
+                  {a.description}
+                </AppText>
+              </View>
+              {selected ? (
+                <Icon name="check" size={18} color={colors.primary} />
+              ) : null}
             </View>
-          </Pressable>
-        ))}
+          </Card>
+        );
+      })}
 
-        <Text style={[styles.sectionLabel, {color: colors.textSecondary}]}>Reason / Justification *</Text>
-        <TextInput
-          style={[styles.input, {borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.background}]}
-          value={reason}
-          onChangeText={setReason}
-          placeholder="Document the clinical rationale for this override..."
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
+      {/* Reason / justification */}
+      <SectionHeader title="Reason / Justification" overline="Required" />
+      <Field
+        label="Clinical rationale"
+        required
+        value={reason}
+        onChangeText={setReason}
+        placeholder="Document the clinical rationale for this override..."
+        multiline
+        numberOfLines={4}
+        textAlignVertical="top"
+        helper="A documented reason is required for all override actions and is recorded in the audit trail."
+      />
 
-        <Pressable style={[styles.submitBtn, {backgroundColor: colors.primary}]} onPress={handleSubmit} disabled={submitting}>
-          {submitting ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.submitBtnText}>Submit Override</Text>
-          )}
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+      <Button
+        label="Submit Override"
+        onPress={handleSubmit}
+        loading={submitting}
+        disabled={submitting}
+        fullWidth
+        icon="shieldCheck"
+        style={styles.submitBtn}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  header: {flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12},
-  back: {fontSize: 16},
-  title: {fontSize: 18, fontWeight: '700'},
-  content: {padding: 16, gap: 12},
-  card: {borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', gap: 4},
-  label: {fontSize: 11, fontWeight: '600', textTransform: 'uppercase'},
-  value: {fontSize: 15, fontWeight: '500'},
-  sectionLabel: {fontSize: 13, fontWeight: '600', textTransform: 'uppercase', marginTop: 8},
-  option: {padding: 14, borderRadius: 10, borderWidth: 1.5, flexDirection: 'row', alignItems: 'center'},
-  optionLabel: {fontSize: 15},
-  optionDesc: {fontSize: 12, marginTop: 2},
-  input: {borderWidth: 1.5, borderRadius: 10, padding: 12, fontSize: 14, minHeight: 80},
-  submitBtn: {padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 8},
-  submitBtnText: {color: '#fff', fontWeight: '700', fontSize: 16},
+  contextCard: {marginBottom: space[4]},
+  contextRow: {flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[3]},
+  kvLabel: {marginTop: space[3], marginBottom: 2},
+  option: {marginBottom: space[2]},
+  optionRow: {flexDirection: 'row', alignItems: 'flex-start', gap: space[3]},
+  flex: {flex: 1},
+  submitBtn: {marginTop: space[2]},
 });

@@ -290,7 +290,7 @@ Approved implementation:
 - Database: **PostgreSQL 16+** (SQLite for local dev only).
 - Async jobs: Django management commands + PostgreSQL-backed job queue initially; Celery/RabbitMQ only when throughput requires it.
 - Object storage: S3-compatible, GHS-approved storage for temporary/approved binary artifacts.
-- Authentication: **djangorestframework-simplejwt** (JWT) initially; standards-based OIDC provider with MFA for privileged roles SHOULD be integrated before production.
+- Authentication: **djangorestframework-simplejwt** (JWT) with MFA for privileged roles.
 - API: HTTPS REST + FHIR R4 REST.
 - Server-rendered admin: Django templates + Tailwind CSS for aggregate dashboards, monitoring, override log, and admin views.
 
@@ -1559,7 +1559,6 @@ Deliver:
 - React Native app shell;
 - Django/DRF + PostgreSQL stack;
 - FHIR R4 REST surface;
-- OIDC integration;
 - shared API contracts;
 - signed package mechanism;
 - audit framework.

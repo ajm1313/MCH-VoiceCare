@@ -520,3 +520,162 @@ def audit_event_to_fhir(event):
         "entity": entities if entities else None,
         "meta": _fhir_meta(event),
     }
+
+
+# --- Organization (maps to OrganisationUnit, spec §8.3) ---
+
+def organisation_to_fhir(org):
+    """Convert OrganisationUnit to FHIR Organization resource (spec §8.3).
+
+    Maps the organisational hierarchy (region/district/sub-district/facility)
+    to FHIR Organization with partOf references for parent relationships.
+    """
+    type_map = {
+        "REGION": "region",
+        "DISTRICT": "district",
+        "SUBDISTRICT": "sub-district",
+        "FACILITY": "facility",
+    }
+    return {
+        "resourceType": "Organization",
+        "id": str(org.id),
+        "name": org.name,
+        "identifier": [{"system": "urn:mchvc:org-code", "value": org.code}] if org.code else [],
+        "type": [_fhir_codeable_concept(
+            type_map.get(org.unit_type, "facility"),
+            "urn:mchvc:org-type",
+            org.get_unit_type_display() if hasattr(org, "get_unit_type_display") else org.unit_type,
+        )],
+        "partOf": _fhir_reference("Organization", org.parent_id) if org.parent_id else None,
+        "active": org.status == "ACTIVE",
+        "meta": _fhir_meta(org),
+    }
+
+
+# --- Location (maps to OrganisationUnit with geographic coords, spec §8.3) ---
+
+def organisation_to_location(org):
+    """Convert OrganisationUnit to FHIR Location resource (spec §8.3).
+
+    Location represents the physical place where care is delivered.
+    Includes geographic coordinates when available.
+    """
+    type_map = {
+        "REGION": "region",
+        "DISTRICT": "district",
+        "SUBDISTRICT": "sub-district",
+        "FACILITY": "site",
+    }
+    location = {
+        "resourceType": "Location",
+        "id": str(org.id),
+        "name": org.name,
+        "identifier": [{"system": "urn:mchvc:org-code", "value": org.code}] if org.code else [],
+        "type": [_fhir_codeable_concept(
+            type_map.get(org.unit_type, "site"),
+            "urn:mchvc:location-type",
+            org.get_unit_type_display() if hasattr(org, "get_unit_type_display") else org.unit_type,
+        )],
+        "status": "active" if org.status == "ACTIVE" else "inactive",
+        "managingOrganization": _fhir_reference("Organization", org.id),
+        "meta": _fhir_meta(org),
+    }
+
+    # Add physical address (path as text)
+    if hasattr(org, "path"):
+        location["address"] = {"text": org.path}
+
+    # Add geographic coordinates
+    if org.latitude is not None and org.longitude is not None:
+        location["position"] = {
+            "longitude": float(org.longitude),
+            "latitude": float(org.latitude),
+        }
+
+    # Part of parent location
+    if org.parent_id:
+        location["partOf"] = _fhir_reference("Location", org.parent_id)
+
+    return location
+
+
+# --- QuestionnaireResponse (maps to clinical assessment, spec §8.3) ---
+
+def assessment_to_questionnaire_response(assessment):
+    """Convert a clinical assessment to FHIR QuestionnaireResponse (spec §8.3).
+
+    Represents the structured clinical decision result, including the
+    disposition, fired rules, and recommended action.
+    """
+    items = []
+
+    # Disposition (clinical urgency)
+    disposition = getattr(assessment, "disposition", None)
+    if disposition:
+        items.append({
+            "linkId": "DISPOSITION",
+            "text": "Clinical disposition",
+            "answer": [{"valueString": disposition}],
+        })
+
+    # Fired rules
+    fired_rules = getattr(assessment, "fired_rules", None) or []
+    if fired_rules:
+        rule_items = []
+        for rule in fired_rules:
+            rule_id = rule.get("ruleId", rule.get("rule_id", "")) if isinstance(rule, dict) else str(rule)
+            severity = rule.get("severity", "") if isinstance(rule, dict) else ""
+            reason = rule.get("reasonText", rule.get("reason_text", "")) if isinstance(rule, dict) else ""
+            rule_items.append({
+                "linkId": f"RULE_{rule_id}",
+                "text": reason or rule_id,
+                "answer": [{"valueString": severity}] if severity else None,
+            })
+        if rule_items:
+            items.append({
+                "linkId": "FIRED_RULES",
+                "text": "Clinical rules triggered",
+                "item": rule_items,
+            })
+
+    # Recommended action
+    recommended = getattr(assessment, "recommended_action", None)
+    if recommended:
+        items.append({
+            "linkId": "RECOMMENDED_ACTION",
+            "text": "Recommended action",
+            "answer": [{"valueString": recommended}],
+        })
+
+    # Rule set version
+    rule_version = getattr(assessment, "rule_set_version", None)
+    if rule_version:
+        items.append({
+            "linkId": "RULE_SET_VERSION",
+            "text": "Rule set version",
+            "answer": [{"valueString": rule_version}],
+        })
+
+    # Subject reference
+    subject_ref = None
+    episode = getattr(assessment, "episode", None)
+    if episode:
+        woman_id = getattr(episode, "woman_id", None)
+        if woman_id:
+            subject_ref = _fhir_reference("Patient", woman_id)
+        child_id = getattr(episode, "child_id", None)
+        if child_id:
+            subject_ref = _fhir_reference("Patient", child_id)
+
+    return {
+        "resourceType": "QuestionnaireResponse",
+        "id": str(assessment.id),
+        "status": "completed",
+        "subject": subject_ref,
+        "authored": assessment.assessed_at.isoformat() if hasattr(assessment, "assessed_at") and assessment.assessed_at else (
+            assessment.created_at.isoformat() if hasattr(assessment, "created_at") and assessment.created_at else None
+        ),
+        "author": {"display": "MCH VoiceCare Rule Engine"},
+        "item": items if items else None,
+        "meta": _fhir_meta(assessment),
+    }

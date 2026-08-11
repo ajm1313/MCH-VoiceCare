@@ -2,13 +2,21 @@
  * PersonListScreen — list persons from local DB.
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, useColorScheme} from 'react-native';
+import {FlatList, StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors} from '../theme/colors';
 import {query} from '../core/db/database';
 import type {RootStackParamList} from '../core/navigation/types';
+import {
+  Button,
+  EmptyState,
+  ListRow,
+  LoadingState,
+  Screen,
+} from '../components/ui';
+import {useTheme} from '../theme/useTheme';
+import {space} from '../theme/tokens';
 
 type Person = {
   id: string;
@@ -21,8 +29,7 @@ type Person = {
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function PersonListScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
 
   const [rows, setRows] = useState<Person[]>([]);
@@ -48,7 +55,11 @@ export function PersonListScreen() {
   useEffect(() => { loadData(); }, [loadData]);
 
   if (loading) {
-    return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.primary} /></View>;
+    return (
+      <Screen>
+        <LoadingState message="Loading persons…" />
+      </Screen>
+    );
   }
 
   return (
@@ -56,21 +67,34 @@ export function PersonListScreen() {
       style={[styles.container, {backgroundColor: colors.background}]}
       data={rows}
       keyExtractor={item => item.id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} colors={[colors.primary]} />}
+      refreshing={refreshing}
+      onRefresh={() => { setRefreshing(true); loadData(); }}
       ListHeaderComponent={
-        <Pressable style={[styles.createBtn, {backgroundColor: colors.primary}]} onPress={() => navigation.navigate('PersonForm', {})}>
-          <Text style={styles.createBtnText}>+ New Person</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Button
+            label="New Person"
+            icon="plus"
+            onPress={() => navigation.navigate('PersonForm', {})}
+          />
+        </View>
       }
-      ListEmptyComponent={<View style={styles.center}><Text style={[styles.empty, {color: colors.textSecondary}]}>No persons registered</Text></View>}
+      ListEmptyComponent={
+        <EmptyState
+          icon="users"
+          title="No persons registered"
+          message="Persons will appear here once registered."
+          action={{label: 'Register Person', onPress: () => navigation.navigate('PersonForm', {})}}
+        />
+      }
       renderItem={({item}) => (
-        <Pressable style={[styles.card, {backgroundColor: colors.surface}]} onPress={() => navigation.navigate('PersonDetail', {personId: item.id})}>
-          <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>{item.full_name}</Text>
-          <Text style={[styles.cardSub, {color: colors.textSecondary}]}>
-            {item.gender ?? '—'} · {item.date_of_birth ?? 'DOB —'}
-          </Text>
-          {item.phone && <Text style={[styles.cardSub, {color: colors.textSecondary}]}>{item.phone}</Text>}
-        </Pressable>
+        <ListRow
+          title={item.full_name}
+          subtitle={`${item.gender ?? '—'} · ${item.date_of_birth ?? 'DOB —'}`}
+          meta={item.phone ?? undefined}
+          icon="user"
+          onPress={() => navigation.navigate('PersonDetail', {personId: item.id})}
+          style={styles.row}
+        />
       )}
     />
   );
@@ -78,11 +102,6 @@ export function PersonListScreen() {
 
 const styles = StyleSheet.create({
   container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  empty: {fontSize: 14},
-  createBtn: {margin: 16, padding: 14, borderRadius: 12, alignItems: 'center'},
-  createBtnText: {color: '#fff', fontWeight: '700', fontSize: 15},
-  card: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12},
-  cardTitle: {fontSize: 15, fontWeight: '600'},
-  cardSub: {fontSize: 13, marginTop: 2},
+  headerActions: {flexDirection: 'row', gap: space[2], padding: space[4]},
+  row: {marginHorizontal: space[4]},
 });

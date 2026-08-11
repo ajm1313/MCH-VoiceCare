@@ -1,69 +1,81 @@
 {% extends "base.html" %}
-{% block title %}Clients — MCH VoiceCare{% endblock %}
+{% block title %}Clients · MCH VoiceCare{% endblock %}
 {% block navbar_title %}Clients{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold">Clients</h1>
-      <p class="text-sm text-base-content/50">Registered persons in the system</p>
+<div class="space-y-7">
+  <div class="page-header">
+    <div class="flex-1">
+      <p class="overline">Registry</p>
+      <h1 class="page-title">Clients</h1>
+      <p class="page-subtitle">Registered persons in the system.</p>
     </div>
-    <a href="{% url 'unified_register' %}" class="btn btn-primary btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+    <a href="{% url 'unified_register' %}" class="btn btn-primary btn-sm gap-2 shadow-card">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
       Register Client
     </a>
   </div>
 
-  <!-- Search -->
-  <form method="get" class="flex gap-2">
-    <input type="text" name="q" value="{{ q }}" class="input input-bordered flex-1" placeholder="Search by name...">
+  <form method="get" class="search-bar">
+    <span class="search-bar-icon">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
+    </span>
+    <input type="text" name="q" value="{{ q }}" class="search-bar-input" placeholder="Search by name…">
     <button type="submit" class="btn btn-primary btn-sm">Search</button>
   </form>
 
-  <!-- Table -->
-  <div class="overflow-x-auto card-section">
-    <table class="table table-zebra">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>DOB</th>
-          <th>Sex</th>
-          <th>Phone</th>
-          <th>Community</th>
-          <th class="text-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for person in persons %}
-        <tr>
-          <td class="font-medium">{{ person.full_name }}</td>
-          <td>{{ person.date_of_birth|default:"—" }}</td>
-          <td><span class="badge badge-sm">{{ person.get_sex_display }}</span></td>
-          <td>{{ person.phone|default:"—" }}</td>
-          <td>{{ person.community|default:"—" }}</td>
-          <td class="text-right">
-            <a href="{% url 'person_detail' person.pk %}" class="btn btn-ghost btn-xs">View</a>
-            <a href="{% url 'person_edit' person.pk %}" class="btn btn-ghost btn-xs">Edit</a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="text-center text-base-content/50 py-8">No clients found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <section class="card-section animate-in">
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead>
+          <tr>
+            <th class="px-5 py-3 text-left">Name</th>
+            <th class="px-5 py-3 text-left">DOB</th>
+            <th class="px-5 py-3 text-left">Sex</th>
+            <th class="px-5 py-3 text-left">Phone</th>
+            <th class="px-5 py-3 text-left">Community</th>
+            <th class="px-5 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for person in persons %}
+          <tr>
+            <td class="px-5 py-3 font-medium">{{ person.full_name }}</td>
+            <td class="px-5 py-3 text-base-content/70">{{ person.date_of_birth|default:"—" }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ person.get_sex_display }}</span></td>
+            <td class="px-5 py-3 text-base-content/70">{{ person.phone|default:"—" }}</td>
+            <td class="px-5 py-3 text-base-content/70">{{ person.community|default:"—" }}</td>
+            <td class="px-5 py-3 text-right whitespace-nowrap">
+              <a href="{% url 'person_detail' person.pk %}" class="btn btn-ghost btn-xs gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                View
+              </a>
+              <a href="{% url 'person_edit' person.pk %}" class="btn btn-ghost btn-xs gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+                Edit
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="px-5 py-12 text-center">
+            <div class="empty-state">
+              <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+              <p class="empty-state-title">No clients found</p>
+              <p class="empty-state-body">Try a different search, or register a new client.</p>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   {% if is_paginated %}
   <div class="flex justify-center">
     <div class="join">
-      {% if page_obj.has_previous %}
-        <a href="?q={{ q }}&page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>
-      {% endif %}
+      {% if page_obj.has_previous %}<a href="?q={{ q }}&page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>{% endif %}
       <span class="join-item btn btn-sm btn-active">Page {{ page_obj.number }}</span>
-      {% if page_obj.has_next %}
-        <a href="?q={{ q }}&page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>
-      {% endif %}
+      {% if page_obj.has_next %}<a href="?q={{ q }}&page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>{% endif %}
     </div>
   </div>
   {% endif %}

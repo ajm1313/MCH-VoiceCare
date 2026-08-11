@@ -1,30 +1,58 @@
 {% extends "base.html" %}
 {% load mch_tags %}
-{% block title %}Growth Measurement Detail{% endblock %}
+{% block title %}Growth Measurement Detail · MCH VoiceCare{% endblock %}
 {% block navbar_title %}Growth Detail{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'growth_list' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'growth_list' %}" class="btn-back" aria-label="Back to growth list">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">{{ measurement.child.full_name }}</h1>
-  </div>
-  <div class="card-section">
-    <div class="card-body">
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-        <div><span class="text-base-content/50 block">Date</span>{{ measurement.measurement_date }}</div>
-        <div><span class="text-base-content/50 block">Weight</span>{{ measurement.weight_kg|default:"—" }} kg</div>
-        <div><span class="text-base-content/50 block">Length</span>{{ measurement.length_cm|default:"—" }} cm</div>
-        <div><span class="text-base-content/50 block">Height</span>{{ measurement.height_cm|default:"—" }} cm</div>
-        <div><span class="text-base-content/50 block">MUAC</span>{{ measurement.muac_mm|default:"—" }} mm</div>
-        <div><span class="text-base-content/50 block">Indicator</span><span class="badge badge-sm {{ measurement.indicator|status_badge }}">{{ measurement.indicator }}</span></div>
-        <div><span class="text-base-content/50 block">Feeding</span>{{ measurement.feeding_status|default:"—" }}</div>
-        <div><span class="text-base-content/50 block">Illness</span>{{ measurement.recent_illness|default:"—" }}</div>
-      </div>
+    <div class="flex-1">
+      <p class="overline">Child welfare</p>
+      <h1 class="page-title truncate">{{ measurement.child.full_name }}</h1>
+      <p class="page-subtitle">Measurement on {{ measurement.measurement_date }}</p>
     </div>
   </div>
+
+  <section class="card-section animate-in">
+    <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Measurement</h2></div>
+    <div class="card-body grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="kv-block">
+        <p class="kv-key">Date</p>
+        <p class="kv-value">{{ measurement.measurement_date }}</p>
+      </div>
+      <div class="kv-block">
+        <p class="kv-key">Weight</p>
+        <p class="kv-value">{{ measurement.weight_kg|default:"—" }} kg</p>
+      </div>
+      <div class="kv-block">
+        <p class="kv-key">Length</p>
+        <p class="kv-value">{{ measurement.length_cm|default:"—" }} cm</p>
+      </div>
+      <div class="kv-block">
+        <p class="kv-key">Height</p>
+        <p class="kv-value">{{ measurement.height_cm|default:"—" }} cm</p>
+      </div>
+      <div class="kv-block">
+        <p class="kv-key">MUAC</p>
+        <p class="kv-value">{{ measurement.muac_mm|default:"—" }} mm</p>
+      </div>
+      <div class="kv-block">
+        <p class="kv-key">Indicator</p>
+        <p class="kv-value"><span class="pill pill-neutral">{{ measurement.indicator }}</span></p>
+      </div>
+      <div class="kv-block">
+        <p class="kv-key">Feeding</p>
+        <p class="kv-value">{{ measurement.feeding_status|default:"—" }}</p>
+      </div>
+      <div class="kv-block">
+        <p class="kv-key">Illness</p>
+        <p class="kv-value">{{ measurement.recent_illness|default:"—" }}</p>
+      </div>
+    </div>
+  </section>
 </div>
 {% endblock %}

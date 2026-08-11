@@ -3,22 +3,25 @@
  * MCHVC-SPEC-001 v1.1 §51. Offline-first (DEC-007).
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
+import {FlatList, StyleSheet, View} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
 import {query} from '../core/db/database';
+import {
+  Screen,
+  Card,
+  Button,
+  Badge,
+  SectionHeader,
+  LoadingState,
+  EmptyState,
+  AppText,
+  Icon,
+  type BadgeTone,
+} from '../components/ui';
+import {space} from '../theme/tokens';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type MeasurementRow = {
@@ -33,8 +36,7 @@ type MeasurementRow = {
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function GrowthDetailScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
   const route = useRoute();
   const childId = (route.params as {childId: string}).childId;
@@ -105,140 +107,148 @@ export function GrowthDetailScreen() {
     loadData();
   }, [loadData]);
 
-  const indicatorColor = (ind: string) => {
-    if (ind.includes('SEVERELY') || ind.includes('SAM') || ind.includes('OEDEMA')) return urgency.RED;
-    if (ind.includes('WASTED') || ind.includes('STUNTED') || ind.includes('UNDERWEIGHT') || ind.includes('MAM')) return urgency.ORANGE;
-    if (ind.includes('OVERWEIGHT') || ind.includes('OBESE')) return urgency.AMBER;
-    return urgency.GREEN;
+  const indicatorTone = (ind: string): BadgeTone => {
+    if (ind.includes('SEVERELY') || ind.includes('SAM') || ind.includes('OEDEMA')) return 'danger';
+    if (ind.includes('WASTED') || ind.includes('STUNTED') || ind.includes('UNDERWEIGHT') || ind.includes('MAM')) return 'warning';
+    if (ind.includes('OVERWEIGHT') || ind.includes('OBESE')) return 'warning';
+    return 'success';
   };
 
   if (loading) {
     return (
-      <View style={[styles.center, {backgroundColor: colors.background}]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <Screen>
+        <LoadingState message="Loading growth history…" />
+      </Screen>
     );
   }
 
   return (
-    <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={[styles.header, {backgroundColor: colors.surface}]}>
-        <Text style={[styles.title, {color: colors.textPrimary}]}>{childName}</Text>
-        <Text style={[styles.subtitle, {color: colors.textSecondary}]}>
+    <Screen scroll>
+      <Card style={styles.section}>
+        <AppText variant="h2">{childName}</AppText>
+        <AppText variant="small" tone="secondary" style={styles.subtitle}>
           {measurements.length} measurement{measurements.length !== 1 ? 's' : ''}
-        </Text>
+        </AppText>
         {motherName && (
-          <View style={[styles.linkBanner, {borderColor: colors.primary + '40'}]}>
-            <Text style={[styles.linkIcon, {color: colors.primary}]}>🤰</Text>
+          <View style={[styles.linkBanner, {borderTopColor: colors.border}]}>
+            <View style={[styles.linkIcon, {backgroundColor: colors.primarySubtle}]}>
+              <Icon name="heart" size={18} color={colors.primary} />
+            </View>
             <View style={styles.linkText}>
-              <Text style={[styles.linkLabel, {color: colors.textSecondary}]}>Mother</Text>
-              <Text style={[styles.linkValue, {color: colors.textPrimary}]}>{motherName}</Text>
+              <AppText variant="overline" tone="tertiary" uppercase>Mother</AppText>
+              <AppText variant="bodyStrong" style={styles.linkValue}>{motherName}</AppText>
             </View>
           </View>
         )}
+      </Card>
+
+      <View style={styles.buttonRow}>
+        <Button
+          label="Record New Measurement"
+          variant="primary"
+          size="lg"
+          icon="plus"
+          fullWidth
+          onPress={() => navigation.navigate('GrowthRecord', {childId})}
+        />
       </View>
 
-      <Pressable
-        onPress={() => navigation.navigate('GrowthRecord', {childId})}
-        style={[styles.button, {backgroundColor: colors.primary}]}>
-        <Text style={styles.buttonText}>Record New Measurement</Text>
-      </Pressable>
-
-      <Pressable
-        onPress={() => navigation.navigate('GrowthChart', {childId})}
-        style={[styles.chartButton, {borderColor: colors.primary}]}>
-        <Text style={[styles.chartButtonText, {color: colors.primary}]}>
-          View Growth Charts
-        </Text>
-      </Pressable>
+      <View style={styles.buttonRow}>
+        <Button
+          label="View Growth Charts"
+          variant="secondary"
+          size="lg"
+          icon="chart"
+          iconRight="chevronRight"
+          fullWidth
+          onPress={() => navigation.navigate('GrowthChart', {childId})}
+        />
+      </View>
 
       <FlatList
         data={measurements}
         keyExtractor={item => item.id}
         scrollEnabled={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              loadData();
-            }}
-            colors={[colors.primary]}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          loadData();
+        }}
+        ListEmptyComponent={
+          <EmptyState
+            icon="chart"
+            title="No measurements recorded"
+            message="Record a growth measurement to start tracking."
           />
         }
-        ListEmptyComponent={
-          <View style={styles.center}>
-            <Text style={[styles.empty, {color: colors.textSecondary}]}>
-              No measurements recorded
-            </Text>
-          </View>
-        }
         renderItem={({item}) => (
-          <View style={[styles.card, {backgroundColor: colors.surface}]}>
+          <Card style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.cardDate, {color: colors.textPrimary}]}>
-                {item.measurement_date}
-              </Text>
-              <View style={[styles.badge, {backgroundColor: indicatorColor(item.indicator)}]}>
-                <Text style={styles.badgeText}>{item.indicator}</Text>
-              </View>
+              <AppText variant="bodyStrong">{item.measurement_date}</AppText>
+              <Badge
+                label={item.indicator}
+                tone={indicatorTone(item.indicator)}
+                size="sm"
+                solid
+              />
             </View>
             <View style={styles.metricsRow}>
               {item.weight_kg != null && (
                 <View style={styles.metric}>
-                  <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>Weight</Text>
-                  <Text style={[styles.metricValue, {color: colors.textPrimary}]}>
+                  <AppText variant="caption" tone="secondary">Weight</AppText>
+                  <AppText variant="bodyStrong" style={styles.metricValue}>
                     {item.weight_kg} kg
-                  </Text>
+                  </AppText>
                 </View>
               )}
               {item.length_cm != null && (
                 <View style={styles.metric}>
-                  <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>Length</Text>
-                  <Text style={[styles.metricValue, {color: colors.textPrimary}]}>
+                  <AppText variant="caption" tone="secondary">Length</AppText>
+                  <AppText variant="bodyStrong" style={styles.metricValue}>
                     {item.length_cm} cm
-                  </Text>
+                  </AppText>
                 </View>
               )}
               {item.muac_mm != null && (
                 <View style={styles.metric}>
-                  <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>MUAC</Text>
-                  <Text style={[styles.metricValue, {color: colors.textPrimary}]}>
+                  <AppText variant="caption" tone="secondary">MUAC</AppText>
+                  <AppText variant="bodyStrong" style={styles.metricValue}>
                     {item.muac_mm} mm
-                  </Text>
+                  </AppText>
                 </View>
               )}
             </View>
-          </View>
+          </Card>
         )}
       />
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  empty: {fontSize: 14},
-  header: {margin: 16, padding: 16, borderRadius: 12},
-  title: {fontSize: 20, fontWeight: '700'},
-  subtitle: {fontSize: 13, marginTop: 4},
-  button: {marginHorizontal: 16, marginBottom: 12, padding: 14, borderRadius: 12, alignItems: 'center'},
-  buttonText: {color: '#fff', fontWeight: '700', fontSize: 15},
-  chartButton: {marginHorizontal: 16, marginBottom: 12, padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 2},
-  chartButtonText: {fontWeight: '700', fontSize: 15},
-  card: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12},
-  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  cardDate: {fontSize: 15, fontWeight: '600'},
-  badge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
-  badgeText: {color: '#fff', fontSize: 10, fontWeight: '700'},
-  metricsRow: {flexDirection: 'row', marginTop: 12, gap: 16},
+  section: {marginVertical: space[2]},
+  subtitle: {marginTop: 2},
+  buttonRow: {marginBottom: space[2]},
+  card: {marginVertical: space[2]},
+  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space[2]},
+  metricsRow: {flexDirection: 'row', marginTop: space[3], gap: space[4]},
   metric: {flex: 1},
-  metricLabel: {fontSize: 11, fontWeight: '500'},
-  metricValue: {fontSize: 15, fontWeight: '600', marginTop: 2},
-  linkBanner: {flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, gap: 8},
-  linkIcon: {fontSize: 20},
+  metricValue: {marginTop: 2},
+  linkBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: space[3],
+    paddingTop: space[3],
+    borderTopWidth: 1,
+    gap: space[3],
+  },
+  linkIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   linkText: {flex: 1},
-  linkLabel: {fontSize: 10, fontWeight: '600', textTransform: 'uppercase'},
-  linkValue: {fontSize: 14, fontWeight: '600', marginTop: 2},
+  linkValue: {marginTop: 2},
 });

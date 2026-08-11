@@ -2,12 +2,24 @@
  * CWCDetailScreen — CWC session detail with attendance list and close action.
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View, useColorScheme} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Alert, StyleSheet, Switch, View} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
 import {query, getDb} from '../core/db/database';
+import {
+  Screen,
+  Card,
+  Button,
+  Badge,
+  SectionHeader,
+  KeyValue,
+  EmptyState,
+  LoadingState,
+  AppText,
+  type BadgeTone,
+} from '../components/ui';
+import {space} from '../theme/tokens';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CWCDetail'>;
@@ -22,8 +34,7 @@ type Attendance = {
 };
 
 export function CWCDetailScreen({route, navigation}: Props) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const {sessionId} = route.params;
 
   const [session, setSession] = useState<Record<string, any> | null>(null);
@@ -78,83 +89,110 @@ export function CWCDetailScreen({route, navigation}: Props) {
     ]);
   };
 
+  const statusTone = (status: string): BadgeTone => {
+    if (status === 'COMPLETED') return 'neutral';
+    if (status === 'IN_PROGRESS') return 'warning';
+    return 'success';
+  };
+
   if (loading) {
-    return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.primary} /></View>;
+    return (
+      <Screen>
+        <LoadingState message="Loading session detail…" />
+      </Screen>
+    );
   }
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={[styles.back, {color: colors.primary}]}>‹ Back</Text>
-        </Pressable>
+    <Screen scroll
+      refreshing={refreshing}
+      onRefresh={() => { setRefreshing(true); loadData(); }}>
+      <View style={styles.backRow}>
+        <Button
+          label="Back"
+          variant="ghost"
+          size="sm"
+          icon="chevronLeft"
+          onPress={() => navigation.goBack()}
+        />
       </View>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} colors={[colors.primary]} />}>
-        {session && (
-          <View style={[styles.card, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>{session.facility_name}</Text>
-            <InfoRow label="Date" value={String(session.session_date ?? '—')} colors={colors} />
-            <InfoRow label="Type" value={String(session.session_type ?? '—')} colors={colors} />
-            <InfoRow label="Status" value={String(session.status ?? '—')} colors={colors} />
-            <InfoRow label="Expected" value={String(session.expected_count ?? 0)} colors={colors} />
-            <InfoRow label="Attended" value={String(session.attended_count ?? 0)} colors={colors} />
+
+      {session && (
+        <Card style={styles.card}>
+          <View style={styles.cardHeader}>
+            <AppText variant="h3" style={styles.flex}>{String(session.facility_name)}</AppText>
+            <Badge
+              label={String(session.status ?? '—')}
+              tone={statusTone(String(session.status ?? ''))}
+              size="sm"
+            />
           </View>
-        )}
+          <View style={styles.kvContainer}>
+            <KeyValue label="Date" value={String(session.session_date ?? '—')} />
+            <KeyValue label="Type" value={String(session.session_type ?? '—')} />
+            <KeyValue label="Expected" value={String(session.expected_count ?? 0)} />
+            <KeyValue label="Attended" value={String(session.attended_count ?? 0)} />
+          </View>
+        </Card>
+      )}
 
-        <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Attendance ({attendance.length})</Text>
-        {attendance.length === 0 ? (
-          <Text style={[styles.empty, {color: colors.textSecondary}]}>No children registered for this session</Text>
-        ) : (
-          attendance.map(a => (
-            <View key={a.id} style={[styles.attCard, {backgroundColor: colors.surface}]}>
-              <View style={styles.attRow}>
-                <Text style={[styles.attName, {color: colors.textPrimary}]}>{a.child_name}</Text>
-                <Switch value={a.attended === 1} onValueChange={(v) => toggleAttendance(a.id, v)} />
-              </View>
-              {a.doses_given !== '[]' && <Text style={[styles.attSub, {color: colors.textSecondary}]}>Doses: {a.doses_given}</Text>}
-              {a.notes ? <Text style={[styles.attSub, {color: colors.textSecondary}]}>Notes: {a.notes}</Text> : null}
+      <SectionHeader title={`Attendance (${attendance.length})`} style={styles.sectionHeader} />
+      {attendance.length === 0 ? (
+        <EmptyState
+          icon="users"
+          title="No children registered"
+          message="No children registered for this session."
+        />
+      ) : (
+        attendance.map(a => (
+          <Card key={a.id} style={styles.attCard}>
+            <View style={styles.attRow}>
+              <AppText variant="bodyStrong" style={styles.flex}>{a.child_name}</AppText>
+              <Switch
+                value={a.attended === 1}
+                onValueChange={(v) => toggleAttendance(a.id, v)}
+                trackColor={{false: colors.border, true: colors.primary}}
+              />
             </View>
-          ))
-        )}
+            {a.doses_given !== '[]' && (
+              <AppText variant="small" tone="secondary" style={styles.attSub}>
+                Doses: {a.doses_given}
+              </AppText>
+            )}
+            {a.notes ? (
+              <AppText variant="small" tone="secondary" style={styles.attSub}>
+                Notes: {a.notes}
+              </AppText>
+            ) : null}
+          </Card>
+        ))
+      )}
 
-        {session && session.status !== 'COMPLETED' && (
-          <Pressable style={[styles.closeButton, {backgroundColor: colors.primary}]} onPress={handleClose}>
-            <Text style={styles.closeButtonText}>Close Session</Text>
-          </Pressable>
-        )}
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function InfoRow({label, value, colors}: {label: string; value: string; colors: typeof lightColors}) {
-  return (
-    <View style={styles.infoRow}>
-      <Text style={[styles.infoLabel, {color: colors.textSecondary}]}>{label}</Text>
-      <Text style={[styles.infoValue, {color: colors.textPrimary}]}>{value}</Text>
-    </View>
+      {session && session.status !== 'COMPLETED' && (
+        <View style={styles.buttonRow}>
+          <Button
+            label="Close Session"
+            variant="primary"
+            size="lg"
+            icon="check"
+            fullWidth
+            onPress={handleClose}
+          />
+        </View>
+      )}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  header: {paddingHorizontal: 16, paddingVertical: 12},
-  back: {fontSize: 16},
-  content: {padding: 16, gap: 12},
-  card: {borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0'},
-  cardTitle: {fontSize: 18, fontWeight: '700', marginBottom: 10},
-  infoRow: {paddingVertical: 4},
-  infoLabel: {fontSize: 11, textTransform: 'uppercase', fontWeight: '600'},
-  infoValue: {fontSize: 15, fontWeight: '500', marginTop: 2},
-  sectionTitle: {fontSize: 16, fontWeight: '700', marginTop: 8},
-  empty: {fontSize: 14, paddingVertical: 16},
-  attCard: {borderRadius: 10, padding: 14, borderWidth: 1, borderColor: '#E2E8F0'},
+  backRow: {paddingTop: space[2]},
+  card: {marginVertical: space[2]},
+  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space[2], marginBottom: space[2]},
+  flex: {flex: 1},
+  kvContainer: {gap: 0},
+  sectionHeader: {marginTop: space[3], marginBottom: space[2]},
+  attCard: {marginVertical: space[2]},
   attRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  attName: {fontSize: 15, fontWeight: '600'},
-  attSub: {fontSize: 12, marginTop: 4},
-  closeButton: {padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8},
-  closeButtonText: {color: '#fff', fontWeight: '700', fontSize: 15},
+  attSub: {marginTop: space[1]},
+  buttonRow: {marginVertical: space[3]},
 });

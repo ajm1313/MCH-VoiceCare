@@ -2,6 +2,9 @@
  * PregnancyRegisterScreen — register a new pregnancy episode offline.
  * Captures all episode baseline fields matching the backend PregnancyRegistrationForm.
  * Enqueues to outbox for sync (SYNC-001).
+ *
+ * UX-003: restyled with the shared design system primitives and SVG icons.
+ * Clinical behaviour, queries, navigation and accessibility are unchanged.
  */
 import React, {useState} from 'react';
 import {
@@ -11,26 +14,30 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
-  TextInput,
   View,
-  useColorScheme,
+  Alert,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors} from '../theme/colors';
 import {enqueue} from '../core/sync/outbox';
 import {checkWomanExists, DedupMatch} from '../core/dedup/personDedup';
 import {DuplicateBadge} from '../components/DuplicateBadge';
+import {useTheme} from '../theme/useTheme';
+import {border, radius, space} from '../theme/tokens';
+import {Screen} from '../components/ui/Screen';
+import {Card} from '../components/ui/Card';
+import {Button} from '../components/ui/Button';
+import {Field} from '../components/ui/Input';
+import {AppText} from '../components/ui/Text';
+import {Icon} from '../components/ui/Icon';
+import {SectionHeader} from '../components/ui/Layout';
 import type {RootStackParamList} from '../core/navigation/types';
-import {Alert} from 'react-native';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function PregnancyRegisterScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
 
   // Identity & assignment
@@ -194,280 +201,332 @@ export function PregnancyRegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{flex: 1}}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
-        <Text style={[styles.title, {color: colors.textPrimary}]}>Register Pregnancy</Text>
+    <Screen padded={false}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
+          <AppText variant="h1" style={styles.title}>Register Pregnancy</AppText>
 
-        {/* Progress indicator */}
-        <View style={styles.progressContainer}>
-          {stepTitles.map((title, i) => (
-            <React.Fragment key={i}>
-              <View style={[styles.progressDot, {
-                backgroundColor: i <= step ? colors.primary : colors.border,
-              }]}>
-                <Text style={[styles.progressDotText, {color: i <= step ? '#fff' : colors.textSecondary}]}>
-                  {i < step ? '✓' : i + 1}
-                </Text>
+          {/* Progress indicator */}
+          <View style={styles.progressContainer}>
+            {stepTitles.map((title, i) => (
+              <React.Fragment key={i}>
+                <View style={[styles.progressDot, {
+                  backgroundColor: i <= step ? colors.primary : colors.surfaceSunken,
+                  borderColor: i <= step ? colors.primary : colors.border,
+                }]}>
+                  {i < step ? (
+                    <Icon name="check" size={14} color={colors.onPrimary} strokeWidth={2.5} />
+                  ) : (
+                    <AppText
+                      variant="smallStrong"
+                      tone="inherit"
+                      style={{color: i <= step ? colors.onPrimary : colors.textSecondary}}>
+                      {i + 1}
+                    </AppText>
+                  )}
+                </View>
+                {i < stepTitles.length - 1 && (
+                  <View style={[styles.progressLine, {backgroundColor: i < step ? colors.primary : colors.border}]} />
+                )}
+              </React.Fragment>
+            ))}
+          </View>
+          <AppText variant="small" tone="secondary" style={styles.stepTitle}>
+            Step {step + 1} of {totalSteps}: {stepTitles[step]}
+          </AppText>
+
+          {step === 0 && (
+            <>
+            {/* Identity & Assignment */}
+            <Card style={styles.section}>
+              <SectionHeader title="Identity & Assignment" />
+              <Field label="Woman Name" value={womanName} onChangeText={checkDuplicate} placeholder="Full name" icon="user" />
+              <DuplicateBadge
+                duplicate={dedupMatch}
+                onDismiss={() => setDedupMatch(null)}
+              />
+              <Field label="Woman ID (if known)" value={womanId} onChangeText={setWomanId} />
+              <Field label="Assigned CHPS" value={assignedChps} onChangeText={setAssignedChps} icon="mapPin" />
+              <Field label="Assigned Worker" value={assignedWorker} onChangeText={setAssignedWorker} icon="user" />
+            </Card>
+            </>
+          )}
+
+          {step === 1 && (
+            <>
+            {/* Dating */}
+            <Card style={styles.section}>
+              <SectionHeader title="Dating" />
+              <Field label="LMP Date (YYYY-MM-DD)" value={lmpDate} onChangeText={setLmpDate} placeholder="2026-01-15" icon="calendar" />
+              <PickerField label="LMP Reliability" value={lmpReliability} onChange={setLmpReliability} options={['CONFIRMED', 'PROBABLE', 'UNCERTAIN', 'UNKNOWN']} />
+              <PickerField label="Dating Method" value={datingMethod} onChange={setDatingMethod} options={['LMP', 'ULTRASOUND', 'SYMPHYSIS_FUNDAL_HEIGHT', 'UNKNOWN']} />
+            </Card>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+            {/* Obstetric History */}
+            <Card style={styles.section}>
+              <SectionHeader title="Obstetric History" />
+              <View style={styles.row}>
+                <Field label="Gravidity" value={gravidity} onChangeText={setGravidity} keyboardType="numeric" containerStyle={styles.fieldHalf} />
+                <Field label="Parity" value={parity} onChangeText={setParity} keyboardType="numeric" containerStyle={styles.fieldHalf} />
               </View>
-              {i < stepTitles.length - 1 && (
-                <View style={[styles.progressLine, {backgroundColor: i < step ? colors.primary : colors.border}]} />
-              )}
-            </React.Fragment>
-          ))}
-        </View>
-        <Text style={[styles.stepTitle, {color: colors.textSecondary}]}>
-          Step {step + 1} of {totalSteps}: {stepTitles[step]}
-        </Text>
-
-        {step === 0 && (
-          <>
-          {/* Identity & Assignment */}
-          <View style={[styles.section, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Identity & Assignment</Text>
-            <LabeledInput label="Woman Name" value={womanName} onChange={checkDuplicate} colors={colors} placeholder="Full name" />
-            <DuplicateBadge
-              duplicate={dedupMatch}
-              onDismiss={() => setDedupMatch(null)}
-            />
-            <LabeledInput label="Woman ID (if known)" value={womanId} onChange={setWomanId} colors={colors} />
-            <LabeledInput label="Assigned CHPS" value={assignedChps} onChange={setAssignedChps} colors={colors} />
-            <LabeledInput label="Assigned Worker" value={assignedWorker} onChange={setAssignedWorker} colors={colors} />
-          </View>
-          </>
-        )}
-
-        {step === 1 && (
-          <>
-          {/* Dating */}
-          <View style={[styles.section, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Dating</Text>
-            <LabeledInput label="LMP Date (YYYY-MM-DD)" value={lmpDate} onChange={setLmpDate} colors={colors} placeholder="2026-01-15" />
-            <PickerField label="LMP Reliability" value={lmpReliability} onChange={setLmpReliability} options={['CONFIRMED', 'PROBABLE', 'UNCERTAIN', 'UNKNOWN']} colors={colors} />
-            <PickerField label="Dating Method" value={datingMethod} onChange={setDatingMethod} options={['LMP', 'ULTRASOUND', 'SYMPHYSIS_FUNDAL_HEIGHT', 'UNKNOWN']} colors={colors} />
-          </View>
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-          {/* Obstetric History */}
-          <View style={[styles.section, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Obstetric History</Text>
-            <View style={styles.row}>
-              <LabeledInput label="Gravidity" value={gravidity} onChange={setGravidity} colors={colors} keyboardType="numeric" />
-              <LabeledInput label="Parity" value={parity} onChange={setParity} colors={colors} keyboardType="numeric" />
-            </View>
-            <View style={styles.row}>
-              <LabeledInput label="Living Children" value={livingChildren} onChange={setLivingChildren} colors={colors} keyboardType="numeric" />
-              <LabeledInput label="Prev Caesarean #" value={prevCaesarean} onChange={setPrevCaesarean} colors={colors} keyboardType="numeric" />
-            </View>
-            <View style={styles.row}>
-              <LabeledInput label="Maternal Age" value={maternalAge} onChange={setMaternalAge} colors={colors} keyboardType="numeric" />
-            </View>
-            <ToggleRow label="Prev uterine surgery" value={prevUterineSurgery} onChange={setPrevUterineSurgery} colors={colors} />
-            <ToggleRow label="Prev stillbirth" value={prevStillbirth} onChange={setPrevStillbirth} colors={colors} />
-            <ToggleRow label="Prev neonatal death" value={prevNeonatalDeath} onChange={setPrevNeonatalDeath} colors={colors} />
-            <ToggleRow label="Prev PPH" value={prevPph} onChange={setPrevPph} colors={colors} />
-            <ToggleRow label="Prev preeclampsia/eclampsia" value={prevPreeclampsia} onChange={setPrevPreeclampsia} colors={colors} />
-            <ToggleRow label="Prev preterm birth" value={prevPreterm} onChange={setPrevPreterm} colors={colors} />
-            <ToggleRow label="Prev obstructed labour" value={prevObstructed} onChange={setPrevObstructed} colors={colors} />
-          </View>
-          </>
-        )}
-
-        {step === 3 && (
-          <>
-          {/* Baseline & Medical */}
-          <View style={[styles.section, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Baseline & Medical</Text>
-            <View style={styles.row}>
-              <LabeledInput label="Height (cm)" value={heightCm} onChange={setHeightCm} colors={colors} keyboardType="numeric" />
-              <LabeledInput label="Booking Weight (kg)" value={bookingWeight} onChange={setBookingWeight} colors={colors} keyboardType="numeric" />
-            </View>
-            <ToggleRow label="Chronic Hypertension" value={chronicHtn} onChange={setChronicHtn} colors={colors} />
-            <PickerField label="Diabetes" value={diabetes} onChange={setDiabetes} options={['NONE', 'GESTATIONAL', 'PRE_EXISTING', 'UNKNOWN']} colors={colors} />
-            <PickerField label="Sickle Cell" value={sickleCell} onChange={setSickleCell} options={['NOT_SCREENED', 'AA', 'AS', 'SS', 'SC', 'UNKNOWN']} colors={colors} />
-            <ToggleRow label="Cardiac Disease" value={cardiac} onChange={setCardiac} colors={colors} />
-            <ToggleRow label="Renal Disease" value={renal} onChange={setRenal} colors={colors} />
-            <ToggleRow label="Epilepsy" value={epilepsy} onChange={setEpilepsy} colors={colors} />
-            <PickerField label="Blood Group" value={bloodGroup} onChange={setBloodGroup} options={['A', 'B', 'AB', 'O', 'UNKNOWN']} colors={colors} />
-            <PickerField label="Rhesus" value={rhesus} onChange={setRhesus} options={['POSITIVE', 'NEGATIVE', 'UNKNOWN']} colors={colors} />
-          </View>
-          </>
-        )}
-
-        {step === 4 && (
-          <>
-          {/* Infection Screening */}
-          <View style={[styles.section, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Infection Screening</Text>
-            <PickerField label="HIV Status" value={hivStatus} onChange={setHivStatus} options={['NOT_SCREENED', 'NEGATIVE', 'POSITIVE', 'UNKNOWN']} colors={colors} />
-            <PickerField label="Syphilis" value={syphilisStatus} onChange={setSyphilisStatus} options={['NOT_SCREENED', 'NEGATIVE', 'POSITIVE', 'UNKNOWN']} colors={colors} />
-            <PickerField label="Hepatitis B" value={hepbStatus} onChange={setHepbStatus} options={['NOT_SCREENED', 'NEGATIVE', 'POSITIVE', 'UNKNOWN']} colors={colors} />
-            <PickerField label="TB Status" value={tbStatus} onChange={setTbStatus} options={['NOT_SCREENED', 'NEGATIVE', 'ACTIVE', 'ON_TREATMENT', 'UNKNOWN']} colors={colors} />
-          </View>
-          </>
-        )}
-
-        {step === 5 && (
-          <>
-          {/* Socio-Economic Determinants */}
-          <View style={[styles.section, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Socio-Economic Determinants</Text>
-            <PickerField label="Maternal Education" value={maternalEducation} onChange={setMaternalEducation} options={['NONE', 'PRIMARY', 'JHS', 'SHS', 'TERTIARY', 'UNKNOWN']} colors={colors} />
-            <PickerField label="Maternal Occupation" value={maternalOccupation} onChange={setMaternalOccupation} options={['UNEMPLOYED', 'TRADER', 'FARMER', 'ARTISAN', 'FISHER', 'FORMAL_EMPLOYEE', 'SELF_EMPLOYED', 'STUDENT', 'OTHER', 'UNKNOWN']} colors={colors} />
-            <LabeledInput label="Number of Jobs" value={numberOfJobs} onChange={setNumberOfJobs} colors={colors} keyboardType="numeric" />
-            <LabeledInput label="Avg Daily Working Hours" value={avgDailyWorkHours} onChange={setAvgDailyWorkHours} colors={colors} keyboardType="numeric" placeholder="e.g. 8.5" />
-          </View>
-          </>
-        )}
-
-        {step === 6 && (
-          <>
-          {/* Access & Planning */}
-          <View style={[styles.section, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Access & Planning</Text>
-            <LabeledInput label="Travel time to referral (min)" value={travelTime} onChange={setTravelTime} colors={colors} keyboardType="numeric" />
-            <ToggleRow label="Birth plan complete" value={birthPlanComplete} onChange={setBirthPlanComplete} colors={colors} />
-          </View>
-
-          {/* System Flags */}
-          <View style={[styles.section, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>System & Contextual Flags</Text>
-            <ToggleRow label="Late booking or missed ANC" value={lateBooking} onChange={setLateBooking} colors={colors} />
-            <ToggleRow label="Severe access barrier" value={severeAccessBarrier} onChange={setSevereAccessBarrier} colors={colors} />
-            <ToggleRow label="Specialist recommendation incomplete" value={specialistIncomplete} onChange={setSpecialistIncomplete} colors={colors} />
-          </View>
-          </>
-        )}
-
-        {/* Navigation buttons */}
-        <View style={styles.navButtons}>
-          {step > 0 && (
-            <Pressable
-              style={[styles.navButton, styles.navPrev, {borderColor: colors.border}]}
-              onPress={() => setStep(step - 1)}>
-              <Text style={[styles.navButtonText, {color: colors.textSecondary}]}>← Previous</Text>
-            </Pressable>
+              <View style={styles.row}>
+                <Field label="Living Children" value={livingChildren} onChangeText={setLivingChildren} keyboardType="numeric" containerStyle={styles.fieldHalf} />
+                <Field label="Prev Caesarean #" value={prevCaesarean} onChangeText={setPrevCaesarean} keyboardType="numeric" containerStyle={styles.fieldHalf} />
+              </View>
+              <View style={styles.row}>
+                <Field label="Maternal Age" value={maternalAge} onChangeText={setMaternalAge} keyboardType="numeric" containerStyle={styles.fieldHalf} />
+              </View>
+              <ToggleRow label="Prev uterine surgery" value={prevUterineSurgery} onChange={setPrevUterineSurgery} />
+              <ToggleRow label="Prev stillbirth" value={prevStillbirth} onChange={setPrevStillbirth} />
+              <ToggleRow label="Prev neonatal death" value={prevNeonatalDeath} onChange={setPrevNeonatalDeath} />
+              <ToggleRow label="Prev PPH" value={prevPph} onChange={setPrevPph} />
+              <ToggleRow label="Prev preeclampsia/eclampsia" value={prevPreeclampsia} onChange={setPrevPreeclampsia} />
+              <ToggleRow label="Prev preterm birth" value={prevPreterm} onChange={setPrevPreterm} />
+              <ToggleRow label="Prev obstructed labour" value={prevObstructed} onChange={setPrevObstructed} />
+            </Card>
+            </>
           )}
-          {step < totalSteps - 1 ? (
-            <Pressable
-              style={[styles.navButton, styles.navNext, {backgroundColor: colors.primary}]}
-              onPress={() => setStep(step + 1)}>
-              <Text style={styles.navNextText}>Next →</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={handleSave}
-              disabled={saving}
-              style={[styles.navButton, styles.navNext, {backgroundColor: colors.primary, opacity: saving ? 0.6 : 1}]}>
-              <Text style={styles.navNextText}>{saving ? 'Saving...' : 'Register & Sync'}</Text>
-            </Pressable>
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-}
 
-function LabeledInput({
-  label, value, onChange, colors, placeholder, keyboardType,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  colors: typeof lightColors;
-  placeholder?: string;
-  keyboardType?: 'default' | 'numeric';
-}) {
-  return (
-    <View style={styles.field}>
-      <Text style={[styles.label, {color: colors.textSecondary}]}>{label}</Text>
-      <TextInput
-        style={[styles.input, {backgroundColor: colors.background, color: colors.textPrimary}]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textSecondary}
-        keyboardType={keyboardType || 'default'}
-      />
-    </View>
+          {step === 3 && (
+            <>
+            {/* Baseline & Medical */}
+            <Card style={styles.section}>
+              <SectionHeader title="Baseline & Medical" />
+              <View style={styles.row}>
+                <Field label="Height (cm)" value={heightCm} onChangeText={setHeightCm} keyboardType="numeric" containerStyle={styles.fieldHalf} />
+                <Field label="Booking Weight (kg)" value={bookingWeight} onChangeText={setBookingWeight} keyboardType="numeric" containerStyle={styles.fieldHalf} />
+              </View>
+              <ToggleRow label="Chronic Hypertension" value={chronicHtn} onChange={setChronicHtn} />
+              <PickerField label="Diabetes" value={diabetes} onChange={setDiabetes} options={['NONE', 'GESTATIONAL', 'PRE_EXISTING', 'UNKNOWN']} />
+              <PickerField label="Sickle Cell" value={sickleCell} onChange={setSickleCell} options={['NOT_SCREENED', 'AA', 'AS', 'SS', 'SC', 'UNKNOWN']} />
+              <ToggleRow label="Cardiac Disease" value={cardiac} onChange={setCardiac} />
+              <ToggleRow label="Renal Disease" value={renal} onChange={setRenal} />
+              <ToggleRow label="Epilepsy" value={epilepsy} onChange={setEpilepsy} />
+              <PickerField label="Blood Group" value={bloodGroup} onChange={setBloodGroup} options={['A', 'B', 'AB', 'O', 'UNKNOWN']} />
+              <PickerField label="Rhesus" value={rhesus} onChange={setRhesus} options={['POSITIVE', 'NEGATIVE', 'UNKNOWN']} />
+            </Card>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+            {/* Infection Screening */}
+            <Card style={styles.section}>
+              <SectionHeader title="Infection Screening" />
+              <PickerField label="HIV Status" value={hivStatus} onChange={setHivStatus} options={['NOT_SCREENED', 'NEGATIVE', 'POSITIVE', 'UNKNOWN']} />
+              <PickerField label="Syphilis" value={syphilisStatus} onChange={setSyphilisStatus} options={['NOT_SCREENED', 'NEGATIVE', 'POSITIVE', 'UNKNOWN']} />
+              <PickerField label="Hepatitis B" value={hepbStatus} onChange={setHepbStatus} options={['NOT_SCREENED', 'NEGATIVE', 'POSITIVE', 'UNKNOWN']} />
+              <PickerField label="TB Status" value={tbStatus} onChange={setTbStatus} options={['NOT_SCREENED', 'NEGATIVE', 'ACTIVE', 'ON_TREATMENT', 'UNKNOWN']} />
+            </Card>
+            </>
+          )}
+
+          {step === 5 && (
+            <>
+            {/* Socio-Economic Determinants */}
+            <Card style={styles.section}>
+              <SectionHeader title="Socio-Economic Determinants" />
+              <PickerField label="Maternal Education" value={maternalEducation} onChange={setMaternalEducation} options={['NONE', 'PRIMARY', 'JHS', 'SHS', 'TERTIARY', 'UNKNOWN']} />
+              <PickerField label="Maternal Occupation" value={maternalOccupation} onChange={setMaternalOccupation} options={['UNEMPLOYED', 'TRADER', 'FARMER', 'ARTISAN', 'FISHER', 'FORMAL_EMPLOYEE', 'SELF_EMPLOYED', 'STUDENT', 'OTHER', 'UNKNOWN']} />
+              <Field label="Number of Jobs" value={numberOfJobs} onChangeText={setNumberOfJobs} keyboardType="numeric" />
+              <Field label="Avg Daily Working Hours" value={avgDailyWorkHours} onChangeText={setAvgDailyWorkHours} keyboardType="numeric" placeholder="e.g. 8.5" />
+            </Card>
+            </>
+          )}
+
+          {step === 6 && (
+            <>
+            {/* Access & Planning */}
+            <Card style={styles.section}>
+              <SectionHeader title="Access & Planning" />
+              <Field label="Travel time to referral (min)" value={travelTime} onChangeText={setTravelTime} keyboardType="numeric" icon="clock" />
+              <ToggleRow label="Birth plan complete" value={birthPlanComplete} onChange={setBirthPlanComplete} />
+            </Card>
+
+            {/* System Flags */}
+            <Card style={styles.section}>
+              <SectionHeader title="System & Contextual Flags" />
+              <ToggleRow label="Late booking or missed ANC" value={lateBooking} onChange={setLateBooking} />
+              <ToggleRow label="Severe access barrier" value={severeAccessBarrier} onChange={setSevereAccessBarrier} />
+              <ToggleRow label="Specialist recommendation incomplete" value={specialistIncomplete} onChange={setSpecialistIncomplete} />
+            </Card>
+            </>
+          )}
+
+          {/* Navigation buttons */}
+          <View style={styles.navButtons}>
+            {step > 0 && (
+              <Button
+                label="Previous"
+                variant="secondary"
+                size="lg"
+                icon="arrowLeft"
+                onPress={() => setStep(step - 1)}
+                style={styles.navButton}
+                accessibilityLabel="Previous step"
+              />
+            )}
+            {step < totalSteps - 1 ? (
+              <Button
+                label="Next"
+                size="lg"
+                iconRight="arrowRight"
+                onPress={() => setStep(step + 1)}
+                style={styles.navButton}
+                accessibilityLabel="Next step"
+              />
+            ) : (
+              <Button
+                label={saving ? 'Saving...' : 'Register & Sync'}
+                size="lg"
+                icon="check"
+                onPress={handleSave}
+                disabled={saving}
+                loading={saving}
+                style={styles.navButton}
+                accessibilityLabel="Register and sync"
+              />
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Screen>
   );
 }
 
 function PickerField({
-  label, value, onChange, options, colors,
+  label,
+  value,
+  onChange,
+  options,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: string[];
-  colors: typeof lightColors;
 }) {
+  const {colors} = useTheme();
   return (
-    <View style={styles.field}>
-      <Text style={[styles.label, {color: colors.textSecondary}]}>{label}</Text>
+    <View style={styles.pickerField}>
+      <AppText variant="smallStrong" tone="secondary" style={styles.pickerLabel}>{label}</AppText>
       <View style={[styles.pickerRow, {borderColor: colors.border}]}>
-        {options.map(opt => (
-          <Pressable
-            key={opt}
-            onPress={() => onChange(opt)}
-            style={[
-              styles.pickerChip,
-              {backgroundColor: value === opt ? colors.primary : 'transparent', borderColor: colors.border},
-            ]}>
-            <Text style={{fontSize: 11, fontWeight: '600', color: value === opt ? '#fff' : colors.textSecondary}}>
-              {opt}
-            </Text>
-          </Pressable>
-        ))}
+        {options.map(opt => {
+          const selected = value === opt;
+          return (
+            <Pressable
+              key={opt}
+              onPress={() => onChange(opt)}
+              accessibilityRole="button"
+              accessibilityLabel={`${label}: ${opt}`}
+              accessibilityState={{selected}}
+              style={[
+                styles.pickerChip,
+                {
+                  backgroundColor: selected ? colors.primary : 'transparent',
+                  borderColor: selected ? colors.primary : colors.border,
+                },
+              ]}>
+              <AppText
+                variant="caption"
+                tone="inherit"
+                style={{color: selected ? colors.onPrimary : colors.textSecondary}}>
+                {opt}
+              </AppText>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
 }
 
 function ToggleRow({
-  label, value, onChange, colors,
+  label,
+  value,
+  onChange,
 }: {
   label: string;
   value: boolean;
   onChange: (v: boolean) => void;
-  colors: typeof lightColors;
 }) {
+  const {colors} = useTheme();
   return (
     <View style={styles.toggleRow}>
-      <Text style={[styles.toggleLabel, {color: colors.textPrimary}]}>{label}</Text>
-      <Switch value={value} onValueChange={onChange} trackColor={{false: colors.border, true: colors.primary}} />
+      <AppText variant="body" style={styles.toggleLabel}>{label}</AppText>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{false: colors.border, true: colors.primary}}
+        accessibilityRole="switch"
+        accessibilityState={{checked: value}}
+        accessibilityLabel={label}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  title: {fontSize: 20, fontWeight: '700', padding: 16},
-  section: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12},
-  sectionTitle: {fontSize: 14, fontWeight: '700', marginBottom: 10},
-  row: {flexDirection: 'row', gap: 10},
-  field: {flex: 1, marginBottom: 8},
-  label: {fontSize: 12, fontWeight: '500', marginBottom: 4},
-  input: {borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15},
-  pickerRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 6, borderWidth: 1, borderRadius: 8, padding: 6},
-  pickerChip: {paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, borderWidth: 1},
-  toggleRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6},
-  toggleLabel: {fontSize: 14, flex: 1, flexWrap: 'wrap'},
-  button: {margin: 16, padding: 14, borderRadius: 12, alignItems: 'center'},
-  buttonText: {color: '#fff', fontWeight: '700', fontSize: 15},
-  progressContainer: {flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 8},
-  progressDot: {width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center'},
-  progressDotText: {fontSize: 12, fontWeight: '700'},
-  progressLine: {flex: 1, height: 2, marginHorizontal: 4},
-  stepTitle: {fontSize: 13, fontWeight: '600', paddingHorizontal: 16, marginBottom: 8},
-  navButtons: {flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16, gap: 12},
-  navButton: {flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center'},
-  navPrev: {borderWidth: 1},
-  navNext: {},
-  navButtonText: {fontSize: 15, fontWeight: '600'},
-  navNextText: {color: '#fff', fontWeight: '700', fontSize: 15},
+  flex: {flex: 1},
+  scrollContent: {paddingBottom: space[8]},
+  title: {paddingHorizontal: space[4], paddingTop: space[4], marginBottom: space[2]},
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: space[4],
+    marginBottom: space[2],
+  },
+  progressDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: border.thick,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressLine: {flex: 1, height: 2, marginHorizontal: space[1]},
+  stepTitle: {paddingHorizontal: space[4], marginBottom: space[3]},
+  section: {marginHorizontal: space[4], marginVertical: space[2]},
+  row: {flexDirection: 'row', gap: space[2]},
+  fieldHalf: {flex: 1},
+  pickerField: {marginBottom: space[4]},
+  pickerLabel: {marginBottom: space[1]},
+  pickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space[1],
+    borderWidth: border.thick,
+    borderRadius: radius.md,
+    padding: space[2],
+  },
+  pickerChip: {
+    paddingHorizontal: space[2],
+    paddingVertical: space[1],
+    borderRadius: radius.sm,
+    borderWidth: border.hairline,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: space[2],
+    gap: space[3],
+  },
+  toggleLabel: {flex: 1, flexWrap: 'wrap'},
+  navButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: space[4],
+    paddingVertical: space[4],
+    gap: space[3],
+  },
+  navButton: {flex: 1},
 });

@@ -1,17 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Register Client — MCH VoiceCare{% endblock %}
+{% block title %}Register Client · MCH VoiceCare{% endblock %}
 {% block navbar_title %}Register Client{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto space-y-6">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'person_list' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="max-w-4xl mx-auto space-y-7">
+  <div class="page-header">
+    <a href="{% url 'person_list' %}" class="btn-back" aria-label="Back to clients">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <div>
-      <h1 class="text-2xl font-bold">Register Client</h1>
-      <p class="text-sm text-base-content/50">Register a person and enrol them into a care pathway</p>
+    <div class="flex-1">
+      <p class="overline">Registry</p>
+      <h1 class="page-title">Register Client</h1>
+      <p class="page-subtitle">Register a person and enrol them into a care pathway.</p>
     </div>
   </div>
 
@@ -19,152 +20,165 @@
     {% csrf_token %}
 
     {# ── Care Pathway Selector ── #}
-    <div class="card-section">
+    <section class="card-section animate-in">
+      <div class="panel-header">
+        <div>
+          <h2 class="text-base font-semibold tracking-tight">Care Pathway</h2>
+          <p class="text-small text-base-content/55 mt-0.5">Choose what this client is being registered for.</p>
+        </div>
+      </div>
       <div class="card-body">
-        <h2 class="card-title">Care Pathway</h2>
-        <p class="text-sm text-base-content/50 mb-4">Choose what this client is being registered for.</p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label class="reg-type-card cursor-pointer rounded-xl border-2 border-base-300 p-4 text-center transition-all hover:border-primary" data-type="pregnancy">
+          <label class="reg-type-card" data-type="pregnancy">
             <input type="radio" name="registration_type" value="pregnancy" checked class="hidden">
-            <svg class="w-8 h-8 mx-auto mb-2 text-rose-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5"/></svg>
-            <span class="block text-sm font-semibold">Pregnancy</span>
-            <span class="block text-xs text-base-content/50 mt-1">Antenatal care</span>
+            <span class="reg-type-icon bg-urgency-red/10 text-urgency-red">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"/></svg>
+            </span>
+            <span class="reg-type-label">Pregnancy</span>
+            <span class="reg-type-sub">Antenatal care</span>
           </label>
-          <label class="reg-type-card cursor-pointer rounded-xl border-2 border-base-300 p-4 text-center transition-all hover:border-primary" data-type="newborn">
+          <label class="reg-type-card" data-type="newborn">
             <input type="radio" name="registration_type" value="newborn" class="hidden">
-            <svg class="w-8 h-8 mx-auto mb-2 text-sky-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
-            <span class="block text-sm font-semibold">Newborn</span>
-            <span class="block text-xs text-base-content/50 mt-1">Neonatal care</span>
+            <span class="reg-type-icon bg-info/10 text-info">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9.75-2.25c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm5.25 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Z"/></svg>
+            </span>
+            <span class="reg-type-label">Newborn</span>
+            <span class="reg-type-sub">Neonatal care</span>
           </label>
-          <label class="reg-type-card cursor-pointer rounded-xl border-2 border-base-300 p-4 text-center transition-all hover:border-primary" data-type="immunisation">
+          <label class="reg-type-card" data-type="immunisation">
             <input type="radio" name="registration_type" value="immunisation" class="hidden">
-            <svg class="w-8 h-8 mx-auto mb-2 text-success" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.412 15.696 6.75 20.25l-3.75-3.75 4.562-4.562m3.45-3.45L16.5 4.5l3.75 3.75-3.838 3.838M8.25 8.25l7.5 7.5"/></svg>
-            <span class="block text-sm font-semibold">Child Under 2</span>
-            <span class="block text-xs text-base-content/50 mt-1">Immunisation</span>
+            <span class="reg-type-icon bg-success/10 text-success">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/></svg>
+            </span>
+            <span class="reg-type-label">Child Under 2</span>
+            <span class="reg-type-sub">Immunisation</span>
           </label>
         </div>
       </div>
-    </div>
+    </section>
 
     {# ── Pregnancy Section ── #}
     <div id="section-pregnancy" class="reg-clinical space-y-4" style="display:none;">
-      <div class="card-section">
+      <section class="card-section">
+        <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Demographics</h2></div>
         <div class="card-body">
-          <h2 class="card-title">Demographics</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {% for field in person_form %}
             <div class="form-field">
               <label for="{{ field.id_for_label }}">{{ field.label }}</label>
               {{ field }}
-              {% if field.errors %}<p class="text-error text-sm">{{ field.errors|join:", " }}</p>{% endif %}
+              {% if field.errors %}<p class="form-error">{{ field.errors|join:", " }}</p>{% endif %}
             </div>
             {% endfor %}
           </div>
         </div>
-      </div>
-      <div class="card-section">
+      </section>
+      <section class="card-section">
+        <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Pregnancy Details</h2></div>
         <div class="card-body">
-          <h2 class="card-title">Pregnancy Details</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {% for field in pregnancy_form %}
-              {% if field.name != "woman" %}
-              <div class="form-field">
-                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}<p class="text-error text-sm">{{ field.errors|join:", " }}</p>{% endif %}
-              </div>
-              {% endif %}
+            {% if field.name != "woman" %}
+            <div class="form-field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}<p class="form-error">{{ field.errors|join:", " }}</p>{% endif %}
+            </div>
+            {% endif %}
             {% endfor %}
           </div>
         </div>
-      </div>
+      </section>
     </div>
 
     {# ── Newborn Section ── #}
     <div id="section-newborn" class="reg-clinical space-y-4" style="display:none;">
-      <div class="card-section">
+      <section class="card-section">
+        <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Demographics</h2></div>
         <div class="card-body">
-          <h2 class="card-title">Demographics</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {% for field in person_form %}
             <div class="form-field">
               <label for="{{ field.id_for_label }}">{{ field.label }}</label>
               {{ field }}
-              {% if field.errors %}<p class="text-error text-sm">{{ field.errors|join:", " }}</p>{% endif %}
+              {% if field.errors %}<p class="form-error">{{ field.errors|join:", " }}</p>{% endif %}
             </div>
             {% endfor %}
           </div>
         </div>
-      </div>
-      <div class="card-section">
+      </section>
+      <section class="card-section">
+        <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Birth Episode</h2></div>
         <div class="card-body">
-          <h2 class="card-title">Birth Episode</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {% for field in birth_form %}
             <div class="form-field">
               <label for="{{ field.id_for_label }}">{{ field.label }}</label>
               {{ field }}
-              {% if field.errors %}<p class="text-error text-sm">{{ field.errors|join:", " }}</p>{% endif %}
+              {% if field.errors %}<p class="form-error">{{ field.errors|join:", " }}</p>{% endif %}
             </div>
             {% endfor %}
           </div>
         </div>
-      </div>
-      <div class="card-section">
+      </section>
+      <section class="card-section">
+        <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Newborn Details</h2></div>
         <div class="card-body">
-          <h2 class="card-title">Newborn Details</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {% for field in newborn_form %}
-              {% if field.name != "child" %}
-              <div class="form-field">
-                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}<p class="text-error text-sm">{{ field.errors|join:", " }}</p>{% endif %}
-              </div>
-              {% endif %}
+            {% if field.name != "child" %}
+            <div class="form-field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}<p class="form-error">{{ field.errors|join:", " }}</p>{% endif %}
+            </div>
+            {% endif %}
             {% endfor %}
           </div>
         </div>
-      </div>
+      </section>
     </div>
 
     {# ── Immunisation Section ── #}
     <div id="section-immunisation" class="reg-clinical space-y-4" style="display:none;">
-      <div class="card-section">
+      <section class="card-section">
+        <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Demographics</h2></div>
         <div class="card-body">
-          <h2 class="card-title">Demographics</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {% for field in person_form %}
             <div class="form-field">
               <label for="{{ field.id_for_label }}">{{ field.label }}</label>
               {{ field }}
-              {% if field.errors %}<p class="text-error text-sm">{{ field.errors|join:", " }}</p>{% endif %}
+              {% if field.errors %}<p class="form-error">{{ field.errors|join:", " }}</p>{% endif %}
             </div>
             {% endfor %}
           </div>
         </div>
-      </div>
-      <div class="card-section">
+      </section>
+      <section class="card-section">
+        <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Immunisation Enrolment</h2></div>
         <div class="card-body">
-          <h2 class="card-title">Immunisation Enrolment</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {% for field in immunisation_form %}
-              {% if field.name != "child" %}
-              <div class="form-field">
-                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}<p class="text-error text-sm">{{ field.errors|join:", " }}</p>{% endif %}
-              </div>
-              {% endif %}
+            {% if field.name != "child" %}
+            <div class="form-field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}<p class="form-error">{{ field.errors|join:", " }}</p>{% endif %}
+            </div>
+            {% endif %}
             {% endfor %}
           </div>
         </div>
-      </div>
+      </section>
     </div>
 
-    <div class="flex justify-end gap-2">
+    <div class="flex justify-end gap-2 pt-2">
       <a href="{% url 'person_list' %}" class="btn btn-ghost">Cancel</a>
-      <button type="submit" id="submit-btn" class="btn btn-primary">Register</button>
+      <button type="submit" id="submit-btn" class="btn btn-primary gap-2 shadow-card">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+        <span id="submit-label">Register</span>
+      </button>
     </div>
   </form>
 </div>
@@ -173,7 +187,7 @@
 (function() {
   var cards = document.querySelectorAll('.reg-type-card');
   var sections = document.querySelectorAll('.reg-clinical');
-  var submitBtn = document.getElementById('submit-btn');
+  var submitLabel = document.getElementById('submit-label');
   var labels = {
     'pregnancy': 'Register & Assess Pregnancy',
     'newborn': 'Register & Assess Newborn',
@@ -186,17 +200,15 @@
       var radio = card.querySelector('input[type="radio"]');
       if (cardType === type) {
         radio.checked = true;
-        card.style.borderColor = 'var(--p)';
-        card.style.background = 'color-mix(in srgb, var(--p) 5%, transparent)';
+        card.classList.add('reg-type-card-active');
       } else {
-        card.style.borderColor = '';
-        card.style.background = '';
+        card.classList.remove('reg-type-card-active');
       }
     });
     sections.forEach(function(s) { s.style.display = 'none'; });
     var target = document.getElementById('section-' + type);
     if (target) target.style.display = '';
-    if (submitBtn) submitBtn.textContent = labels[type] || 'Register';
+    if (submitLabel) submitLabel.textContent = labels[type] || 'Register';
   }
 
   cards.forEach(function(card) {

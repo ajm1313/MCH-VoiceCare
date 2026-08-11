@@ -34,10 +34,11 @@ from apps.core.telephony_prompts import (
     PromptPackBuilder, ensure_prompt_pack_consistency, validate_prompt_pack,
     SUPPORTED_LANGUAGES, REQUIRED_PROMPT_IDS,
 )
-from apps.core.ussd_service import get_default_navigator
+from apps.core.ussd_service import get_default_navigator, EMERGENCY_ACTION_MAP
 from apps.core.permissions import user_can_write
 from apps.audit.services import log_audit
 from apps.clients.models import Person
+from apps.core.emergency_cascade import trigger_emergency_cascade
 
 
 def _prompt_pack_to_dict(pack):
@@ -208,9 +209,62 @@ class TelephonyWebhookView(APIView):
                 source_prompt_id=event.question_code or "",
             )
 
+            # Check if this response triggers an emergency (spec §17.4)
+            # Emergency question codes start with DANGER_ and the response
+            # indicates a danger sign is present
+            if self._is_emergency_response(event, response_key):
+                session.mark_emergency()
+                cascade = trigger_emergency_cascade(
+                    danger_sign=self._extract_danger_sign(event, response_key),
+                    question_code=event.question_code or "",
+                    phone_number=event.phone_number or "",
+                    patient=session.patient,
+                    session_id=session.session_id,
+                    provider=event.provider or "",
+                )
+                # Log the cascade result
+                log_audit(
+                    actor=event.provider or "telephony",
+                    action="EMERGENCY_CASCADE_TRIGGERED",
+                    purpose="DIRECT_CARE",
+                    patient_id=session.patient.id if session.patient else None,
+                    metadata={
+                        "session_id": session.session_id,
+                        "alert_id": cascade["alert_id"],
+                        "referral_id": cascade["referral_id"],
+                        "facility_notified": cascade["facility_notified"],
+                        "notification_phone": cascade["notification_phone"],
+                    },
+                )
+
         # Handle call ended
         if event.event_type == "call.ended":
             session.complete()
+
+    def _is_emergency_response(self, event, response_key) -> bool:
+        """Check if a telephony response triggers an emergency (spec §17.4)."""
+        question_code = event.question_code or ""
+        # Danger sign question codes start with DANGER_
+        if not question_code.startswith("DANGER_"):
+            return False
+        # A non-zero, non-empty response indicates the danger sign is present
+        # For DTMF: key "1" = yes, "0" = no
+        # For USSD: the emergency menu selections trigger directly
+        return response_key in ("1", "yes", "YES", "true", "TRUE")
+
+    def _extract_danger_sign(self, event, response_key) -> str:
+        """Extract the danger sign from the event question code."""
+        question_code = event.question_code or ""
+        # Map DANGER_* codes to danger signs
+        danger_map = {
+            "DANGER_BLEEDING": "bleeding",
+            "DANGER_FEVER": "fever",
+            "DANGER_HEADACHE": "severe_headache",
+            "DANGER_CONVULSIONS": "convulsion",
+            "DANGER_BREATHING": "breathing",
+            "DANGER_OTHER": "other_danger",
+        }
+        return danger_map.get(question_code, "other_danger")
 
 
 class PromptPackListView(APIView):
@@ -323,6 +377,48 @@ class USSDEndpointView(APIView):
                 "isEnd": is_end,
             },
         )
+
+        # Check if an emergency was triggered during USSD navigation (spec §17.4)
+        navigator = get_default_navigator()
+        ussd_session = navigator._sessions.get(session_id)
+        if ussd_session and ussd_session.state.get("emergency"):
+            emergency_info = ussd_session.state["emergency"]
+            danger_sign = emergency_info.get("danger_sign", "unknown")
+            question_code = emergency_info.get("question_code", "")
+
+            # Try to identify patient by phone number
+            patient = None
+            if phone_number:
+                normalized = phone_number.strip().lstrip("+")
+                patient = Person.objects.filter(phone=normalized).first()
+                if not patient:
+                    patient = Person.objects.filter(alternate_phone=normalized).first()
+
+            cascade = trigger_emergency_cascade(
+                danger_sign=danger_sign,
+                question_code=question_code,
+                phone_number=phone_number,
+                patient=patient,
+                session_id=session_id,
+                provider="ussd",
+            )
+
+            # Append the emergency advice to the USSD response
+            response_text = cascade["advice"]
+
+            log_audit(
+                actor=phone_number or "ussd",
+                action="EMERGENCY_CASCADE_TRIGGERED",
+                purpose="DIRECT_CARE",
+                patient_id=patient.id if patient else None,
+                metadata={
+                    "session_id": session_id,
+                    "danger_sign": danger_sign,
+                    "alert_id": cascade["alert_id"],
+                    "referral_id": cascade["referral_id"],
+                    "facility_notified": cascade["facility_notified"],
+                },
+            )
 
         # Return in the format expected by USSD providers
         # Africa's Talking expects: {"text": "...", "responseType": "END"|"CONTINUE"}

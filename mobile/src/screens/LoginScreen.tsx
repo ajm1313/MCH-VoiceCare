@@ -1,8 +1,16 @@
 /**
  * Login screen — SEC-001. Credentials are submitted to the auth store
  * which stores the token in the OS keychain.
+ *
+ * Biometric login (spec §22): if the device supports fingerprint/face
+ * unlock and the user has previously opted in, a biometric login button
+ * is shown. On success, the stored JWT is retrieved from the keychain.
+ *
+ * UX-003: premium calm-clinical restyle using the shared UI primitives
+ * and theme tokens. The clinical behaviour (auth, biometric, keychain)
+ * is unchanged.
  */
-import React, {useState} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -10,129 +18,206 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {useAuthStore} from '../core/auth/authStore';
-import {brand, lightColors} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
+import {brand} from '../theme/colors';
+import {border, radius, space, elevation} from '../theme/tokens';
+import {Icon} from '../components/ui/Icon';
+import {AppText} from '../components/ui/Text';
+import {Field} from '../components/ui/Input';
+import {Button} from '../components/ui/Button';
+import {
+  checkBiometricAvailability,
+  hasBiometricCredentials,
+  biometricLogin,
+  storeCredentialsWithBiometric,
+  type BiometricAvailability,
+} from '../core/auth/biometricAuth';
 
 export function LoginScreen() {
+  const {colors} = useTheme();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const {login, isLoading, error} = useAuthStore();
 
+  // Biometric state (spec §22)
+  const [biometricAvail, setBiometricAvail] = useState<BiometricAvailability | null>(null);
+  const [hasStoredBioCreds, setHasStoredBioCreds] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  useEffect(() => {
+    checkBiometricAvailability().then(avail => {
+      setBiometricAvail(avail);
+      if (avail.available) {
+        hasBiometricCredentials().then(setHasStoredBioCreds);
+      }
+    });
+  }, []);
+
   const handleLogin = () => {
     if (username && password) {
-      login(username, password);
+      login(username, password).then(() => {
+        if (biometricAvail?.available) {
+          storeCredentialsWithBiometric(username, password || '');
+        }
+      });
     }
   };
 
+  const handleBiometricLogin = useCallback(async () => {
+    setBiometricLoading(true);
+    try {
+      const creds = await biometricLogin();
+      if (creds) {
+        login(creds.username, creds.token, true);
+      }
+    } finally {
+      setBiometricLoading(false);
+    }
+  }, [login]);
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.inner}>
-        {/* Banner with logo */}
+
+        {/* ── Brand banner ── */}
         <View style={styles.banner}>
+          <View style={styles.bannerGlow} />
           <Image
             source={require('../../assets/brand/logo-dark-mode.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
+          <AppText variant="caption" tone="inherit" style={styles.bannerTagline}>
+            Maternal &amp; Child Health
+          </AppText>
         </View>
 
-        {/* Tagline */}
-        <Text style={styles.tagline}>
+        {/* ── Tagline ── */}
+        <AppText variant="small" tone="secondary" style={styles.tagline}>
           Offline-first decision support for frontline health workers
-        </Text>
+        </AppText>
 
-        {/* Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Welcome Back</Text>
-          <Text style={styles.cardSubtitle}>Sign in to your account</Text>
+        {/* ── Card ── */}
+        <View style={[styles.card, {backgroundColor: colors.surface, ...elevation.lg}]}>
+          <AppText variant="overline" tone="secondary" style={styles.cardOverline}>
+            Welcome
+          </AppText>
+          <AppText variant="h2" tone="primary" style={styles.cardTitle}>
+            Sign in to your account
+          </AppText>
+          <AppText variant="small" tone="secondary" style={styles.cardSubtitle}>
+            Use your facility credentials to continue.
+          </AppText>
 
           {/* Username */}
-          <Text style={styles.label}>Username</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="Enter your username"
-              placeholderTextColor={lightColors.textSecondary}
-              editable={!isLoading}
-            />
-          </View>
+          <Field
+            label="Username"
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Enter your username"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!isLoading}
+            icon="user"
+            containerStyle={styles.field}
+          />
 
           {/* Password */}
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              placeholder="Enter your password"
-              placeholderTextColor={lightColors.textSecondary}
-              editable={!isLoading}
-            />
-            <Pressable
-              style={styles.eyeBtn}
-              onPress={() => setShowPassword(s => !s)}
-              hitSlop={8}>
-              <Text style={styles.eyeText}>{showPassword ? 'Hide' : 'Show'}</Text>
-            </Pressable>
-          </View>
+          <Field
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            placeholder="Enter your password"
+            editable={!isLoading}
+            icon="lock"
+            trailing={{
+              icon: showPassword ? 'eyeOff' : 'eye',
+              onPress: () => setShowPassword(s => !s),
+              accessibilityLabel: showPassword ? 'Hide password' : 'Show password',
+            }}
+            containerStyle={styles.field}
+          />
 
           {/* Error */}
           {error ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={[styles.errorBox, {backgroundColor: colors.dangerSubtle, borderColor: colors.danger + '30'}]}>
+              <Icon name="alertCircle" size={18} color={colors.danger} strokeWidth={2} />
+              <AppText variant="small" tone="danger" style={styles.errorText}>
+                {error}
+              </AppText>
             </View>
           ) : null}
 
           {/* Submit */}
-          <Pressable
-            style={({pressed}) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-              isLoading && styles.buttonDisabled,
-            ]}
+          <Button
+            label="Sign In"
             onPress={handleLogin}
-            disabled={isLoading}>
-            {isLoading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
-            )}
-          </Pressable>
+            loading={isLoading}
+            disabled={isLoading}
+            iconRight="arrowRight"
+            fullWidth
+            style={styles.submitBtn}
+          />
+
+          {/* Biometric login (spec §22) */}
+          {biometricAvail?.available && hasStoredBioCreds ? (
+            <Pressable
+              style={({pressed}) => [
+                styles.biometricButton,
+                {
+                  backgroundColor: colors.primarySubtle,
+                  borderColor: colors.primary + '40',
+                  borderWidth: border.thick,
+                },
+                pressed && styles.biometricPressed,
+                biometricLoading && styles.buttonDisabled,
+              ]}
+              onPress={handleBiometricLogin}
+              disabled={biometricLoading || isLoading}
+              accessibilityRole="button"
+              accessibilityLabel={`Use ${biometricAvail.biometryType === 'face' ? 'Face' : 'Fingerprint'} to sign in`}>
+              {biometricLoading ? (
+                <ActivityIndicator color={colors.primary} size="small" />
+              ) : (
+                <>
+                  <Icon
+                    name={biometricAvail.biometryType === 'face' ? 'faceId' : 'fingerprint'}
+                    size={20}
+                    color={colors.primary}
+                    strokeWidth={1.75}
+                  />
+                  <AppText variant="bodyStrong" tone="primary">
+                    Use {biometricAvail.biometryType === 'face' ? 'Face' : 'Fingerprint'} to Sign In
+                  </AppText>
+                </>
+              )}
+            </Pressable>
+          ) : null}
         </View>
 
-        {/* Footer */}
-        <Text style={styles.footer}>
+        {/* ── Footer ── */}
+        <AppText variant="caption" tone="tertiary" style={styles.footer}>
           © {new Date().getFullYear()} MCH VoiceCare · Secure Health Platform
-        </Text>
+        </AppText>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const BANNER_HEIGHT = 180;
+const BANNER_HEIGHT = 200;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: lightColors.background,
-  },
-  inner: {
-    flex: 1,
-  },
+  container: {flex: 1},
+  inner: {flex: 1},
   banner: {
     height: BANNER_HEIGHT,
     backgroundColor: brand.navy,
@@ -140,118 +225,81 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: space[6],
+    overflow: 'hidden',
   },
-  logoImage: {
-    width: 240,
-    height: 110,
+  bannerGlow: {
+    position: 'absolute',
+    top: -40,
+    right: -30,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: brand.teal + '30',
+  },
+  logoImage: {width: 240, height: 110},
+  bannerTagline: {
+    color: 'rgba(255,255,255,0.55)',
+    marginTop: space[1],
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    fontSize: 11,
+    fontWeight: '600',
   },
   tagline: {
-    fontSize: 13,
-    color: lightColors.textSecondary,
-    marginTop: 20,
+    marginTop: space[5],
     textAlign: 'center',
-    paddingHorizontal: 28,
-    lineHeight: 19,
+    paddingHorizontal: space[7],
+    lineHeight: 20,
   },
   card: {
-    backgroundColor: lightColors.surface,
-    borderRadius: 20,
-    padding: 24,
-    marginHorizontal: 24,
-    marginTop: 24,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 6},
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 4,
+    borderRadius: radius.xl,
+    padding: space[6],
+    marginHorizontal: space[6],
+    marginTop: space[6],
+  },
+  cardOverline: {
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    fontSize: 11,
+    fontWeight: '700',
   },
   cardTitle: {
+    marginTop: space[1],
     fontSize: 20,
     fontWeight: '700',
-    color: brand.navy,
   },
   cardSubtitle: {
-    fontSize: 13,
-    color: lightColors.textSecondary,
-    marginTop: 4,
-    marginBottom: 20,
+    marginTop: space[1],
+    marginBottom: space[5],
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: lightColors.textSecondary,
-    marginBottom: 6,
-  },
-  inputRow: {
+  field: {marginBottom: space[4]},
+  errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: lightColors.border,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    marginBottom: 16,
+    gap: space[2],
+    borderRadius: radius.md,
+    borderWidth: border.thick,
+    paddingHorizontal: space[3],
+    paddingVertical: space[3],
+    marginBottom: space[3],
   },
-  input: {
-    flex: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: lightColors.textPrimary,
-  },
-  eyeBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  eyeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: brand.teal,
-  },
-  errorBox: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  errorText: {
-    color: '#DC2626',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  button: {
-    backgroundColor: brand.teal,
-    borderRadius: 12,
-    paddingVertical: 16,
+  errorText: {flex: 1},
+  submitBtn: {marginTop: space[1]},
+  biometricButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    shadowColor: brand.teal,
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    justifyContent: 'center',
+    gap: space[2],
+    borderRadius: radius.md,
+    paddingVertical: space[3],
+    marginTop: space[3],
   },
-  buttonPressed: {
-    opacity: 0.85,
-    transform: [{scale: 0.98}],
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
+  biometricPressed: {opacity: 0.85, transform: [{scale: 0.98}]},
+  buttonDisabled: {opacity: 0.6},
   footer: {
-    fontSize: 12,
-    color: lightColors.textSecondary,
     textAlign: 'center',
-    marginTop: 24,
-    marginBottom: 8,
+    marginTop: space[6],
+    marginBottom: space[2],
   },
 });

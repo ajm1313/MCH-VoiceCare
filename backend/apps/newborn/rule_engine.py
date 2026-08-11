@@ -12,6 +12,34 @@ SOURCE_ORG = "World Health Organization"
 SOURCE_VERSION = "2017"
 SOURCE_DATE = "2017-01-01"
 
+# Critical fields for newborn assessment (spec §12.2, §3.1)
+# Minimum required observations for a safe newborn assessment.
+NEWBORN_CRITICAL_FIELDS = [
+    ("temperature_c", "Temperature"),
+    ("respiratory_rate_min", "Respiratory rate"),
+    ("current_weight_g", "Current weight"),
+]
+
+
+def _compute_missing_critical_fields(episode) -> list:
+    """
+    Check if critical fields are missing from the latest newborn observation
+    (spec §12.2).
+
+    Returns a list of field names that are required but not present.
+    If there is no observation at all, all critical fields are missing.
+    """
+    latest = episode.observations.first()
+    if not latest:
+        return [f[0] for f in NEWBORN_CRITICAL_FIELDS]
+
+    missing = []
+    for field_name, _label in NEWBORN_CRITICAL_FIELDS:
+        value = getattr(latest, field_name, None)
+        if value is None or value == "":
+            missing.append(field_name)
+    return missing
+
 
 def _make_rule(rule_id, severity, reason, code=""):
     return {
@@ -154,6 +182,16 @@ def run_newborn_assessment(episode: NewbornEpisode) -> dict:
     if not fired:
         disposition = UrgencyLevel.ROUTINE
 
+    # Compute missing critical fields (spec §12.2, §3.1)
+    missing_critical = _compute_missing_critical_fields(episode)
+
+    # Missing critical fields MUST NOT silently produce a routine/green
+    # result (spec §3.1). If no rules fired (disposition would be ROUTINE)
+    # and critical fields are missing, upgrade to ABSTAIN. Emergency and
+    # priority rules still fire regardless.
+    if missing_critical and disposition == UrgencyLevel.ROUTINE:
+        disposition = UrgencyLevel.ABSTAIN
+
     action_map = {
         UrgencyLevel.EMERGENCY: "Refer immediately to newborn care unit. Initiate pre-referral treatment.",
         UrgencyLevel.PRIORITY: "Arrange priority newborn review within 24 hours.",
@@ -166,4 +204,5 @@ def run_newborn_assessment(episode: NewbornEpisode) -> dict:
         "fired_rules": fired,
         "recommended_action": action_map.get(disposition, ""),
         "rule_set_version": RULE_SET_VERSION,
+        "missingCriticalFields": missing_critical,
     }

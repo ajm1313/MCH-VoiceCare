@@ -11,6 +11,7 @@ import { logLocalAudit } from '../utils/audit';
 
 import { AppConfig } from '../../config/appConfig';
 import { getQueueDepth } from '../sync/outbox';
+import { apiFetch } from '../security/secureFetch';
 
 export interface UserRole {
   code: string;
@@ -54,7 +55,7 @@ interface AuthState {
   expiresAt: string | null;
   isLoading: boolean;
   error: string | null;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string, isBiometric?: boolean) => Promise<boolean>;
   restoreSession: () => Promise<void>;
   logout: (force?: boolean) => Promise<void>;
   refreshAccessToken: () => Promise<string | null>;
@@ -72,10 +73,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  login: async (username: string, password: string): Promise<boolean> => {
+  login: async (username: string, password: string, isBiometric?: boolean): Promise<boolean> => {
     set({ isLoading: true, error: null });
     try {
-      const resp = await fetch(`${AppConfig.apiBaseUrl}/accounts/auth/login/`, {
+      // Biometric login: the "password" is actually the stored JWT token.
+      // We restore the session directly without calling the login API.
+      if (isBiometric) {
+        const storedData = JSON.parse(password) as {
+          token: string;
+          refreshToken: string;
+          expiresAt: string;
+          user: UserProfile;
+        };
+
+        await Keychain.setGenericPassword(
+          username,
+          password,
+          { service: KEYCHAIN_SERVICE },
+        );
+
+        set({
+          user: storedData.user,
+          token: storedData.token,
+          refreshToken: storedData.refreshToken,
+          expiresAt: storedData.expiresAt,
+          isLoading: false,
+        });
+        logLocalAudit({
+          action: 'BIOMETRIC_LOGIN',
+          entityType: 'UserAccount',
+          entityId: storedData.user.id,
+          purpose: 'ADMIN',
+        });
+        return true;
+      }
+
+      const resp = await apiFetch(`${AppConfig.apiBaseUrl}/accounts/auth/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -156,7 +189,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { refreshToken } = get();
     if (!refreshToken) return null;
     try {
-      const resp = await fetch(`${AppConfig.apiBaseUrl}/accounts/auth/token/refresh/`, {
+      const resp = await apiFetch(`${AppConfig.apiBaseUrl}/accounts/auth/token/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -197,7 +230,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { token } = get();
     if (!token) return;
     try {
-      const resp = await fetch(`${AppConfig.apiBaseUrl}/accounts/auth/profile/`, {
+      const resp = await apiFetch(`${AppConfig.apiBaseUrl}/accounts/auth/profile/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!resp.ok) return;
@@ -234,7 +267,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { token, refreshToken } = get();
     if (token) {
       try {
-        await fetch(`${AppConfig.apiBaseUrl}/accounts/auth/logout/`, {
+        await apiFetch(`${AppConfig.apiBaseUrl}/accounts/auth/logout/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -4,39 +4,42 @@
 {% block navbar_title %}Notification Detail{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'notification_list' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'notification_list' %}" class="btn-back" aria-label="Back to notifications">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">{{ notification.title }}</h1>
-  </div>
-
-  <div class="card-section">
-    <div class="card-body">
-      <div class="space-y-2 text-sm">
-        <div class="flex justify-between"><span class="text-base-content/50">Class</span><span class="badge badge-sm">{{ notification.notification_class }}</span></div>
-        <div class="flex justify-between"><span class="text-base-content/50">Urgency</span><span class="badge badge-sm {{ notification.urgency|urgency_badge }}">{{ notification.urgency }}</span></div>
-        <div class="flex justify-between"><span class="text-base-content/50">Status</span><span class="badge badge-sm {{ notification.status|status_badge }}">{{ notification.status }}</span></div>
-        <div class="flex justify-between"><span class="text-base-content/50">Due</span><span>{{ notification.due_datetime|default:"—" }}</span></div>
-        <div class="flex justify-between"><span class="text-base-content/50">Created</span><span>{{ notification.created_at|date:"M d, Y H:i" }}</span></div>
-      </div>
-
-      {% if notification.actions.all %}
-      <div class="divider"></div>
-      <h3 class="font-semibold">Action History</h3>
-      <div class="space-y-2">
-        {% for a in notification.actions.all %}
-        <div class="text-sm border-l-2 border-base-300 pl-3">
-          <p><strong>{{ a.action_type }}</strong> by {{ a.recorded_by|default:"—" }}</p>
-          <p class="text-base-content/50">{{ a.created_at|date:"M d, H:i" }}</p>
-          {% if a.notes %}<p>{{ a.notes }}</p>{% endif %}
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
+    <div class="flex-1 min-w-0">
+      <p class="overline">Worklist</p>
+      <h1 class="page-title truncate">{{ notification.title }}</h1>
     </div>
   </div>
+
+  <section class="card-section animate-in">
+    <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Details</h2></div>
+    <div class="card-body space-y-3">
+      <div class="kv-row"><span class="kv-key">Class</span><span class="kv-value"><span class="pill pill-neutral">{{ notification.notification_class }}</span></span></div>
+      <div class="kv-row"><span class="kv-key">Urgency</span><span class="kv-value">{% include "partials/urgency_badge.html" with value=notification.urgency %}</span></div>
+      <div class="kv-row"><span class="kv-key">Status</span><span class="kv-value"><span class="pill pill-neutral">{{ notification.status }}</span></span></div>
+      <div class="kv-row"><span class="kv-key">Due</span><span class="kv-value">{{ notification.due_datetime|default:"—" }}</span></div>
+      <div class="kv-row"><span class="kv-key">Created</span><span class="kv-value">{{ notification.created_at|date:"M d, Y H:i" }}</span></div>
+    </div>
+  </section>
+
+  {% if notification.actions.all %}
+  <section class="card-section animate-in stagger-1">
+    <div class="panel-header"><h2 class="text-base font-semibold tracking-tight">Action History</h2></div>
+    <div class="card-body space-y-3">
+      {% for a in notification.actions.all %}
+      <div class="border-l-2 border-primary/40 pl-4 py-1">
+        <p class="text-small"><strong>{{ a.action_type }}</strong> by {{ a.recorded_by|default:"—" }}</p>
+        <p class="text-caption text-base-content/50 mt-0.5">{{ a.created_at|date:"M d, H:i" }}</p>
+        {% if a.notes %}<p class="text-small text-base-content/70 mt-1">{{ a.notes }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 </div>
 {% endblock %}

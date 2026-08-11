@@ -4,31 +4,29 @@
  * Enqueues to outbox for sync (SYNC-001).
  */
 import React, {useState} from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useColorScheme,
-} from 'react-native';
+import {KeyboardAvoidingView, Platform, Pressable, StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
 import {enqueue} from '../core/sync/outbox';
 import {checkChildExists} from '../core/dedup/personDedup';
-import type {RootStackParamList} from '../core/navigation/types';
+import {
+  Screen,
+  Card,
+  Button,
+  Field,
+  SectionHeader,
+  AppText,
+} from '../components/ui';
+import {border, radius, space} from '../theme/tokens';
 import {Alert} from 'react-native';
+import type {RootStackParamList} from '../core/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function ImmunisationRegisterScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
 
   const [childId, setChildId] = useState('');
@@ -107,77 +105,85 @@ export function ImmunisationRegisterScreen() {
     <KeyboardAvoidingView
       style={{flex: 1}}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
-        <Text style={[styles.title, {color: colors.textPrimary}]}>Register Child</Text>
+      <Screen scroll>
+        <SectionHeader title="Register Child" overline="Immunisation" />
 
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Identity</Text>
-          <LabeledInput label="Child Name" value={childName} onChange={setChildName} colors={colors} placeholder="Child's full name" />
-          <LabeledInput label="Child ID" value={childId} onChange={setChildId} colors={colors} />
-          <LabeledInput label="Primary Caregiver Name" value={caregiverName} onChange={setCaregiverName} colors={colors} />
-          <LabeledInput label="Date of Birth" value={dob} onChange={setDob} colors={colors} placeholder="2026-01-15" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>DOB Confidence</Text>
+        <Card style={styles.section}>
+          <SectionHeader title="Identity" />
+          <Field label="Child Name" value={childName} onChangeText={setChildName} placeholder="Child's full name" />
+          <Field label="Child ID" value={childId} onChangeText={setChildId} />
+          <Field label="Primary Caregiver Name" value={caregiverName} onChangeText={setCaregiverName} />
+          <Field label="Date of Birth" value={dob} onChangeText={setDob} placeholder="2026-01-15" />
+          <AppText variant="smallStrong" tone="secondary" style={styles.label}>DOB Confidence</AppText>
           <ChipPicker value={dobConfidence} onChange={setDobConfidence}
-            options={['CONFIRMED', 'APPROXIMATE', 'ESTIMATED', 'UNKNOWN']} colors={colors} />
-          <LabeledInput label="CWC Card Number" value={cwcCardNumber} onChange={setCwcCardNumber} colors={colors} />
-          <LabeledInput label="Birth Registration ID" value={birthRegistrationId} onChange={setBirthRegistrationId} colors={colors} />
-        </View>
+            options={['CONFIRMED', 'APPROXIMATE', 'ESTIMATED', 'UNKNOWN']} />
+          <Field label="CWC Card Number" value={cwcCardNumber} onChangeText={setCwcCardNumber} />
+          <Field label="Birth Registration ID" value={birthRegistrationId} onChangeText={setBirthRegistrationId} />
+        </Card>
 
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Location & Contact</Text>
-          <LabeledInput label="Current CHPS" value={currentChps} onChange={setCurrentChps} colors={colors} />
-          <LabeledInput label="Community Code" value={communityCode} onChange={setCommunityCode} colors={colors} />
-          <LabeledInput label="Household Landmark" value={householdLandmark} onChange={setHouseholdLandmark} colors={colors} />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Residence Status</Text>
+        <Card style={styles.section}>
+          <SectionHeader title="Location & Contact" />
+          <Field label="Current CHPS" value={currentChps} onChangeText={setCurrentChps} />
+          <Field label="Community Code" value={communityCode} onChangeText={setCommunityCode} />
+          <Field label="Household Landmark" value={householdLandmark} onChangeText={setHouseholdLandmark} />
+          <AppText variant="smallStrong" tone="secondary" style={styles.label}>Residence Status</AppText>
           <ChipPicker value={residenceStatus} onChange={setResidenceStatus}
-            options={['RESIDENT', 'MIGRANT', 'NOMADIC', 'UNKNOWN']} colors={colors} />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Phone Ownership</Text>
+            options={['RESIDENT', 'MIGRANT', 'NOMADIC', 'UNKNOWN']} />
+          <AppText variant="smallStrong" tone="secondary" style={styles.label}>Phone Ownership</AppText>
           <ChipPicker value={phoneOwnership} onChange={setPhoneOwnership}
-            options={['CAREGIVER', 'HOUSEHOLD_MEMBER', 'NONE', 'UNKNOWN']} colors={colors} />
-        </View>
+            options={['CAREGIVER', 'HOUSEHOLD_MEMBER', 'NONE', 'UNKNOWN']} />
+        </Card>
 
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Communication Preferences</Text>
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Preferred Language</Text>
+        <Card style={styles.section}>
+          <SectionHeader title="Communication Preferences" />
+          <AppText variant="smallStrong" tone="secondary" style={styles.label}>Preferred Language</AppText>
           <ChipPicker value={preferredLanguage} onChange={setPreferredLanguage}
-            options={['ENGLISH', 'TWI', 'GA', 'DAGBANI', 'EWE', 'HAUSA', 'OTHER']} colors={colors} />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Preferred Contact Channel</Text>
+            options={['ENGLISH', 'TWI', 'GA', 'DAGBANI', 'EWE', 'HAUSA', 'OTHER']} />
+          <AppText variant="smallStrong" tone="secondary" style={styles.label}>Preferred Contact Channel</AppText>
           <ChipPicker value={preferredContactChannel} onChange={setPreferredContactChannel}
-            options={['IN_PERSON', 'PHONE_CALL', 'SMS', 'WHATSAPP', 'NONE']} colors={colors} />
-        </View>
+            options={['IN_PERSON', 'PHONE_CALL', 'SMS', 'WHATSAPP', 'NONE']} />
+        </Card>
 
-        <Pressable onPress={handleSave} disabled={saving}
-          style={[styles.button, {backgroundColor: colors.primary, opacity: saving ? 0.6 : 1}]}>
-          <Text style={styles.buttonText}>{saving ? 'Saving...' : 'Register & Queue for Sync'}</Text>
-        </Pressable>
-      </ScrollView>
+        <View style={styles.buttonRow}>
+          <Button
+            label={saving ? 'Saving...' : 'Register & Queue for Sync'}
+            variant="primary"
+            size="lg"
+            icon="check"
+            loading={saving}
+            fullWidth
+            onPress={handleSave}
+          />
+        </View>
+      </Screen>
     </KeyboardAvoidingView>
   );
 }
 
-function LabeledInput({
-  label, value, onChange, colors, placeholder,
-}: {
-  label: string; value: string; onChange: (v: string) => void; colors: typeof lightColors; placeholder?: string;
-}) {
-  return (
-    <View style={styles.field}>
-      <Text style={[styles.label, {color: colors.textSecondary}]}>{label}</Text>
-      <TextInput
-        style={[styles.input, {backgroundColor: colors.background, color: colors.textPrimary}]}
-        value={value} onChangeText={onChange} placeholder={placeholder}
-        placeholderTextColor={colors.textSecondary} />
-    </View>
-  );
-}
-
-function ChipPicker({value, onChange, options, colors}: {value: string; onChange: (v: string) => void; options: string[]; colors: typeof lightColors}) {
+function ChipPicker({value, onChange, options}: {value: string; onChange: (v: string) => void; options: string[]}) {
+  const {colors} = useTheme();
   return (
     <View style={styles.chipRow}>
       {options.map(opt => (
-        <Pressable key={opt} onPress={() => onChange(opt)}
-          style={[styles.chip, {backgroundColor: value === opt ? colors.primary : 'transparent', borderColor: colors.border}]}>
-          <Text style={{fontSize: 11, fontWeight: '600', color: value === opt ? '#fff' : colors.textSecondary}}>{opt}</Text>
+        <Pressable
+          key={opt}
+          onPress={() => onChange(opt)}
+          accessibilityRole="button"
+          accessibilityLabel={opt}
+          accessibilityState={{selected: value === opt}}
+          style={[
+            styles.chip,
+            {
+              backgroundColor: value === opt ? colors.primary : 'transparent',
+              borderColor: value === opt ? colors.primary : colors.border,
+            },
+          ]}>
+          <AppText
+            variant="caption"
+            tone="inherit"
+            style={{color: value === opt ? colors.onPrimary : colors.textSecondary}}>
+            {opt}
+          </AppText>
         </Pressable>
       ))}
     </View>
@@ -185,15 +191,14 @@ function ChipPicker({value, onChange, options, colors}: {value: string; onChange
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  title: {fontSize: 20, fontWeight: '700', padding: 16},
-  section: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12},
-  sectionTitle: {fontSize: 14, fontWeight: '700', marginBottom: 10},
-  field: {marginBottom: 8},
-  label: {fontSize: 12, fontWeight: '500', marginBottom: 4},
-  input: {borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8},
-  chip: {paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, borderWidth: 1},
-  button: {margin: 16, padding: 14, borderRadius: 12, alignItems: 'center'},
-  buttonText: {color: '#fff', fontWeight: '700', fontSize: 15},
+  section: {marginVertical: space[2]},
+  label: {marginBottom: space[1]},
+  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: space[3]},
+  chip: {
+    paddingHorizontal: space[2],
+    paddingVertical: space[1] + 2,
+    borderRadius: radius.sm,
+    borderWidth: border.thick,
+  },
+  buttonRow: {marginVertical: space[2]},
 });

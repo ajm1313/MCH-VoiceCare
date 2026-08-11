@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import { AppConfig } from '../../config/appConfig';
 import { useAuthStore } from './authStore';
 import { setCachedJSON, getCachedJSON, CACHE_KEYS } from '../sync/contentCache';
+import { apiFetch } from '../security/secureFetch';
 
 export interface DeviceProvisionResponse {
   provisioned: boolean;
@@ -58,7 +59,7 @@ export async function provisionDevice(): Promise<DeviceProvisionResponse | null>
   };
 
   try {
-    const resp = await fetch(`${AppConfig.apiBaseUrl}/accounts/auth/device-provision/`, {
+    const resp = await apiFetch(`${AppConfig.apiBaseUrl}/accounts/auth/device-provision/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

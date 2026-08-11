@@ -1,43 +1,63 @@
 {% extends "base.html" %}
 {% load mch_tags %}
-{% block title %}Defaulters — MCH VoiceCare{% endblock %}
+{% block title %}Defaulters · MCH VoiceCare{% endblock %}
 {% block navbar_title %}Defaulters{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div>
-    <h1 class="text-2xl font-bold">Defaulter Episodes</h1>
-    <p class="text-sm text-base-content/50">Children overdue for immunisation</p>
+<div class="space-y-7">
+  <div class="page-header">
+    <div class="flex-1">
+      <p class="overline">Child welfare</p>
+      <h1 class="page-title">Defaulter Episodes</h1>
+      <p class="page-subtitle">Children overdue for immunisation.</p>
+    </div>
   </div>
 
-  <div class="flex gap-2">
-    <a href="?status=ACTIVE" class="btn btn-sm btn-primary">Active</a>
-    <a href="?status=TRACED" class="btn btn-sm btn-outline">Traced</a>
-    <a href="?status=RESOLVED" class="btn btn-sm btn-outline">Resolved</a>
-    <a href="?status=LOST" class="btn btn-sm btn-outline">Lost</a>
-    <a href="?status=" class="btn btn-sm btn-outline">All</a>
+  <div class="segmented-control">
+    <a href="{% url 'immunisation_list' %}" class="segmented-item">Children</a>
+    <a href="{% url 'cwc_session_list' %}" class="segmented-item">CWC Sessions</a>
+    <a href="{% url 'defaulter_list' %}" class="segmented-item segmented-item-active">Defaulters</a>
   </div>
 
-  <div class="overflow-x-auto card-section">
-    <table class="table table-zebra">
-      <thead><tr><th>Child</th><th>Status</th><th>Days Overdue</th><th>Last Visit</th><th>Next Due</th><th>Trace</th><th class="text-right">Actions</th></tr></thead>
-      <tbody>
-        {% for d in defaulters %}
-        <tr>
-          <td class="font-medium">{{ d.child_record.child.full_name|default:d.child_name }}</td>
-          <td><span class="badge badge-sm {{ d.defaulter_status|status_badge }}">{{ d.defaulter_status }}</span></td>
-          <td>{{ d.days_overdue }}</td>
-          <td>{{ d.last_visit_date|default:"—" }}</td>
-          <td>{{ d.next_due_date|default:"—" }}</td>
-          <td><span class="badge badge-xs">{{ d.trace_status }}</span></td>
-          <td class="text-right"><a href="{% url 'defaulter_detail' d.pk %}" class="btn btn-ghost btn-xs">View</a></td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="7" class="text-center text-base-content/50 py-8">No defaulters found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="segmented-control">
+    <a href="?status=ACTIVE" class="segmented-item {% if request.GET.status == 'ACTIVE' %}segmented-item-active{% endif %}">Active</a>
+    <a href="?status=TRACED" class="segmented-item {% if request.GET.status == 'TRACED' %}segmented-item-active{% endif %}">Traced</a>
+    <a href="?status=RESOLVED" class="segmented-item {% if request.GET.status == 'RESOLVED' %}segmented-item-active{% endif %}">Resolved</a>
+    <a href="?status=LOST" class="segmented-item {% if request.GET.status == 'LOST' %}segmented-item-active{% endif %}">Lost</a>
+    <a href="?status=" class="segmented-item {% if not request.GET.status %}segmented-item-active{% endif %}">All</a>
   </div>
+
+  <section class="card-section animate-in">
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead><tr><th class="px-5 py-3 text-left">Child</th><th class="px-5 py-3 text-left">Status</th><th class="px-5 py-3 text-left">Days Overdue</th><th class="px-5 py-3 text-left">Last Visit</th><th class="px-5 py-3 text-left">Next Due</th><th class="px-5 py-3 text-left">Trace</th><th class="px-5 py-3 text-right">Actions</th></tr></thead>
+        <tbody>
+          {% for d in defaulters %}
+          <tr class="{% if d.defaulter_status == 'ACTIVE' %}row-accent-amber{% elif d.defaulter_status == 'LOST' %}row-accent-red{% endif %}">
+            <td class="px-5 py-3 font-medium">{{ d.child_record.child.full_name|default:d.child_name }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ d.defaulter_status }}</span></td>
+            <td class="px-5 py-3 {% if d.days_overdue > 30 %}text-error font-semibold{% else %}text-warning font-semibold{% endif %}">{{ d.days_overdue }}</td>
+            <td class="px-5 py-3 text-small text-base-content/55">{{ d.last_visit_date|default:"—" }}</td>
+            <td class="px-5 py-3 text-small text-base-content/55">{{ d.next_due_date|default:"—" }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral pill-xs">{{ d.trace_status }}</span></td>
+            <td class="px-5 py-3 text-right"><a href="{% url 'defaulter_detail' d.pk %}" class="btn btn-ghost btn-xs gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+              View
+            </a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="px-5 py-12 text-center">
+            <div class="empty-state">
+              <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+              <p class="empty-state-title">No defaulters found</p>
+              <p class="empty-state-body">Children overdue for immunisation will appear here.</p>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   {% if is_paginated %}
   <div class="flex justify-center">

@@ -2,14 +2,24 @@
  * ReferralListScreen — list referrals with status filter.
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, useColorScheme} from 'react-native';
+import {FlatList, StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
 import {query} from '../core/db/database';
-import {toOfflineUrgency} from '../core/utils/urgencyMapping';
 import type {RootStackParamList} from '../core/navigation/types';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ListRow,
+  LoadingState,
+  Screen,
+  UrgencyBadge,
+  Badge,
+} from '../components/ui';
+import {useTheme} from '../theme/useTheme';
+import {space} from '../theme/tokens';
 
 type Referral = {
   id: string;
@@ -24,8 +34,7 @@ type Referral = {
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function ReferralListScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
 
   const [rows, setRows] = useState<Referral[]>([]);
@@ -56,7 +65,11 @@ export function ReferralListScreen() {
   useEffect(() => { loadData(); }, [loadData]);
 
   if (loading) {
-    return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.primary} /></View>;
+    return (
+      <Screen>
+        <LoadingState message="Loading referrals…" />
+      </Screen>
+    );
   }
 
   return (
@@ -64,27 +77,42 @@ export function ReferralListScreen() {
       style={[styles.container, {backgroundColor: colors.background}]}
       data={rows}
       keyExtractor={item => item.id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} colors={[colors.primary]} />}
+      refreshing={refreshing}
+      onRefresh={() => { setRefreshing(true); loadData(); }}
       ListHeaderComponent={
         <View style={styles.headerActions}>
-          <Pressable style={[styles.createBtn, {backgroundColor: colors.primary}]} onPress={() => navigation.navigate('ReferralCreate')}>
-            <Text style={styles.createBtnText}>+ New Referral</Text>
-          </Pressable>
+          <Button
+            label="New Referral"
+            icon="plus"
+            onPress={() => navigation.navigate('ReferralCreate')}
+          />
         </View>
       }
-      ListEmptyComponent={<View style={styles.center}><Text style={[styles.empty, {color: colors.textSecondary}]}>No referrals</Text></View>}
+      ListEmptyComponent={
+        <EmptyState
+          icon="fileText"
+          title="No referrals"
+          message="Referrals will appear here once created."
+        />
+      }
       renderItem={({item}) => (
-        <Pressable style={[styles.card, {backgroundColor: colors.surface}]} onPress={() => navigation.navigate('ReferralDetail', {referralId: item.id})}>
+        <Card
+          onPress={() => navigation.navigate('ReferralDetail', {referralId: item.id})}
+          style={styles.card}
+          accessibilityLabel={`Referral for ${item.patient_name}. ${item.referral_reason}. Status: ${item.status}.`}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>{item.patient_name}</Text>
-            <View style={[styles.badge, {backgroundColor: urgency[toOfflineUrgency(item.urgency) as keyof typeof urgency] || urgency.GREY}]}>
-              <Text style={styles.badgeText}>{toOfflineUrgency(item.urgency)}</Text>
-            </View>
+            <UrgencyBadge value={item.urgency} size="sm" />
+            <Badge label={item.status} tone="neutral" size="sm" />
           </View>
-          <Text style={[styles.cardSub, {color: colors.textSecondary}]}>{item.referral_reason}</Text>
-          <Text style={[styles.cardSub, {color: colors.textSecondary}]}>To: {item.destination_facility || '—'}</Text>
-          <Text style={[styles.cardStatus, {color: colors.textSecondary}]}>{item.status}</Text>
-        </Pressable>
+          <ListRow
+            title={item.patient_name}
+            subtitle={item.referral_reason}
+            meta={`To: ${item.destination_facility || '—'}`}
+            icon="share"
+            hideChevron
+            style={styles.innerRow}
+          />
+        </Card>
       )}
     />
   );
@@ -92,18 +120,8 @@ export function ReferralListScreen() {
 
 const styles = StyleSheet.create({
   container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  empty: {fontSize: 14},
-  createBtn: {padding: 14, borderRadius: 12, alignItems: 'center'},
-  createBtnText: {color: '#fff', fontWeight: '700', fontSize: 15},
-  headerActions: {flexDirection: 'row', gap: 8, padding: 16},
-  secondaryBtn: {padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1},
-  secondaryBtnText: {fontWeight: '700', fontSize: 15},
-  card: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12},
-  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6},
-  cardTitle: {fontSize: 15, fontWeight: '600'},
-  cardSub: {fontSize: 13, marginTop: 2},
-  cardStatus: {fontSize: 11, fontWeight: '600', marginTop: 6, textTransform: 'uppercase'},
-  badge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
-  badgeText: {color: '#fff', fontSize: 11, fontWeight: '700'},
+  headerActions: {flexDirection: 'row', gap: space[2], padding: space[4]},
+  card: {marginHorizontal: space[4], marginVertical: space[2]},
+  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space[2], gap: space[2]},
+  innerRow: {marginBottom: 0, borderWidth: 0, backgroundColor: 'transparent', elevation: 0, shadowOpacity: 0},
 });

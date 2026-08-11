@@ -2,25 +2,31 @@
  * ReferralDetailScreen — referral detail with status update.
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Alert, StyleSheet, View} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
 import {query, getDb} from '../core/db/database';
 import {
   REFERRAL_ACTIONS,
   isValidReferralTransition,
-  toOfflineUrgency,
-  type ReferralStatus,
 } from '../core/utils/urgencyMapping';
 import type {RootStackParamList} from '../core/navigation/types';
+import {
+  AppText,
+  Button,
+  Card,
+  EmptyState,
+  KeyValue,
+  LoadingState,
+  Screen,
+  UrgencyBadge,
+  Badge,
+} from '../components/ui';
+import {space} from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReferralDetail'>;
 
 export function ReferralDetailScreen({route, navigation}: Props) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
   const {referralId} = route.params;
 
   const [item, setItem] = useState<Record<string, any> | null>(null);
@@ -68,90 +74,85 @@ export function ReferralDetailScreen({route, navigation}: Props) {
   };
 
   if (loading) {
-    return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.primary} /></View>;
+    return (
+      <Screen>
+        <LoadingState message="Loading referral…" />
+      </Screen>
+    );
   }
 
-  const urgencyColor = item ? urgency[toOfflineUrgency(item.urgency as string) as keyof typeof urgency] || urgency.GREY : urgency.GREY;
-
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={[styles.back, {color: colors.primary}]}>‹ Back</Text>
-        </Pressable>
+    <Screen
+      scroll
+      refreshing={refreshing}
+      onRefresh={() => { setRefreshing(true); loadData(); }}>
+      <View style={styles.backRow}>
+        <Button
+          label="Back"
+          variant="ghost"
+          icon="chevronLeft"
+          onPress={() => navigation.goBack()}
+        />
       </View>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} colors={[colors.primary]} />}>
-        {item ? (
-          <>
-            <View style={[styles.card, {backgroundColor: colors.surface}]}>
-              <View style={styles.badgeRow}>
-                <View style={[styles.badge, {backgroundColor: urgencyColor}]}>
-                  <Text style={styles.badgeText}>{String(item.urgency)}</Text>
-                </View>
-                <Text style={[styles.status, {color: colors.textSecondary}]}>{String(item.status)}</Text>
-              </View>
-              <Text style={[styles.title, {color: colors.textPrimary}]}>{String(item.patient_name)}</Text>
+      {item ? (
+        <>
+          <Card style={styles.card}>
+            <View style={styles.badgeRow}>
+              <UrgencyBadge value={String(item.urgency)} size="md" />
+              <Badge label={String(item.status)} tone="neutral" size="sm" />
             </View>
-            <View style={[styles.card, {backgroundColor: colors.surface}]}>
-              <InfoRow label="Reason" value={String(item.referral_reason ?? '—')} colors={colors} />
-              <InfoRow label="From" value={String(item.referring_facility ?? '—')} colors={colors} />
-              <InfoRow label="To" value={String(item.destination_facility ?? '—')} colors={colors} />
-              <InfoRow label="Created" value={String(item.created_at ?? '—')} colors={colors} />
-              <InfoRow label="Updated" value={String(item.updated_at ?? '—')} colors={colors} />
-            </View>
-            {item && !['CLOSED', 'CANCELLED_BY_CLINICIAN', 'LOST_TO_FOLLOWUP', 'DECLINED'].includes(item.status as string) && (
-              <View style={styles.statusActions}>
-                {REFERRAL_ACTIONS
-                  .filter(a => isValidReferralTransition(item.status as string, a.status))
-                  .map(a => (
-                    <Pressable key={a.status} style={[styles.statusBtn, {borderColor: colors.border}]} onPress={() => updateStatus(a.status)}>
-                      <Text style={[styles.statusBtnText, {color: colors.textPrimary}]}>{a.label}</Text>
-                    </Pressable>
-                  ))}
-              </View>
-            )}
-            <Pressable style={[styles.qrBtn, {borderColor: colors.primary}]} onPress={() => navigation.navigate('ReferralQrSlip', {referralId: String(item.id)})}>
-              <Text style={[styles.qrBtnText, {color: colors.primary}]}>View QR Slip</Text>
-            </Pressable>
-          </>
-        ) : (
-          <Text style={[styles.empty, {color: colors.textSecondary}]}>Referral not found</Text>
-        )}
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
+            <AppText variant="h2" style={styles.title}>{String(item.patient_name)}</AppText>
+          </Card>
 
-function InfoRow({label, value, colors}: {label: string; value: string; colors: typeof lightColors}) {
-  return (
-    <View style={styles.infoRow}>
-      <Text style={[styles.infoLabel, {color: colors.textSecondary}]}>{label}</Text>
-      <Text style={[styles.infoValue, {color: colors.textPrimary}]}>{value}</Text>
-    </View>
+          <Card style={styles.card}>
+            <KeyValue label="Reason" value={String(item.referral_reason ?? '—')} />
+            <KeyValue label="From" value={String(item.referring_facility ?? '—')} />
+            <KeyValue label="To" value={String(item.destination_facility ?? '—')} />
+            <KeyValue label="Created" value={String(item.created_at ?? '—')} />
+            <KeyValue label="Updated" value={String(item.updated_at ?? '—')} />
+          </Card>
+
+          {item && !['CLOSED', 'CANCELLED_BY_CLINICIAN', 'LOST_TO_FOLLOWUP', 'DECLINED'].includes(item.status as string) && (
+            <View style={styles.statusActions}>
+              {REFERRAL_ACTIONS
+                .filter(a => isValidReferralTransition(item.status as string, a.status))
+                .map(a => (
+                  <Button
+                    key={a.status}
+                    label={a.label}
+                    variant="secondary"
+                    fullWidth
+                    onPress={() => updateStatus(a.status)}
+                  />
+                ))}
+            </View>
+          )}
+
+          <Button
+            label="View QR Slip"
+            variant="secondary"
+            icon="qr"
+            fullWidth
+            onPress={() => navigation.navigate('ReferralQrSlip', {referralId: String(item.id)})}
+            style={styles.qrBtn}
+          />
+        </>
+      ) : (
+        <EmptyState
+          icon="fileText"
+          title="Referral not found"
+          message="This referral may have been deleted or synced from another device."
+        />
+      )}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  header: {paddingHorizontal: 16, paddingVertical: 12},
-  back: {fontSize: 16},
-  content: {padding: 16, gap: 12},
-  card: {borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0'},
-  badgeRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8},
-  badge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
-  badgeText: {color: '#fff', fontSize: 11, fontWeight: '700'},
-  status: {fontSize: 11, fontWeight: '600'},
-  title: {fontSize: 18, fontWeight: '700'},
-  infoRow: {paddingVertical: 6},
-  infoLabel: {fontSize: 11, textTransform: 'uppercase', fontWeight: '600'},
-  infoValue: {fontSize: 15, fontWeight: '500', marginTop: 2},
-  statusActions: {gap: 8},
-  statusBtn: {padding: 12, borderRadius: 10, borderWidth: 1, alignItems: 'center'},
-  statusBtnText: {fontWeight: '600', fontSize: 14},
-  qrBtn: {padding: 12, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', marginTop: 4},
-  qrBtnText: {fontWeight: '700', fontSize: 14},
-  empty: {fontSize: 14, textAlign: 'center', paddingVertical: 32},
+  backRow: {marginBottom: space[2]},
+  card: {marginBottom: space[3]},
+  badgeRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space[2], gap: space[2]},
+  title: {marginTop: space[1]},
+  statusActions: {gap: space[2], marginBottom: space[3]},
+  qrBtn: {marginTop: space[2]},
 });

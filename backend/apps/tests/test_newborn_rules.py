@@ -38,8 +38,20 @@ class NewbornRuleEngineTests(TestCase):
 
     def test_routine_when_no_risk(self):
         episode = _make_episode(self.child, birth_weight_g=3200, gestational_age_weeks=39)
+        NewbornObservation.objects.create(
+            newborn=episode,
+            temperature_c=36.5, respiratory_rate_min=40, current_weight_g=3100,
+        )
         result = run_newborn_assessment(episode)
         self.assertEqual(result["disposition"], UrgencyLevel.ROUTINE)
+        self.assertEqual(result["missingCriticalFields"], [])
+
+    def test_abstain_when_no_observation(self):
+        """No observation → ABSTAIN (spec §3.1: missing critical fields)."""
+        episode = _make_episode(self.child, birth_weight_g=3200, gestational_age_weeks=39)
+        result = run_newborn_assessment(episode)
+        self.assertEqual(result["disposition"], UrgencyLevel.ABSTAIN)
+        self.assertGreater(len(result["missingCriticalFields"]), 0)
 
     def test_vlbw_is_emergency(self):
         """Birth weight <1500g → EMERGENCY."""

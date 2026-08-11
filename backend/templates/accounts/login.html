@@ -1,86 +1,160 @@
-{% load static %}
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="en" data-theme="mchvoicecare">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0A1B33">
   <title>MCH VoiceCare — Sign In</title>
-  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .fade-in { animation: fadeIn 0.5s ease-out; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
-</head>
-<body class="min-h-screen flex items-center justify-center bg-base-200 p-4">
-  <div class="w-full max-w-md fade-in">
 
-    <!-- Logo -->
-    <div class="flex flex-col items-center mb-8">
-      <div class="relative">
-        <div class="absolute inset-0 rounded-3xl blur-2xl scale-125 bg-base-100/60"></div>
-        <img src="{% static 'img/logo-light.png' %}" alt="MCH VoiceCare"
-             class="relative w-24 h-24 rounded-2xl object-cover logo-light">
-        <img src="{% static 'img/logo-dark.png' %}" alt="MCH VoiceCare"
-             class="relative w-24 h-24 rounded-2xl object-cover logo-dark hidden">
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('theme') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+</head>
+<body class="min-h-screen flex items-stretch">
+
+  {# ── Left: brand panel (hidden on small screens) ── #}
+  <aside class="hero-navy hidden lg:flex flex-col justify-between w-[44%] max-w-xl p-12 relative">
+    <div class="relative z-10">
+      <div class="flex items-center gap-3 mb-12">
+        <img src="{% static 'img/logo-dark.png' %}" alt="MCH VoiceCare" class="w-12 h-12 rounded-md object-cover shadow-card">
+        <div>
+          <p class="font-bold text-base tracking-tight">MCH VoiceCare</p>
+          <p class="text-caption text-white/55">Maternal &amp; Child Health</p>
+        </div>
       </div>
+
+      <h1 class="text-3xl font-bold leading-tight tracking-tight text-balance">
+        Decision support for frontline health workers.
+      </h1>
+      <p class="mt-4 text-base text-white/65 leading-relaxed max-w-sm">
+        Offline-first clinical capture, deterministic danger-sign rules, and
+        closed-loop referrals &mdash; built for Northern Ghana.
+      </p>
     </div>
 
-    <!-- Card -->
-    <div class="card bg-base-100 shadow-xl border border-base-300">
-      <div class="card-body">
+    <ul class="relative z-10 space-y-3 text-small text-white/70">
+      <li class="flex items-center gap-3">
+        <span class="w-8 h-8 rounded-md grid place-items-center bg-white/10 border border-white/15 shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/></svg>
+        </span>
+        <span>Rule-based emergency triage that never silently downgrades</span>
+      </li>
+      <li class="flex items-center gap-3">
+        <span class="w-8 h-8 rounded-md grid place-items-center bg-white/10 border border-white/15 shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/></svg>
+        </span>
+        <span>Works offline &mdash; syncs when connectivity returns</span>
+      </li>
+      <li class="flex items-center gap-3">
+        <span class="w-8 h-8 rounded-md grid place-items-center bg-white/10 border border-white/15 shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+        </span>
+        <span>Hardware-backed device security &amp; MFA for admins</span>
+      </li>
+    </ul>
 
-        <form method="post" class="space-y-4">
-          {% csrf_token %}
+    <p class="relative z-10 text-caption text-white/40">
+      &copy; {% now "Y" %} MCH VoiceCare &middot; Secure Health Platform
+    </p>
+  </aside>
+
+  {# ── Right: form panel ── #}
+  <main class="flex-1 flex items-center justify-center p-6 bg-base-200">
+    <div class="w-full max-w-md animate-in">
+
+      {# Mobile logo (visible only on small screens where the brand panel is hidden) #}
+      <div class="flex flex-col items-center mb-8 lg:hidden">
+        <div class="relative">
+          <div class="absolute inset-0 rounded-2xl blur-2xl scale-125 bg-primary/20"></div>
+          <img src="{% static 'img/logo-light.png' %}" alt="MCH VoiceCare"
+               class="relative w-16 h-16 rounded-xl object-cover shadow-card logo-light">
+          <img src="{% static 'img/logo-dark.png' %}" alt="MCH VoiceCare"
+               class="relative w-16 h-16 rounded-xl object-cover shadow-card logo-dark hidden">
+        </div>
+        <p class="mt-4 font-bold tracking-tight">MCH VoiceCare</p>
+        <p class="text-caption text-base-content/45">Maternal &amp; Child Health</p>
+      </div>
+
+      <div class="mb-7">
+        <p class="overline">Welcome</p>
+        <h2 class="page-title mt-1">Sign in to your account</h2>
+        <p class="page-subtitle">Use your facility credentials to continue.</p>
+      </div>
+
+      <div class="card-section">
+        <div class="card-body">
 
           {% if form.errors %}
-          <div class="alert alert-error">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
-            <span class="text-sm">Invalid username or password.</span>
+          <div class="alert alert-error shadow-soft border border-error/30 animate-in" role="alert">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
+            <span class="text-small">Invalid username or password. Please try again.</span>
           </div>
           {% endif %}
 
-          <div class="form-field">
-            <label for="id_username">Username</label>
-            <input type="text" name="username" id="id_username"
-              class="input input-bordered w-full"
-              autofocus placeholder="Enter your username"
-              value="{{ form.username.value|default:'' }}">
-          </div>
+          <form method="post" class="space-y-4">
+            {% csrf_token %}
 
-          <div class="form-field">
-            <label for="id_password">Password</label>
-            <input type="password" name="password" id="id_password"
-              class="input input-bordered w-full"
-              placeholder="Enter your password">
-          </div>
+            <div class="form-field">
+              <label for="id_username">Username</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-3 grid place-items-center text-base-content/35 pointer-events-none">
+                  <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+                </span>
+                <input type="text" name="username" id="id_username"
+                  class="input input-bordered w-full pl-10"
+                  autofocus placeholder="Enter your username"
+                  autocomplete="username"
+                  value="{{ form.username.value|default:'' }}">
+              </div>
+            </div>
 
-          <button type="submit" class="btn btn-primary w-full">Sign In</button>
-        </form>
+            <div class="form-field">
+              <label for="id_password">Password</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-3 grid place-items-center text-base-content/35 pointer-events-none">
+                  <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+                </span>
+                <input type="password" name="password" id="id_password"
+                  class="input input-bordered w-full pl-10"
+                  placeholder="Enter your password"
+                  autocomplete="current-password">
+              </div>
+            </div>
 
+            <button type="submit" class="btn btn-primary w-full gap-2 shadow-card">
+              <span>Sign In</span>
+              <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>
+            </button>
+          </form>
+
+        </div>
       </div>
-    </div>
 
-    <p class="text-center text-xs text-base-content/40 mt-6">
-      MCH VoiceCare &middot; Maternal &amp; Child Health Risk Decision Support System
-    </p>
-  </div>
+      <p class="text-center text-caption text-base-content/40 mt-6">
+        MCH VoiceCare &middot; Maternal &amp; Child Health Risk Decision Support System
+      </p>
+    </div>
+  </main>
 
   <script>
-  (function() {
+  (function () {
     function updateLogos() {
       var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      document.querySelectorAll('.logo-light').forEach(function(el) { el.classList.toggle('hidden', isDark); });
-      document.querySelectorAll('.logo-dark').forEach(function(el) { el.classList.toggle('hidden', !isDark); });
+      document.querySelectorAll('.logo-light').forEach(function (el) { el.classList.toggle('hidden', isDark); });
+      document.querySelectorAll('.logo-dark').forEach(function (el) { el.classList.toggle('hidden', !isDark); });
     }
-    try {
-      var saved = localStorage.getItem('theme');
-      if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-    } catch(e) {}
     updateLogos();
   })();
   </script>

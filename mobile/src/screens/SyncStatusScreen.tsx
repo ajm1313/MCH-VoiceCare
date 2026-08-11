@@ -5,14 +5,7 @@
  * and per-record sync statuses. Also shows rule package version (OFF-010).
  */
 import React, {useEffect, useState} from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {StyleSheet, View} from 'react-native';
 
 import {getQueueDepth} from '../core/sync/outbox';
 import {
@@ -22,9 +15,22 @@ import {
   getLastSyncResult,
 } from '../core/sync/engine';
 import {checkRulePackageStatus} from '../core/rules/rulePackage';
-import {brand, urgency, lightColors} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
+import {space} from '../theme/tokens';
+import {
+  AppText,
+  Badge,
+  Button,
+  Card,
+  Icon,
+  KeyValue,
+  Screen,
+  SectionHeader,
+  StatCard,
+} from '../components/ui';
 
 export function SyncStatusScreen() {
+  const {colors} = useTheme();
   const [queueDepth, setQueueDepth] = useState(getQueueDepth());
   const [lastSync, setLastSync] = useState(getLastSyncAt());
   const [syncResult, setSyncResult] = useState(getLastSyncResult());
@@ -59,101 +65,97 @@ export function SyncStatusScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Synchronisation Status</Text>
+    <Screen scroll>
+      <SectionHeader
+        title="Synchronisation Status"
+        overline="Offline-first"
+        subtitle="Last sync time, pending queue, and rule package version."
+      />
 
-        <View style={styles.section}>
-          <View style={styles.row}>
-            <Text style={styles.label}>Last sync</Text>
-            <Text style={styles.value}>{formatTime(lastSync)}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Pending records</Text>
-            <Text style={[styles.value, queueDepth > 0 && styles.warning]}>
-              {queueDepth}
-            </Text>
-          </View>
-          {syncResult && (
-            <>
-              <View style={styles.row}>
-                <Text style={styles.label}>Last pushed (synced)</Text>
-                <Text style={styles.value}>{syncResult.synced}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Last pushed (failed)</Text>
-                <Text style={[styles.value, syncResult.failed > 0 && styles.error]}>
-                  {syncResult.failed}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Last pulled</Text>
-                <Text style={styles.value}>{syncResult.pulled}</Text>
-              </View>
-            </>
-          )}
-        </View>
+      {/* Stat tiles */}
+      <View style={styles.statRow}>
+        <StatCard
+          label="Pending records"
+          value={queueDepth}
+          icon="refresh"
+          accentColor={queueDepth > 0 ? colors.warning : colors.success}
+          caption={queueDepth > 0 ? 'Awaiting sync' : 'All synced'}
+        />
+        <StatCard
+          label="Last sync"
+          value={lastSync ? 'Done' : 'Never'}
+          icon="cloud"
+          accentColor={colors.primary}
+          caption={formatTime(lastSync)}
+        />
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Rule Package (OFF-010)</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Version</Text>
-            <Text style={styles.value}>{ruleStatus.version ?? 'Not cached'}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Status</Text>
-            <Text style={[styles.value, ruleStatus.isExpired ? styles.warning : styles.success]}>
-              {ruleStatus.isValid ? (ruleStatus.isExpired ? 'Expired' : 'Valid') : 'Missing'}
-            </Text>
-          </View>
-          {ruleStatus.warning && (
-            <Text style={styles.warningText}>{ruleStatus.warning}</Text>
-          )}
-        </View>
+      {/* Sync result detail */}
+      {syncResult && (
+        <Card style={styles.sectionCard}>
+          <AppText variant="smallStrong" tone="secondary" style={styles.cardHeading}>
+            Last sync result
+          </AppText>
+          <KeyValue label="Pushed (synced)" value={syncResult.synced} />
+          <KeyValue
+            label="Pushed (failed)"
+            value={syncResult.failed}
+          />
+          <KeyValue label="Pulled" value={syncResult.pulled} />
+        </Card>
+      )}
 
-        <Pressable
-          style={[styles.syncButton, isSyncing && styles.syncButtonDisabled]}
-          onPress={handleSync}
-          disabled={isSyncing}>
-          <Text style={styles.syncButtonText}>
-            {isSyncing ? 'Syncing…' : 'Sync now'}
-          </Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+      {/* Rule package (OFF-010) */}
+      <SectionHeader title="Rule Package" overline="OFF-010" />
+      <Card style={styles.sectionCard}>
+        <KeyValue label="Version" value={ruleStatus.version ?? 'Not cached'} />
+        <KeyValue label="Status" value={undefined}>
+          <Badge
+            label={ruleStatus.isValid ? (ruleStatus.isExpired ? 'Expired' : 'Valid') : 'Missing'}
+            tone={
+              !ruleStatus.isValid
+                ? 'danger'
+                : ruleStatus.isExpired
+                ? 'warning'
+                : 'success'
+            }
+            icon={
+              !ruleStatus.isValid
+                ? 'alertCircle'
+                : ruleStatus.isExpired
+                ? 'alertTriangle'
+                : 'checkCircle'
+            }
+          />
+        </KeyValue>
+        {ruleStatus.warning ? (
+          <View style={styles.warningRow}>
+            <Icon name="alertTriangle" size={14} color={colors.warning} />
+            <AppText variant="small" tone="warning" style={styles.warningText}>
+              {ruleStatus.warning}
+            </AppText>
+          </View>
+        ) : null}
+      </Card>
+
+      <Button
+        label={isSyncing ? 'Syncing…' : 'Sync now'}
+        onPress={handleSync}
+        loading={isSyncing}
+        disabled={isSyncing}
+        fullWidth
+        icon="refresh"
+        style={styles.syncBtn}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: lightColors.background},
-  content: {padding: 16},
-  title: {fontSize: 22, fontWeight: '700', color: lightColors.textPrimary, marginBottom: 16},
-  section: {
-    backgroundColor: lightColors.surface,
-    borderWidth: 1,
-    borderColor: lightColors.border,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  sectionTitle: {fontSize: 16, fontWeight: '700', color: lightColors.textPrimary, marginBottom: 8},
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-  },
-  label: {fontSize: 14, color: lightColors.textSecondary},
-  value: {fontSize: 14, fontWeight: '600', color: lightColors.textPrimary},
-  warning: {color: urgency.AMBER},
-  error: {color: urgency.RED},
-  success: {color: urgency.GREEN},
-  warningText: {fontSize: 13, color: urgency.ORANGE, marginTop: 8, fontWeight: '500'},
-  syncButton: {
-    backgroundColor: brand.teal,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  syncButtonDisabled: {opacity: 0.5},
-  syncButtonText: {fontSize: 16, fontWeight: '700', color: '#fff'},
+  statRow: {flexDirection: 'row', gap: space[3], marginBottom: space[4]},
+  sectionCard: {marginBottom: space[4]},
+  cardHeading: {marginBottom: space[2]},
+  warningRow: {flexDirection: 'row', alignItems: 'flex-start', gap: space[2], marginTop: space[3]},
+  warningText: {flex: 1},
+  syncBtn: {marginTop: space[2]},
 });

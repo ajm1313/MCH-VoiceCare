@@ -8,23 +8,30 @@
  */
 import React, {useCallback, useEffect, useState} from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
-  RefreshControl,
   StyleSheet,
   Switch,
-  Text,
-  TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
 import {query, getDb} from '../core/db/database';
+import {
+  Screen,
+  Card,
+  Button,
+  Badge,
+  Field,
+  EmptyState,
+  LoadingState,
+  AppText,
+  type BadgeTone,
+} from '../components/ui';
+import {border, radius, space} from '../theme/tokens';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type CWCSession = {
@@ -51,8 +58,7 @@ type AttendanceRow = {
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function CWCSessionScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
 
   const [sessions, setSessions] = useState<CWCSession[]>([]);
@@ -195,71 +201,87 @@ export function CWCSessionScreen() {
     loadSessions();
   };
 
-  const statusColor = (status: string) => {
-    if (status === 'COMPLETED') return colors.textSecondary;
-    if (status === 'IN_PROGRESS') return urgency.AMBER;
-    return urgency.GREEN;
+  const statusTone = (status: string): BadgeTone => {
+    if (status === 'COMPLETED') return 'neutral';
+    if (status === 'IN_PROGRESS') return 'warning';
+    return 'success';
   };
 
   if (loading) {
     return (
-      <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <Screen>
+        <LoadingState message="Loading CWC sessions…" />
+      </Screen>
     );
   }
 
   if (selectedSession) {
     return (
-      <View style={[styles.container, {backgroundColor: colors.background}]}>
+      <Screen padded={false}>
         <View style={[styles.header, {borderBottomColor: colors.border}]}>
-          <Pressable onPress={() => setSelectedSession(null)}>
-            <Text style={{color: colors.primary, fontSize: 16}}>← Back</Text>
-          </Pressable>
-          <Text style={[styles.title, {color: colors.textPrimary}]}>
+          <Button
+            label="Back"
+            variant="ghost"
+            size="sm"
+            icon="chevronLeft"
+            onPress={() => setSelectedSession(null)}
+          />
+          <AppText variant="h3" style={styles.flex}>
             {selectedSession.facility_name}
-          </Text>
-          <Pressable onPress={handleCloseSession}>
-            <Text style={{color: urgency.RED, fontSize: 16, fontWeight: '600'}}>Close</Text>
-          </Pressable>
+          </AppText>
+          <Button
+            label="Close"
+            variant="danger"
+            size="sm"
+            icon="close"
+            onPress={handleCloseSession}
+          />
         </View>
 
-        <Pressable
-          onPress={() => navigation.navigate('CWCDetail', {sessionId: selectedSession.id})}
-          style={[styles.fullDetailBtn, {borderColor: colors.primary}]}>
-          <Text style={{color: colors.primary, fontWeight: '600', fontSize: 14}}>View Full Detail ›</Text>
-        </Pressable>
+        <View style={styles.actionRow}>
+          <Button
+            label="View Full Detail"
+            variant="secondary"
+            size="md"
+            icon="fileText"
+            iconRight="chevronRight"
+            onPress={() => navigation.navigate('CWCDetail', {sessionId: selectedSession.id})}
+          />
+        </View>
 
         {selectedSession.status === 'PLANNED' && (
-          <Pressable
-            onPress={() => handleEditSession(selectedSession)}
-            style={[styles.editBtn, {borderColor: colors.primary}]}>
-            <Text style={{color: colors.primary, fontWeight: '600', fontSize: 14}}>Edit Session ›</Text>
-          </Pressable>
+          <View style={styles.actionRow}>
+            <Button
+              label="Edit Session"
+              variant="ghost"
+              size="md"
+              icon="pencil"
+              iconRight="chevronRight"
+              onPress={() => handleEditSession(selectedSession)}
+            />
+          </View>
         )}
 
-        <View style={[styles.sessionInfo, {backgroundColor: colors.surface}]}>
-          <Text style={{color: colors.textSecondary, fontSize: 13}}>
+        <Card style={styles.sessionInfo}>
+          <AppText variant="small" tone="secondary">
             {selectedSession.session_date} · {selectedSession.session_type}
-          </Text>
-          <Text style={{color: colors.textPrimary, fontSize: 15, marginTop: 4}}>
+          </AppText>
+          <AppText variant="bodyStrong" style={styles.attendedText}>
             Attended: {selectedSession.attended_count} / {attendance.length}
-          </Text>
-        </View>
+          </AppText>
+        </Card>
 
         <FlatList
           data={attendance}
           keyExtractor={item => item.id}
           renderItem={({item}) => (
-            <View style={[styles.attendanceRow, {backgroundColor: colors.surface}]}>
-              <View style={{flex: 1}}>
-                <Text style={{color: colors.textPrimary, fontSize: 15, fontWeight: '500'}}>
-                  {item.child_name}
-                </Text>
+            <Card style={styles.attendanceRow}>
+              <View style={styles.flex}>
+                <AppText variant="bodyStrong">{item.child_name}</AppText>
                 {item.growth_recorded ? (
-                  <Text style={{color: colors.textSecondary, fontSize: 12, marginTop: 2}}>
+                  <AppText variant="caption" tone="secondary" style={styles.growthRecorded}>
                     Growth recorded
-                  </Text>
+                  </AppText>
                 ) : null}
               </View>
               <Switch
@@ -267,106 +289,102 @@ export function CWCSessionScreen() {
                 onValueChange={() => toggleAttendance(item)}
                 trackColor={{false: colors.border, true: colors.primary}}
               />
-            </View>
+            </Card>
           )}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={{color: colors.textSecondary, textAlign: 'center'}}>
-                No children registered for this session yet.
-              </Text>
-            </View>
+            <EmptyState
+              icon="users"
+              title="No children registered"
+              message="No children registered for this session yet."
+            />
           }
-          contentContainerStyle={{padding: 16, gap: 8}}
+          contentContainerStyle={{padding: space[4], gap: space[2]}}
         />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
+    <Screen padded={false}>
       <View style={[styles.header, {borderBottomColor: colors.border}]}>
-        <Text style={[styles.title, {color: colors.textPrimary}]}>CWC Sessions</Text>
-        <Pressable
+        <AppText variant="h2" style={styles.flex}>CWC Sessions</AppText>
+        <Button
+          label="New"
+          variant="primary"
+          size="sm"
+          icon="plus"
           onPress={() => setShowCreate(true)}
-          style={[styles.createButton, {backgroundColor: colors.primary}]}>
-          <Text style={{color: '#fff', fontWeight: '600', fontSize: 15}}>+ New</Text>
-        </Pressable>
+        />
       </View>
 
       <FlatList
         data={sessions}
         keyExtractor={item => item.id}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              loadSessions();
-            }}
-            colors={[colors.primary]}
-          />
-        }
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          loadSessions();
+        }}
         renderItem={({item}) => (
-          <Pressable
+          <Card
             onPress={() => handleOpenSession(item)}
-            style={[styles.sessionCard, {backgroundColor: colors.surface}]}>
-            <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-              <Text style={{color: colors.textPrimary, fontSize: 16, fontWeight: '600'}}>
-                {item.facility_name}
-              </Text>
-              <Text style={{color: statusColor(item.status), fontSize: 12, fontWeight: '600'}}>
-                {item.status}
-              </Text>
+            style={styles.sessionCard}>
+            <View style={styles.cardHeader}>
+              <AppText variant="bodyStrong" style={styles.flex}>{item.facility_name}</AppText>
+              <Badge
+                label={item.status}
+                tone={statusTone(item.status)}
+                size="sm"
+              />
             </View>
-            <Text style={{color: colors.textSecondary, fontSize: 13, marginTop: 4}}>
+            <AppText variant="small" tone="secondary" style={styles.cardSub}>
               {item.session_date} · {item.session_type}
-            </Text>
-            <Text style={{color: colors.textSecondary, fontSize: 13, marginTop: 2}}>
+            </AppText>
+            <AppText variant="small" tone="secondary" style={styles.cardMeta}>
               Attended: {item.attended_count} / {item.expected_count}
-            </Text>
-          </Pressable>
+            </AppText>
+          </Card>
         )}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={{color: colors.textSecondary, textAlign: 'center'}}>
-              No CWC sessions yet. Tap "+ New" to create one.
-            </Text>
-          </View>
+          <EmptyState
+            icon="clipboard"
+            title="No CWC sessions"
+            message={'Tap "New" to create a CWC session.'}
+            action={{label: 'New Session', onPress: () => setShowCreate(true)}}
+          />
         }
-        contentContainerStyle={{padding: 16, gap: 12}}
+        contentContainerStyle={{padding: space[4], gap: space[3]}}
       />
 
       <Modal visible={showCreate} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>
+          <Card style={styles.modalCard}>
+            <AppText variant="h3" style={styles.modalTitle}>
               {editingSession ? 'Edit CWC Session' : 'New CWC Session'}
-            </Text>
+            </AppText>
 
-            <Text style={[styles.label, {color: colors.textSecondary}]}>Facility name</Text>
-            <TextInput
-              style={[styles.input, {color: colors.textPrimary, borderColor: colors.border}]}
+            <Field
+              label="Facility name"
               value={facilityName}
               onChangeText={setFacilityName}
               placeholder="e.g. Ashaiman CWC"
-              placeholderTextColor={colors.textSecondary}
             />
-
-            <Text style={[styles.label, {color: colors.textSecondary}]}>Session date</Text>
-            <TextInput
-              style={[styles.input, {color: colors.textPrimary, borderColor: colors.border}]}
+            <Field
+              label="Session date"
               value={sessionDate}
               onChangeText={setSessionDate}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.textSecondary}
             />
 
-            <Text style={[styles.label, {color: colors.textSecondary}]}>Session type</Text>
-            <View style={{flexDirection: 'row', gap: 12, marginBottom: 16}}>
+            <AppText variant="smallStrong" tone="secondary" style={styles.label}>Session type</AppText>
+            <View style={styles.typeRow}>
               {['FIXED', 'OUTREACH'].map(type => (
                 <Pressable
                   key={type}
                   onPress={() => setSessionType(type)}
+                  accessibilityRole="button"
+                  accessibilityLabel={type}
+                  accessibilityState={{selected: sessionType === type}}
                   style={[
                     styles.typeButton,
                     {
@@ -374,128 +392,83 @@ export function CWCSessionScreen() {
                       borderColor: colors.border,
                     },
                   ]}>
-                  <Text
-                    style={{
-                      color: sessionType === type ? '#fff' : colors.textPrimary,
-                      fontSize: 14,
-                    }}>
+                  <AppText
+                    variant="smallStrong"
+                    tone="inherit"
+                    style={{color: sessionType === type ? colors.onPrimary : colors.textPrimary}}>
                     {type}
-                  </Text>
+                  </AppText>
                 </Pressable>
               ))}
             </View>
 
-            <View style={{flexDirection: 'row', gap: 12, justifyContent: 'flex-end'}}>
-              <Pressable
+            <View style={styles.modalActions}>
+              <Button
+                label="Cancel"
+                variant="ghost"
+                size="md"
                 onPress={() => { setShowCreate(false); setEditingSession(null); }}
-                style={[styles.modalButton, {borderColor: colors.border}]}>
-                <Text style={{color: colors.textSecondary}}>Cancel</Text>
-              </Pressable>
-              <Pressable
+              />
+              <Button
+                label={editingSession ? 'Update' : 'Create'}
+                variant="primary"
+                size="md"
+                icon="check"
                 onPress={handleCreateSession}
-                style={[styles.modalButton, {backgroundColor: colors.primary}]}>
-                <Text style={{color: '#fff', fontWeight: '600'}}>{editingSession ? 'Update' : 'Create'}</Text>
-              </Pressable>
+              />
             </View>
-          </View>
+          </Card>
         </View>
       </Modal>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
     borderBottomWidth: 1,
   },
-  title: {fontSize: 18, fontWeight: '700'},
-  createButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  sessionCard: {
-    borderRadius: 12,
-    padding: 16,
-  },
+  flex: {flex: 1},
+  actionRow: {paddingHorizontal: space[4], marginTop: space[2]},
   sessionInfo: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 8,
+    marginHorizontal: space[4],
+    marginTop: space[3],
   },
+  attendedText: {marginTop: space[1]},
   attendanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 8,
   },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
+  growthRecorded: {marginTop: 2},
+  sessionCard: {marginBottom: space[2]},
+  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space[2]},
+  cardSub: {marginTop: space[1]},
+  cardMeta: {marginTop: 2},
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(10, 27, 51, 0.55)',
   },
-  modalCard: {
-    width: '85%',
-    borderRadius: 16,
-    padding: 24,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 13,
-    marginBottom: 4,
-    marginTop: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-  },
+  modalCard: {width: '85%', padding: space[6]},
+  modalTitle: {marginBottom: space[4]},
+  label: {marginBottom: space[1]},
+  typeRow: {flexDirection: 'row', gap: space[3], marginBottom: space[4]},
   typeButton: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingVertical: space[2] + 2,
+    borderRadius: radius.md,
+    borderWidth: border.thick,
     alignItems: 'center',
   },
-  modalButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  fullDetailBtn: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  editBtn: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
+  modalActions: {
+    flexDirection: 'row',
+    gap: space[3],
+    justifyContent: 'flex-end',
   },
 });

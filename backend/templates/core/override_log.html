@@ -1,41 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Clinician Override Log{% endblock %}
+{% block title %}Clinician Override Log · MCH VoiceCare{% endblock %}
 {% block navbar_title %}Override Log{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'dashboard' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'dashboard' %}" class="btn-back" aria-label="Back to dashboard">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">Clinician Override Log</h1>
-  </div>
-
-  <div class="card-section">
-    <div class="card-body">
-      <div class="overflow-x-auto">
-        <table class="table table-sm">
-          <thead>
-            <tr><th>When</th><th>Actor</th><th>Role</th><th>Entity</th><th>Purpose</th><th>Metadata</th></tr>
-          </thead>
-          <tbody>
-            {% for evt in overrides %}
-            <tr>
-              <td>{{ evt.occurred_at|date:"M d, Y H:i" }}</td>
-              <td>{{ evt.actor }}</td>
-              <td><span class="badge badge-sm">{{ evt.actor_role }}</span></td>
-              <td>{{ evt.entity_type }}</td>
-              <td>{{ evt.purpose|default:"—" }}</td>
-              <td class="text-xs font-mono max-w-xs truncate">{{ evt.metadata }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6" class="text-center text-base-content/50 py-4">No override events recorded.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    <div class="flex-1">
+      <p class="overline">Governance</p>
+      <h1 class="page-title">Clinician Override Log</h1>
+      <p class="page-subtitle">Append-only audit trail of clinician overrides (spec §23).</p>
     </div>
   </div>
+
+  <section class="card-section animate-in">
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead>
+          <tr>
+            <th class="px-5 py-3 text-left">When</th>
+            <th class="px-5 py-3 text-left">Actor</th>
+            <th class="px-5 py-3 text-left">Role</th>
+            <th class="px-5 py-3 text-left">Entity</th>
+            <th class="px-5 py-3 text-left">Purpose</th>
+            <th class="px-5 py-3 text-left">Metadata</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for evt in overrides %}
+          <tr>
+            <td class="px-5 py-3 text-small text-base-content/55 whitespace-nowrap">{{ evt.occurred_at|date:"M d, Y H:i" }}</td>
+            <td class="px-5 py-3 font-medium">{{ evt.actor }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ evt.actor_role }}</span></td>
+            <td class="px-5 py-3 font-mono text-small">{{ evt.entity_type }}</td>
+            <td class="px-5 py-3 text-base-content/70">{{ evt.purpose|default:"—" }}</td>
+            <td class="px-5 py-3 text-caption font-mono text-base-content/45 max-w-xs truncate">{{ evt.metadata }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="px-5 py-10 text-center text-base-content/40">No override events recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
 {% endblock %}

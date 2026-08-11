@@ -3,23 +3,24 @@
  * MCHVC-SPEC-001 v1.1 §22-34. Offline-first (DEC-007).
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
+import {FlatList, StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
 import {query} from '../core/db/database';
 import {SearchBar, FilterChips} from '../components/SearchFilter';
 import {BottomTabBar} from '../components/BottomTabBar';
+import {
+  Screen,
+  Card,
+  Button,
+  Badge,
+  EmptyState,
+  LoadingState,
+  AppText,
+} from '../components/ui';
+import {space} from '../theme/tokens';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type ChildRow = {
@@ -34,8 +35,7 @@ type ChildRow = {
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function ImmunisationListScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
 
   const [rows, setRows] = useState<ChildRow[]>([]);
@@ -81,78 +81,94 @@ export function ImmunisationListScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, {backgroundColor: colors.background}]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <Screen>
+        <LoadingState message="Loading immunisation records…" />
+      </Screen>
     );
   }
 
+  const accentFor = (item: ChildRow): string => {
+    if (item.overdue_count > 0) return colors.warning;
+    if (item.defaulter_status) return colors.danger;
+    return colors.border;
+  };
+
+  const badgeToneFor = (item: ChildRow): 'warning' | 'danger' => {
+    return item.defaulter_status ? 'danger' : 'warning';
+  };
+
   return (
     <>
-      <View style={[styles.header, {backgroundColor: colors.surface}]}>
-        <Text style={[styles.headerTitle, {color: colors.textPrimary}]}>Immunisation</Text>
+      <View style={[styles.header, {backgroundColor: colors.surface, borderBottomColor: colors.border}]}>
+        <AppText variant="h2">Immunisation</AppText>
         <View style={styles.headerActions}>
-          <Pressable
+          <Button
+            label="Defaulters"
+            variant="secondary"
+            size="sm"
+            icon="alertTriangle"
             onPress={() => navigation.navigate('DefaulterList')}
-            style={[styles.defaultersBtn, {borderColor: colors.primary}]}>
-            <Text style={[styles.defaultersBtnText, {color: colors.primary}]}>Defaulters</Text>
-          </Pressable>
-          <Pressable
+          />
+          <Button
+            label="Register"
+            variant="primary"
+            size="sm"
+            icon="plus"
             onPress={() => navigation.navigate('ImmunisationRegister')}
-            style={[styles.registerBtn, {backgroundColor: colors.primary}]}>
-            <Text style={styles.registerBtnText}>+ Register</Text>
-          </Pressable>
+          />
         </View>
       </View>
       <SearchBar value={search} onChange={setSearch} placeholder="Search child name..." />
       <FilterChips options={['OVERDUE', 'DEFAULTER', 'ON_TRACK']} selected={filter} onSelect={setFilter} />
       <FlatList
-      style={[styles.container, {backgroundColor: colors.background}]}
-      data={filtered}
-      keyExtractor={item => item.id}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => {
-            setRefreshing(true);
-            loadData();
-          }}
-          colors={[colors.primary]}
-        />
-      }
-      ListEmptyComponent={
-        <View style={styles.center}>
-          <Text style={[styles.empty, {color: colors.textSecondary}]}>
-            No children registered
-          </Text>
-        </View>
-      }
-      renderItem={({item}) => (
-        <Pressable
-          onPress={() => navigation.navigate('ImmunisationChildDetail', {childId: item.id})}
-          style={[styles.card, {backgroundColor: colors.surface, borderLeftColor: item.overdue_count > 0 ? urgency.ORANGE : (item.defaulter_status ? urgency.RED : '#ccc')}]}>
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>
-              {item.child_name}
-            </Text>
-            {item.defaulter_status && (
-              <View style={[styles.badge, {backgroundColor: urgency.ORANGE}]}>
-                <Text style={styles.badgeText}>{item.defaulter_status}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={[styles.cardSub, {color: colors.textSecondary}]}>
-            DOB: {item.dob}
-          </Text>
-          <Text style={[styles.cardMeta, {color: colors.textSecondary}]}>
-            {item.overdue_count > 0
-              ? `${item.overdue_count} overdue dose(s)`
-              : item.next_due
-                ? `Next due: ${item.next_due}`
-                : 'No doses due'}
-          </Text>
-        </Pressable>
-      )}
+        style={[styles.container, {backgroundColor: colors.background}]}
+        data={filtered}
+        keyExtractor={item => item.id}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          loadData();
+        }}
+        ListEmptyComponent={
+          <EmptyState
+            icon="baby"
+            title="No children registered"
+            message="Register a child to start tracking immunisations."
+            action={{label: 'Register Child', onPress: () => navigation.navigate('ImmunisationRegister')}}
+          />
+        }
+        renderItem={({item}) => (
+          <Card
+            onPress={() => navigation.navigate('ImmunisationChildDetail', {childId: item.id})}
+            accentColor={accentFor(item)}
+            style={styles.card}
+            accessibilityLabel={`${item.child_name}. ${item.defaulter_status ?? ''}`}>
+            <View style={styles.cardHeader}>
+              <AppText variant="bodyStrong" numberOfLines={1} style={styles.flex}>
+                {item.child_name}
+              </AppText>
+              {item.defaulter_status && (
+                <Badge
+                  label={item.defaulter_status}
+                  tone={badgeToneFor(item)}
+                  size="sm"
+                  icon="alertTriangle"
+                  solid
+                />
+              )}
+            </View>
+            <AppText variant="small" tone="secondary">
+              DOB: {item.dob}
+            </AppText>
+            <AppText variant="caption" tone="tertiary" style={styles.cardMeta}>
+              {item.overdue_count > 0
+                ? `${item.overdue_count} overdue dose(s)`
+                : item.next_due
+                  ? `Next due: ${item.next_due}`
+                  : 'No doses due'}
+            </AppText>
+          </Card>
+        )}
       />
       <BottomTabBar activeRoute="ImmunisationList" />
     </>
@@ -161,20 +177,17 @@ export function ImmunisationListScreen() {
 
 const styles = StyleSheet.create({
   container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  empty: {fontSize: 14},
-  header: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12},
-  headerTitle: {fontSize: 20, fontWeight: '700'},
-  headerActions: {flexDirection: 'row', gap: 8, alignItems: 'center'},
-  defaultersBtn: {paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1},
-  defaultersBtnText: {fontSize: 13, fontWeight: '600'},
-  registerBtn: {paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8},
-  registerBtnText: {color: '#fff', fontSize: 14, fontWeight: '600'},
-  card: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#ccc'},
-  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  cardTitle: {fontSize: 16, fontWeight: '700'},
-  cardSub: {fontSize: 13, marginTop: 4},
-  cardMeta: {fontSize: 12, marginTop: 2},
-  badge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
-  badgeText: {color: '#fff', fontSize: 11, fontWeight: '700'},
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+    borderBottomWidth: 1,
+  },
+  headerActions: {flexDirection: 'row', gap: space[2], alignItems: 'center'},
+  card: {marginHorizontal: space[4], marginVertical: space[2]},
+  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space[2]},
+  cardMeta: {marginTop: 2},
+  flex: {flex: 1},
 });

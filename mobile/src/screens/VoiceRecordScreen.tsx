@@ -13,26 +13,32 @@
  */
 import React, {useEffect, useState} from 'react';
 import {
-  ActivityIndicator,
   Alert,
   PermissionsAndroid,
   Platform,
-  Pressable,
-  ScrollView,
   StyleSheet,
-  Text,
   View,
-  useColorScheme,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors} from '../theme/colors';
 import {getDb, query} from '../core/db/database';
 import {enqueue} from '../core/sync/outbox';
 import {isSpeechCaptureEnabled} from '../core/auth/featureFlags';
 import type {RootStackParamList} from '../core/navigation/types';
+import {useTheme} from '../theme/useTheme';
+import {radius, space} from '../theme/tokens';
+import {
+  AppText,
+  Badge,
+  Button,
+  Card,
+  Icon,
+  Screen,
+  SectionHeader,
+  type BadgeTone,
+  type IconName,
+} from '../components/ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VoiceRecord'>;
 
@@ -44,8 +50,7 @@ const MODULE_OPTIONS = [
 ] as const;
 
 export function VoiceRecordScreen({route, navigation}: Props) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
 
   // Feature flag gate (spec §34, §37): speech_capture_enabled MUST be false
   // in the first release. When disabled, show a "feature unavailable" view.
@@ -217,184 +222,224 @@ export function VoiceRecordScreen({route, navigation}: Props) {
   // Feature flag gate: if speech_capture_enabled is false, show disabled view
   if (!speechEnabled) {
     return (
-      <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()}>
-            <Text style={[styles.back, {color: colors.primary}]}>‹ Back</Text>
-          </Pressable>
-          <Text style={[styles.title, {color: colors.textPrimary}]}>Voice Observation</Text>
-        </View>
-        <View style={styles.content}>
-          <View style={[styles.card, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.label, {color: colors.textSecondary}]}>
-              Feature Unavailable
-            </Text>
-            <Text style={[styles.bodyText, {color: colors.textSecondary, marginTop: 8}]}>
-              Voice observation capture is not enabled in this deployment.
-              Use manual observation entry instead.
-            </Text>
+      <Screen scroll>
+        <SectionHeader
+          title="Voice Observation"
+          overline="Audio capture"
+        />
+        <Card style={styles.disabledCard}>
+          <View style={styles.disabledIconRow}>
+            <Icon name="mic" size={28} color={colors.textTertiary} />
           </View>
-        </View>
-      </SafeAreaView>
+          <AppText variant="h3" center style={styles.disabledTitle}>
+            Feature Unavailable
+          </AppText>
+          <AppText variant="small" tone="secondary" center>
+            Voice observation capture is not enabled in this deployment.
+            Use manual observation entry instead.
+          </AppText>
+        </Card>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={[styles.back, {color: colors.primary}]}>‹ Back</Text>
-        </Pressable>
-        <Text style={[styles.title, {color: colors.textPrimary}]}>Voice Observation</Text>
-      </View>
+    <Screen scroll>
+      <SectionHeader
+        title="Voice Observation"
+        overline="Audio capture"
+        subtitle="Dictate clinical observations for transcription and structured extraction."
+      />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Module selector */}
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Module *</Text>
-          {MODULE_OPTIONS.map(opt => (
-            <Pressable
-              key={opt.value}
-              onPress={() => setModule(opt.value)}
-              style={[styles.option, module === opt.value && {borderColor: colors.primary}]}>
-              <Text style={{
-                color: module === opt.value ? colors.primary : colors.textPrimary,
-                fontSize: 14,
-                fontWeight: module === opt.value ? '700' : '400',
-              }}>{opt.label}</Text>
-            </Pressable>
-          ))}
+      {/* Module + language selector */}
+      <Card style={styles.sectionCard}>
+        <AppText variant="smallStrong" tone="secondary" style={styles.fieldLabel}>
+          Module *
+        </AppText>
+        <View style={styles.optionRow}>
+          {MODULE_OPTIONS.map(opt => {
+            const selected = module === opt.value;
+            return (
+              <Button
+                key={opt.value}
+                label={opt.label}
+                variant={selected ? 'primary' : 'secondary'}
+                size="sm"
+                onPress={() => setModule(opt.value)}
+                style={styles.flex}
+              />
+            );
+          })}
+        </View>
 
-          <Text style={[styles.label, {color: colors.textSecondary, marginTop: 12}]}>Language *</Text>
-          <View style={styles.langRow}>
-            {LANG_OPTIONS.map(lang => (
-              <Pressable
+        <AppText variant="smallStrong" tone="secondary" style={[styles.fieldLabel, styles.fieldLabelGap]}>
+          Language *
+        </AppText>
+        <View style={styles.langRow}>
+          {LANG_OPTIONS.map(lang => {
+            const selected = language === lang.value;
+            return (
+              <Button
                 key={lang.value}
+                label={lang.label}
+                variant={selected ? 'primary' : 'ghost'}
+                size="sm"
                 onPress={() => setLanguage(lang.value)}
-                style={[styles.langBtn, language === lang.value && {backgroundColor: colors.primary}]}>
-                <Text style={{
-                  color: language === lang.value ? '#fff' : colors.textPrimary,
-                  fontSize: 12,
-                  fontWeight: '600',
-                }}>{lang.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+                style={styles.langBtn}
+              />
+            );
+          })}
         </View>
+      </Card>
 
-        {/* Recording section */}
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>Record Observation</Text>
-          <Text style={[styles.hint, {color: colors.textSecondary}]}>
-            Tap "Start Recording" and dictate the clinical observation clearly.
-            The audio will be transcribed and structured data extracted when synced.
-          </Text>
+      {/* Recording section */}
+      <Card style={styles.sectionCard}>
+        <AppText variant="h3">Record Observation</AppText>
+        <AppText variant="small" tone="secondary" style={styles.hint}>
+          Tap "Start Recording" and dictate the clinical observation clearly.
+          The audio will be transcribed and structured data extracted when synced.
+        </AppText>
 
-          <View style={styles.recordSection}>
-            {isRecording && (
-              <Text style={[styles.timer, {color: colors.primary}]}>{formatTime(recordSecs)}</Text>
-            )}
-
-            {!isRecording ? (
-              <Pressable
-                style={[styles.recordBtn, {backgroundColor: '#DC2626'}]}
-                onPress={startRecording}>
-                <Text style={styles.recordBtnText}>● Start Recording</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                style={[styles.recordBtn, {backgroundColor: '#6B7280'}]}
-                onPress={stopRecording}>
-                <Text style={styles.recordBtnText}>■ Stop Recording</Text>
-              </Pressable>
-            )}
-          </View>
-
-          {audioPath ? (
-            <View style={styles.playbackSection}>
-              <Text style={[styles.recordedLabel, {color: colors.textSecondary}]}>
-                Recording saved ({formatTime(recordSecs || Math.floor((recordSecs || 0)))})
-              </Text>
-              <View style={styles.playbackBtns}>
-                <Pressable style={[styles.playBtn, {borderColor: colors.primary}]} onPress={() => playRecording(audioPath)}>
-                  <Text style={[styles.playBtnText, {color: colors.primary}]}>▶ Play</Text>
-                </Pressable>
-                <Pressable style={[styles.playBtn, {borderColor: colors.textSecondary}]} onPress={stopPlayback}>
-                  <Text style={[styles.playBtnText, {color: colors.textSecondary}]}>■ Stop</Text>
-                </Pressable>
-              </View>
-
-              <Pressable
-                style={[styles.saveBtn, {backgroundColor: colors.primary, opacity: saving ? 0.5 : 1}]}
-                onPress={saveAndEnqueue}
-                disabled={saving}>
-                {saving ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.saveBtnText}>Save & Queue for Sync</Text>
-                )}
-              </Pressable>
+        <View style={styles.recordSection}>
+          {isRecording && (
+            <View style={styles.timerRow}>
+              <Icon name="mic" size={20} color={colors.danger} />
+              <AppText variant="metric" tone="brand" style={styles.timer}>
+                {formatTime(recordSecs)}
+              </AppText>
             </View>
-          ) : null}
+          )}
+
+          {!isRecording ? (
+            <Button
+              label="Start Recording"
+              variant="danger"
+              size="lg"
+              onPress={startRecording}
+              icon="mic"
+              fullWidth
+            />
+          ) : (
+            <Button
+              label="Stop Recording"
+              variant="secondary"
+              size="lg"
+              onPress={stopRecording}
+              icon="close"
+              fullWidth
+            />
+          )}
         </View>
 
-        {/* Previous recordings */}
-        {recordings.length > 0 && (
-          <View style={[styles.card, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>Recordings for this episode</Text>
-            {recordings.map((rec, idx) => (
-              <View key={rec.id} style={[styles.recItem, {borderColor: colors.border}]}>
-                <View style={styles.recHeader}>
-                  <Text style={[styles.recModule, {color: colors.textPrimary}]}>{rec.module}</Text>
-                  <Text style={[styles.recStatus, {
-                    color: rec.sync_status === 'SYNCED' ? '#16A34A' : rec.sync_status === 'NOT_SYNCED' ? '#D97706' : '#6B7280'
-                  }]}>{rec.sync_status}</Text>
-                </View>
-                <Text style={[styles.recLang, {color: colors.textSecondary}]}>
-                  Language: {rec.language} · Duration: {Math.floor(rec.duration_ms / 1000)}s
-                </Text>
-                {rec.transcript ? (
-                  <Text style={[styles.recTranscript, {color: colors.textPrimary}]}>{rec.transcript}</Text>
-                ) : (
-                  <Text style={[styles.recTranscript, {color: colors.textSecondary, fontStyle: 'italic'}]}>
-                    {rec.sync_status === 'SYNCED' ? 'No transcript available' : 'Transcript pending sync...'}
-                  </Text>
-                )}
-                {rec.extracted_data ? (
-                  <Text style={[styles.recExtracted, {color: colors.textSecondary}]}>
-                    Extracted: {rec.extracted_data}
-                  </Text>
-                ) : null}
-                <View style={styles.statusPipeline}>
-                  <StatusBadge label="Recorded" done={true} color={colors.primary} />
-                  <StatusArrow />
-                  <StatusBadge
-                    label="Uploaded"
-                    done={rec.sync_status === 'SYNCED'}
-                    pending={rec.sync_status === 'NOT_SYNCED'}
-                    color={colors.primary}
-                  />
-                  <StatusArrow />
-                  <StatusBadge
-                    label="Transcribed"
-                    done={!!rec.transcript}
-                    pending={rec.sync_status === 'SYNCED' && !rec.transcript}
-                    color={colors.primary}
-                  />
-                  <StatusArrow />
-                  <StatusBadge
-                    label="Extracted"
-                    done={!!rec.extracted_data}
-                    pending={!!(rec.transcript && !rec.extracted_data)}
-                    color={colors.primary}
-                  />
-                </View>
-              </View>
-            ))}
+        {audioPath ? (
+          <View style={styles.playbackSection}>
+            <AppText variant="small" tone="secondary" center>
+              Recording saved ({formatTime(recordSecs || Math.floor((recordSecs || 0)))})
+            </AppText>
+            <View style={styles.playbackBtns}>
+              <Button
+                label="Play"
+                variant="secondary"
+                size="sm"
+                onPress={() => playRecording(audioPath)}
+                icon="share"
+              />
+              <Button
+                label="Stop"
+                variant="ghost"
+                size="sm"
+                onPress={stopPlayback}
+                icon="close"
+              />
+            </View>
+
+            <Button
+              label="Save & Queue for Sync"
+              variant="primary"
+              size="lg"
+              onPress={saveAndEnqueue}
+              loading={saving}
+              disabled={saving}
+              icon="check"
+              fullWidth
+              style={styles.saveBtn}
+            />
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+        ) : null}
+      </Card>
+
+      {/* Previous recordings */}
+      {recordings.length > 0 ? (
+        <View>
+          <SectionHeader title="Recordings" overline="This episode" />
+          {recordings.map((rec) => (
+            <Card key={rec.id} style={styles.recCard}>
+              <View style={styles.recHeader}>
+                <View style={styles.recTitleRow}>
+                  <Icon name="mic" size={16} color={colors.primary} />
+                  <AppText variant="bodyStrong">{rec.module}</AppText>
+                </View>
+                <Badge
+                  label={rec.sync_status}
+                  tone={
+                    rec.sync_status === 'SYNCED'
+                      ? 'success'
+                      : rec.sync_status === 'NOT_SYNCED'
+                      ? 'warning'
+                      : 'neutral'
+                  }
+                  icon={
+                    rec.sync_status === 'SYNCED'
+                      ? 'checkCircle'
+                      : rec.sync_status === 'NOT_SYNCED'
+                      ? 'refresh'
+                      : 'info'
+                  }
+                />
+              </View>
+              <AppText variant="small" tone="secondary">
+                Language: {rec.language} · Duration: {Math.floor(rec.duration_ms / 1000)}s
+              </AppText>
+              {rec.transcript ? (
+                <AppText variant="small" style={styles.recTranscript}>
+                  {rec.transcript}
+                </AppText>
+              ) : (
+                <AppText variant="small" tone="tertiary" style={styles.recTranscript}>
+                  {rec.sync_status === 'SYNCED' ? 'No transcript available' : 'Transcript pending sync…'}
+                </AppText>
+              )}
+              {rec.extracted_data ? (
+                <AppText variant="caption" tone="secondary" style={styles.recExtracted}>
+                  Extracted: {rec.extracted_data}
+                </AppText>
+              ) : null}
+              <View style={styles.statusPipeline}>
+                <StatusBadge label="Recorded" done={true} />
+                <Icon name="chevronRight" size={12} color={colors.textTertiary} />
+                <StatusBadge
+                  label="Uploaded"
+                  done={rec.sync_status === 'SYNCED'}
+                  pending={rec.sync_status === 'NOT_SYNCED'}
+                />
+                <Icon name="chevronRight" size={12} color={colors.textTertiary} />
+                <StatusBadge
+                  label="Transcribed"
+                  done={!!rec.transcript}
+                  pending={rec.sync_status === 'SYNCED' && !rec.transcript}
+                />
+                <Icon name="chevronRight" size={12} color={colors.textTertiary} />
+                <StatusBadge
+                  label="Extracted"
+                  done={!!rec.extracted_data}
+                  pending={!!(rec.transcript && !rec.extracted_data)}
+                />
+              </View>
+            </Card>
+          ))}
+        </View>
+      ) : null}
+    </Screen>
   );
 }
 
@@ -413,66 +458,48 @@ interface RecordingRow {
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  header: {flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12},
-  back: {fontSize: 16},
-  title: {fontSize: 18, fontWeight: '700'},
-  content: {padding: 16, gap: 12},
-  card: {borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0'},
-  label: {fontSize: 12, fontWeight: '600', textTransform: 'uppercase', marginBottom: 6},
-  bodyText: {fontSize: 14, lineHeight: 20},
-  option: {padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 6},
-  langRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
-  langBtn: {paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0'},
-  cardTitle: {fontSize: 15, fontWeight: '700', marginBottom: 8},
-  hint: {fontSize: 13, lineHeight: 18, marginBottom: 16},
-  recordSection: {alignItems: 'center', paddingVertical: 16},
-  timer: {fontSize: 32, fontWeight: '700', marginBottom: 16, fontVariant: ['tabular-nums']},
-  recordBtn: {paddingHorizontal: 32, paddingVertical: 16, borderRadius: 50, alignItems: 'center'},
-  recordBtnText: {color: '#fff', fontWeight: '700', fontSize: 16},
-  playbackSection: {marginTop: 16, alignItems: 'center', gap: 12},
-  recordedLabel: {fontSize: 13},
-  playbackBtns: {flexDirection: 'row', gap: 12},
-  playBtn: {paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, borderWidth: 1},
-  playBtnText: {fontWeight: '600', fontSize: 14},
-  saveBtn: {padding: 16, borderRadius: 12, alignItems: 'center', width: '100%'},
-  saveBtnText: {color: '#fff', fontWeight: '700', fontSize: 15},
-  recItem: {borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8},
-  recHeader: {flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4},
-  recModule: {fontSize: 13, fontWeight: '700'},
-  recStatus: {fontSize: 11, fontWeight: '600'},
-  recLang: {fontSize: 12, marginBottom: 6},
-  recTranscript: {fontSize: 13, lineHeight: 18},
-  recExtracted: {fontSize: 11, marginTop: 4, fontStyle: 'italic'},
-  statusPipeline: {flexDirection: 'row', alignItems: 'center', marginTop: 8, flexWrap: 'wrap', gap: 2},
-  statusBadge: {paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1},
-  statusBadgeText: {fontSize: 9, fontWeight: '600'},
-  statusArrow: {fontSize: 10, color: '#94A3B8', marginHorizontal: 2},
+  disabledCard: {alignItems: 'center', paddingVertical: space[8]},
+  disabledIconRow: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.xxl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space[4],
+  },
+  disabledTitle: {marginBottom: space[2]},
+  sectionCard: {marginBottom: space[4]},
+  fieldLabel: {marginBottom: space[2]},
+  fieldLabelGap: {marginTop: space[4]},
+  optionRow: {flexDirection: 'row', gap: space[2]},
+  flex: {flex: 1},
+  langRow: {flexDirection: 'row', flexWrap: 'wrap', gap: space[2]},
+  langBtn: {marginBottom: space[1]},
+  hint: {marginTop: space[2], marginBottom: space[4]},
+  recordSection: {alignItems: 'center', gap: space[4], paddingVertical: space[2]},
+  timerRow: {flexDirection: 'row', alignItems: 'center', gap: space[2]},
+  timer: {fontVariant: ['tabular-nums'] as any},
+  playbackSection: {marginTop: space[4], alignItems: 'center', gap: space[3]},
+  playbackBtns: {flexDirection: 'row', gap: space[2]},
+  saveBtn: {marginTop: space[2]},
+  recCard: {marginBottom: space[2]},
+  recHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space[1]},
+  recTitleRow: {flexDirection: 'row', alignItems: 'center', gap: space[2]},
+  recTranscript: {marginTop: space[2], lineHeight: 20},
+  recExtracted: {marginTop: space[1]},
+  statusPipeline: {flexDirection: 'row', alignItems: 'center', marginTop: space[3], flexWrap: 'wrap', gap: space[1]},
 });
 
 function StatusBadge({
   label,
   done,
   pending,
-  color,
 }: {
   label: string;
   done: boolean;
   pending?: boolean;
-  color: string;
 }) {
-  const bg = done ? color : pending ? 'transparent' : '#F1F5F9';
-  const border = done ? color : pending ? '#D97706' : '#E2E8F0';
-  const text = done ? '#fff' : pending ? '#D97706' : '#94A3B8';
-  return (
-    <View style={[styles.statusBadge, {backgroundColor: bg, borderColor: border}]}>
-      <Text style={[styles.statusBadgeText, {color: text}]}>
-        {done ? '\u2713' : pending ? '\u23F3' : '\u25CB'} {label}
-      </Text>
-    </View>
-  );
-}
-
-function StatusArrow() {
-  return <Text style={styles.statusArrow}>\u2192</Text>;
+  const tone: BadgeTone = done ? 'success' : pending ? 'warning' : 'neutral';
+  const icon: IconName = done ? 'checkCircle' : pending ? 'clock' : 'info';
+  return <Badge label={label} tone={tone} icon={icon} size="sm" />;
 }

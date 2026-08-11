@@ -2,11 +2,18 @@
  * DuplicateBadge — visual warning banner for potential duplicate records.
  * Shows match type (EXACT/STRONG/SOFT) with urgency-colored badge.
  * MCHVC-SPEC-001 v1.1 §45.1, §17.
+ *
+ * UX-002: the match level is always shown as text + icon, never colour alone.
  */
 import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, View} from 'react-native';
 
-import {urgency} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
+import {urgency, type UrgencyKey} from '../theme/colors';
+import {MIN_TOUCH, border, radius, space, type as typeScale} from '../theme/tokens';
+import {Icon, type IconName} from './ui/Icon';
+import {AppText} from './ui/Text';
+import {Badge} from './ui/Badge';
 
 export interface DuplicateInfo {
   matchType: 'EXACT' | 'STRONG' | 'SOFT' | 'NONE';
@@ -21,64 +28,78 @@ interface DuplicateBadgeProps {
   onDismiss?: () => void;
 }
 
-const MATCH_COLORS: Record<string, string> = {
-  EXACT: urgency.RED,
-  STRONG: urgency.ORANGE,
-  SOFT: urgency.AMBER,
-};
-
-const MATCH_LABELS: Record<string, string> = {
-  EXACT: 'EXACT MATCH',
-  STRONG: 'STRONG MATCH',
-  SOFT: 'POSSIBLE MATCH',
+const MATCH_META: Record<string, {key: UrgencyKey; label: string; icon: IconName}> = {
+  EXACT: {key: 'RED', label: 'EXACT MATCH', icon: 'alertOctagon'},
+  STRONG: {key: 'ORANGE', label: 'STRONG MATCH', icon: 'alertTriangle'},
+  SOFT: {key: 'AMBER', label: 'POSSIBLE MATCH', icon: 'alertCircle'},
 };
 
 export function DuplicateBadge({duplicate, onViewExisting, onDismiss}: DuplicateBadgeProps) {
+  const {colors, urgencyTone} = useTheme();
   if (!duplicate || duplicate.matchType === 'NONE') return null;
 
-  const color = MATCH_COLORS[duplicate.matchType] || urgency.AMBER;
+  const meta = MATCH_META[duplicate.matchType] ?? MATCH_META.SOFT;
+  const tone = urgencyTone(meta.key);
 
   return (
-    <View style={[styles.container, {backgroundColor: color + '15', borderColor: color + '40'}]}>
+    <View
+      style={[
+        styles.container,
+        {backgroundColor: tone.bg, borderColor: tone.border, borderWidth: border.thick},
+      ]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.icon}>⚠️</Text>
-          <Text style={[styles.title, {color}]}>Possible Duplicate</Text>
+          <Icon name={meta.icon} size={18} color={tone.fg} strokeWidth={2} />
+          <AppText variant="bodyStrong" tone="inherit" style={{color: tone.fg}}>
+            Possible Duplicate
+          </AppText>
         </View>
-        <View style={[styles.badge, {backgroundColor: color}]}>
-          <Text style={styles.badgeText}>{MATCH_LABELS[duplicate.matchType] || 'MATCH'}</Text>
-        </View>
+        <Badge label={meta.label} tone="neutral" solid />
       </View>
-      {duplicate.existingName && (
-        <Text style={styles.existingName}>{duplicate.existingName}</Text>
-      )}
-      {duplicate.matchField && (
-        <Text style={styles.matchField}>
+
+      {duplicate.existingName ? (
+        <AppText variant="bodyStrong" style={styles.existingName}>
+          {duplicate.existingName}
+        </AppText>
+      ) : null}
+
+      {duplicate.matchField ? (
+        <AppText variant="caption" tone="secondary" style={styles.matchField}>
           Matched by: {duplicate.matchField}
           {duplicate.source ? ` in ${duplicate.source}` : ''}
-        </Text>
-      )}
+        </AppText>
+      ) : null}
+
       <View style={styles.actions}>
-        {onViewExisting && (
+        {onViewExisting ? (
           <Pressable
-            style={[styles.btn, {borderColor: color}]}
+            style={({pressed}) => [
+              styles.btn,
+              {borderColor: tone.solid, backgroundColor: 'transparent'},
+              pressed && styles.btnPressed,
+            ]}
             onPress={onViewExisting}
             accessibilityRole="button"
             accessibilityLabel="View existing record"
             accessibilityHint="Navigate to the existing duplicate record">
-            <Text style={[styles.btnText, {color}]}>View Existing</Text>
+            <AppText variant="smallStrong" tone="inherit" style={{color: tone.fg}}>
+              View Existing
+            </AppText>
           </Pressable>
-        )}
-        {onDismiss && (
+        ) : null}
+
+        {onDismiss ? (
           <Pressable
-            style={styles.btnDismiss}
+            style={({pressed}) => [styles.btnDismiss, pressed && styles.btnPressed]}
             onPress={onDismiss}
             accessibilityRole="button"
             accessibilityLabel="Dismiss duplicate warning"
             accessibilityHint="Dismiss this duplicate warning">
-            <Text style={styles.btnDismissText}>Dismiss</Text>
+            <AppText variant="smallStrong" tone="secondary">
+              Dismiss
+            </AppText>
           </Pressable>
-        )}
+        ) : null}
       </View>
     </View>
   );
@@ -86,49 +107,36 @@ export function DuplicateBadge({duplicate, onViewExisting, onDismiss}: Duplicate
 
 const styles = StyleSheet.create({
   container: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 16,
-    marginVertical: 8,
+    borderRadius: radius.lg,
+    padding: space[3],
+    marginHorizontal: space[4],
+    marginVertical: space[2],
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: space[2],
+    gap: space[2],
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  icon: {fontSize: 16},
-  title: {fontSize: 14, fontWeight: '700'},
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  badgeText: {color: '#fff', fontSize: 9, fontWeight: '700', letterSpacing: 0.5},
-  existingName: {fontSize: 13, fontWeight: '600', color: '#1e293b', marginBottom: 2},
-  matchField: {fontSize: 11, color: '#64748b', marginBottom: 8},
-  actions: {flexDirection: 'row', gap: 8},
+  headerLeft: {flexDirection: 'row', alignItems: 'center', gap: space[2], flex: 1},
+  existingName: {marginBottom: 2},
+  matchField: {marginBottom: space[2]},
+  actions: {flexDirection: 'row', gap: space[2]},
   btn: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    minHeight: 44,
+    borderWidth: border.thick,
+    borderRadius: radius.md,
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+    minHeight: MIN_TOUCH,
     justifyContent: 'center',
   },
-  btnText: {fontSize: 12, fontWeight: '600'},
   btnDismiss: {
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    minHeight: 44,
+    borderRadius: radius.md,
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+    minHeight: MIN_TOUCH,
     justifyContent: 'center',
   },
-  btnDismissText: {fontSize: 12, fontWeight: '500', color: '#64748b'},
+  btnPressed: {opacity: 0.8, transform: [{scale: 0.97}]},
 });

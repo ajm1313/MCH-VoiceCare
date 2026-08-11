@@ -1,14 +1,22 @@
 /**
  * PregnancyTransferScreen — transfer a pregnancy episode to another facility.
+ *
+ * UX-003: restyled with the shared design system primitives and SVG icons.
+ * Clinical behaviour, queries, navigation and accessibility are unchanged.
  */
 import React, {useEffect, useState} from 'react';
-import {Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Alert, StyleSheet, View} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {query, getDb} from '../core/db/database';
-import {brand, lightColors} from '../theme/colors';
 import type {RootStackParamList} from '../core/navigation/types';
+import {space} from '../theme/tokens';
+import {Screen} from '../components/ui/Screen';
+import {Card} from '../components/ui/Card';
+import {Button} from '../components/ui/Button';
+import {Field} from '../components/ui/Input';
+import {AppText} from '../components/ui/Text';
+import {KeyValue} from '../components/ui/Layout';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PregnancyTransfer'>;
 
@@ -50,40 +58,62 @@ export function PregnancyTransferScreen({route, navigation}: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Screen scroll>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>‹ Back</Text>
-        </Pressable>
-        <Text style={styles.title}>Transfer Pregnancy</Text>
+        <Button
+          label="Back"
+          variant="ghost"
+          size="sm"
+          icon="chevronLeft"
+          onPress={() => navigation.goBack()}
+          accessibilityLabel="Go back"
+        />
+        <AppText variant="h2">Transfer Pregnancy</AppText>
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.label}>Woman</Text>
-          <Text style={styles.value}>{episodeName}</Text>
-          <Text style={styles.label}>Destination Facility</Text>
-          <TextInput style={styles.input} value={destination} onChangeText={setDestination} placeholder="Facility name" />
-          <Text style={styles.label}>Reason</Text>
-          <TextInput style={styles.input} value={reason} onChangeText={setReason} placeholder="Transfer reason..." multiline numberOfLines={3} textAlignVertical="top" />
-        </View>
-        <Pressable style={styles.transferButton} onPress={handleTransfer}>
-          <Text style={styles.transferButtonText}>Transfer Episode</Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+
+      <Card style={styles.card}>
+        <KeyValue label="Woman" value={episodeName} />
+        <Field
+          label="Destination Facility"
+          value={destination}
+          onChangeText={setDestination}
+          placeholder="Facility name"
+          icon="mapPin"
+          containerStyle={styles.field}
+        />
+        <Field
+          label="Reason"
+          value={reason}
+          onChangeText={setReason}
+          placeholder="Transfer reason..."
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+          containerStyle={styles.field}
+        />
+      </Card>
+
+      <Button
+        label="Transfer Episode"
+        onPress={handleTransfer}
+        icon="share"
+        fullWidth
+        size="lg"
+        style={styles.action}
+        accessibilityLabel="Transfer episode"
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: lightColors.background},
-  header: {flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12},
-  back: {fontSize: 16, color: brand.teal},
-  title: {fontSize: 18, fontWeight: '700', color: lightColors.textPrimary},
-  content: {padding: 16, gap: 12},
-  card: {backgroundColor: lightColors.surface, borderWidth: 1, borderColor: lightColors.border, borderRadius: 12, padding: 16, gap: 8},
-  label: {fontSize: 11, fontWeight: '600', color: lightColors.textSecondary, textTransform: 'uppercase', marginTop: 8},
-  value: {fontSize: 16, fontWeight: '600', color: lightColors.textPrimary},
-  input: {borderWidth: 1, borderColor: lightColors.border, borderRadius: 8, padding: 12, fontSize: 14, color: lightColors.textPrimary, minHeight: 48},
-  transferButton: {backgroundColor: brand.teal, padding: 14, borderRadius: 12, alignItems: 'center'},
-  transferButtonText: {color: '#fff', fontWeight: '700', fontSize: 15},
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    marginBottom: space[3],
+  },
+  card: {gap: space[2], marginBottom: space[4]},
+  field: {marginBottom: space[3]},
+  action: {marginTop: space[2]},
 });

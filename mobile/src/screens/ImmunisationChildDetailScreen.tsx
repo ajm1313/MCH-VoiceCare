@@ -3,27 +3,31 @@
  * MCHVC-SPEC-001 v1.1 §25. Offline-first (DEC-007).
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
 import {query} from '../core/db/database';
+import {
+  Screen,
+  Card,
+  Button,
+  SectionHeader,
+  KeyValue,
+  Divider,
+  LoadingState,
+  EmptyState,
+  AppText,
+  Icon,
+} from '../components/ui';
+import {space} from '../theme/tokens';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function ImmunisationChildDetailScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
   const route = useRoute();
   const childId = (route.params as {childId: string}).childId;
@@ -78,84 +82,103 @@ export function ImmunisationChildDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, {backgroundColor: colors.background}]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <Screen>
+        <LoadingState message="Loading child profile…" />
+      </Screen>
     );
   }
 
   return (
-    <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
+    <Screen scroll>
       {child && (
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>
-            {String(child.child_name || 'Unknown')}
-          </Text>
-          <Text style={[styles.row, {color: colors.textSecondary}]}>
-            DOB: {String(child.dob || 'Unknown')}
-          </Text>
-          <Text style={[styles.row, {color: colors.textSecondary}]}>
-            CWC card: {String(child.cwc_card_number || 'N/A')}
-          </Text>
-          <Text style={[styles.row, {color: colors.textSecondary}]}>
-            Residence: {String(child.residence_status || 'Unknown')}
-          </Text>
-          <Text style={[styles.row, {color: colors.textSecondary}]}>
-            Next due: {child.next_due ? String(child.next_due) : 'No doses due'}
-          </Text>
+        <Card style={styles.section}>
+          <AppText variant="h2">{String(child.child_name || 'Unknown')}</AppText>
+          <View style={styles.kvContainer}>
+            <KeyValue label="DOB" value={String(child.dob || 'Unknown')} />
+            <KeyValue label="CWC card" value={String(child.cwc_card_number || 'N/A')} />
+            <KeyValue label="Residence" value={String(child.residence_status || 'Unknown')} />
+            <KeyValue label="Next due" value={child.next_due ? String(child.next_due) : 'No doses due'} />
+          </View>
           {motherName && (
-            <View style={[styles.linkBanner, {borderColor: colors.primary + '40'}]}>
-              <Text style={[styles.linkIcon, {color: colors.primary}]}>🤰</Text>
+            <View style={[styles.linkBanner, {borderTopColor: colors.border}]}>
+              <View style={[styles.linkIcon, {backgroundColor: colors.primarySubtle}]}>
+                <Icon name="heart" size={18} color={colors.primary} />
+              </View>
               <View style={styles.linkText}>
-                <Text style={[styles.linkLabel, {color: colors.textSecondary}]}>Mother</Text>
-                <Text style={[styles.linkValue, {color: colors.textPrimary}]}>{motherName}</Text>
+                <AppText variant="overline" tone="tertiary" uppercase>Mother</AppText>
+                <AppText variant="bodyStrong" style={styles.linkValue}>{motherName}</AppText>
               </View>
             </View>
           )}
-        </View>
+        </Card>
       )}
 
-      <Pressable
-        onPress={() => navigation.navigate('ImmunisationRecordDose', {childId})}
-        style={[styles.button, {backgroundColor: colors.primary}]}>
-        <Text style={styles.buttonText}>Record Vaccine Dose</Text>
-      </Pressable>
+      <View style={styles.buttonRow}>
+        <Button
+          label="Record Vaccine Dose"
+          variant="primary"
+          size="lg"
+          icon="plus"
+          fullWidth
+          onPress={() => navigation.navigate('ImmunisationRecordDose', {childId})}
+        />
+      </View>
 
       {doses.length > 0 && (
-        <View style={[styles.section, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>
-            Dose History
-          </Text>
+        <Card style={styles.section}>
+          <SectionHeader title="Dose History" />
           {doses.map((d, i) => (
-            <View key={i} style={styles.doseRow}>
-              <Text style={[styles.doseText, {color: colors.textPrimary}]}>
-                {String(d.vaccine_code || '')} #{String(d.dose_number || '')}
-              </Text>
-              <Text style={[styles.doseMeta, {color: colors.textSecondary}]}>
-                {String(d.administration_datetime || '')}
-              </Text>
+            <View key={i}>
+              {i > 0 && <Divider />}
+              <View style={styles.doseRow}>
+                <AppText variant="bodyStrong">
+                  {String(d.vaccine_code || '')} #{String(d.dose_number || '')}
+                </AppText>
+                <AppText variant="small" tone="secondary">
+                  {String(d.administration_datetime || '')}
+                </AppText>
+              </View>
             </View>
           ))}
-        </View>
+        </Card>
       )}
-    </ScrollView>
+
+      {doses.length === 0 && (
+        <EmptyState
+          icon="clipboard"
+          title="No doses recorded"
+          message="Record the first vaccine dose for this child."
+        />
+      )}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center'},
-  section: {margin: 16, padding: 16, borderRadius: 12},
-  sectionTitle: {fontSize: 16, fontWeight: '700', marginBottom: 8},
-  row: {fontSize: 13, marginTop: 4},
-  button: {marginHorizontal: 16, padding: 14, borderRadius: 12, alignItems: 'center'},
-  buttonText: {color: '#fff', fontWeight: '700', fontSize: 15},
-  doseRow: {flexDirection: 'row', justifyContent: 'space-between', marginTop: 8},
-  doseText: {fontSize: 14, fontWeight: '600'},
-  doseMeta: {fontSize: 12},
-  linkBanner: {flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, gap: 8},
-  linkIcon: {fontSize: 20},
+  section: {marginVertical: space[2]},
+  kvContainer: {marginTop: space[2]},
+  buttonRow: {marginVertical: space[2]},
+  linkBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: space[3],
+    paddingTop: space[3],
+    borderTopWidth: 1,
+    gap: space[3],
+  },
+  linkIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   linkText: {flex: 1},
-  linkLabel: {fontSize: 10, fontWeight: '600', textTransform: 'uppercase'},
-  linkValue: {fontSize: 14, fontWeight: '600', marginTop: 2},
+  linkValue: {marginTop: 2},
+  doseRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: space[2],
+  },
 });

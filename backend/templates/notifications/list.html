@@ -1,50 +1,61 @@
 {% extends "base.html" %}
 {% load mch_tags %}
-{% block title %}Notifications — MCH VoiceCare{% endblock %}
+{% block title %}Notifications · MCH VoiceCare{% endblock %}
 {% block navbar_title %}Notifications{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div>
-    <h1 class="text-2xl font-bold">Notifications</h1>
-    <p class="text-sm text-base-content/50">Alerts and action items</p>
+<div class="space-y-7">
+  <div class="page-header">
+    <div class="flex-1">
+      <p class="overline">Worklist</p>
+      <h1 class="page-title">Notifications</h1>
+      <p class="page-subtitle">Alerts and action items.</p>
+    </div>
   </div>
 
-  <div class="flex gap-2">
-    <a href="?status=OPEN" class="btn btn-sm btn-primary">Open</a>
-    <a href="?status=ACKNOWLEDGED" class="btn btn-sm btn-outline">Acknowledged</a>
-    <a href="?status=ACTED" class="btn btn-sm btn-outline">Acted Upon</a>
-    <a href="?status=" class="btn btn-sm btn-outline">All</a>
+  <div class="segmented-control">
+    <a href="?status=OPEN" class="segmented-item {% if request.GET.status == 'OPEN' %}segmented-item-active{% endif %}">Open</a>
+    <a href="?status=ACKNOWLEDGED" class="segmented-item {% if request.GET.status == 'ACKNOWLEDGED' %}segmented-item-active{% endif %}">Acknowledged</a>
+    <a href="?status=ACTED" class="segmented-item {% if request.GET.status == 'ACTED' %}segmented-item-active{% endif %}">Acted Upon</a>
+    <a href="?status=" class="segmented-item {% if not request.GET.status %}segmented-item-active{% endif %}">All</a>
   </div>
 
-  <div class="space-y-2">
+  <div class="space-y-3">
     {% for n in notifications %}
-    <div class="card-section">
-      <div class="card-body flex-row items-center justify-between">
-        <div class="flex items-center gap-3">
-          <span class="badge {{ n.urgency|urgency_badge }}">{{ n.urgency }}</span>
-          <div>
-            <p class="font-medium">{{ n.title }}</p>
-            <p class="text-xs text-base-content/50">{{ n.notification_class }} · {{ n.created_at|date:"M d, H:i" }}</p>
+    <a href="{% url 'notification_detail' n.pk %}" class="card-section card-interactive animate-in {% if n.urgency == 'EMERGENCY' %}ring-1 ring-error/30{% endif %}">
+      <div class="card-body flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-4 min-w-0">
+          {% include "partials/urgency_badge.html" with value=n.urgency %}
+          <div class="min-w-0">
+            <p class="font-medium truncate">{{ n.title }}</p>
+            <p class="text-caption text-base-content/50 mt-0.5">{{ n.notification_class }} · {{ n.created_at|date:"M d, H:i" }}</p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="badge badge-sm {{ n.status|status_badge }}">{{ n.status }}</span>
-          <a href="{% url 'notification_detail' n.pk %}" class="btn btn-ghost btn-xs">View</a>
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="pill pill-neutral">{{ n.status }}</span>
+          <svg class="w-4 h-4 text-base-content/30" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+        </div>
+      </div>
+    </a>
+    {% empty %}
+    <div class="card-section">
+      <div class="card-body">
+        <div class="empty-state">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></svg>
+          <p class="empty-state-title">No notifications found</p>
+          <p class="empty-state-body">Alerts and action items will appear here.</p>
         </div>
       </div>
     </div>
-    {% empty %}
-    <div class="text-center text-base-content/50 py-8">No notifications found.</div>
     {% endfor %}
   </div>
 
   {% if is_paginated %}
   <div class="flex justify-center">
     <div class="join">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>{% endif %}
+      {% if page_obj.has_previous %}<a href="?status={{ request.GET.status }}&page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>{% endif %}
       <span class="join-item btn btn-sm btn-active">Page {{ page_obj.number }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>{% endif %}
+      {% if page_obj.has_next %}<a href="?status={{ request.GET.status }}&page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>{% endif %}
     </div>
   </div>
   {% endif %}

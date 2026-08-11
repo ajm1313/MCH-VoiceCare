@@ -3,23 +3,25 @@
  * MCHVC-SPEC-001 v1.1 §49. Offline-first (DEC-007).
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
+import {FlatList, StyleSheet, View} from 'react-native';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
 import {query} from '../core/db/database';
 import {getCachedWorklist} from '../core/sync/worklistSync';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RootStackParamList} from '../core/navigation/types';
+import {
+  Card,
+  EmptyState,
+  ListRow,
+  LoadingState,
+  Screen,
+  SectionHeader,
+  UrgencyBadge,
+  Badge,
+} from '../components/ui';
+import {useTheme} from '../theme/useTheme';
+import {space} from '../theme/tokens';
 
 type TaskRow = {
   id: string;
@@ -31,8 +33,7 @@ type TaskRow = {
 };
 
 export function TaskListScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [rows, setRows] = useState<TaskRow[]>([]);
@@ -76,21 +77,11 @@ export function TaskListScreen() {
     loadData();
   }, [loadData]);
 
-  const urgencyColor = (cls: string) => {
-    switch (cls) {
-      case 'RED': return urgency.RED;
-      case 'ORANGE': return urgency.ORANGE;
-      case 'AMBER': return urgency.AMBER;
-      case 'GREEN': return urgency.GREEN;
-      default: return urgency.GREY;
-    }
-  };
-
   if (loading) {
     return (
-      <View style={[styles.center, {backgroundColor: colors.background}]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <Screen>
+        <LoadingState message="Loading tasks…" />
+      </Screen>
     );
   }
 
@@ -99,81 +90,68 @@ export function TaskListScreen() {
       style={[styles.container, {backgroundColor: colors.background}]}
       data={rows}
       keyExtractor={item => item.id}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => {
-            setRefreshing(true);
-            loadData();
-          }}
-          colors={[colors.primary]}
-        />
-      }
+      refreshing={refreshing}
+      onRefresh={() => {
+        setRefreshing(true);
+        loadData();
+      }}
       ListHeaderComponent={
         worklistItems && worklistItems.length > 0 ? (
           <View style={styles.worklistSection}>
-            <Text style={[styles.worklistTitle, {color: colors.textPrimary}]}>
-              My Worklist
-            </Text>
-            {worklistItems.map((wl, i) => (
-              <Pressable
+            <SectionHeader title="My Worklist" />
+            {worklistItems.map(wl => (
+              <Card
                 key={wl.id}
-                style={[styles.worklistCard, {backgroundColor: colors.surface}]}
                 onPress={() => {
                   if (wl.action_url) {
                     navigation.navigate('NotificationDetail' as any, {notificationId: wl.entity_id});
                   }
-                }}>
+                }}
+                style={styles.worklistCard}
+                accessibilityLabel={`Worklist item: ${wl.subject_name}. ${wl.action_label}.`}>
                 <View style={styles.cardHeader}>
-                  <View style={[styles.badge, {backgroundColor: urgencyColor(wl.urgency)}]}>
-                    <Text style={styles.badgeText}>{wl.urgency}</Text>
-                  </View>
-                  <Text style={[styles.status, {color: colors.textSecondary}]}>
-                    {wl.action_label}
-                  </Text>
+                  <UrgencyBadge value={wl.urgency} size="sm" />
+                  <Badge label={wl.action_label} tone="neutral" size="sm" />
                 </View>
-                <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>
-                  {wl.subject_name}
-                </Text>
-                <Text style={[styles.cardSub, {color: colors.textSecondary}]}>
-                  {wl.entity_type}
-                  {wl.due_at ? `  ·  Due: ${wl.due_at}` : ''}
-                </Text>
-              </Pressable>
+                <ListRow
+                  title={wl.subject_name}
+                  subtitle={wl.entity_type}
+                  meta={wl.due_at ? `Due: ${wl.due_at}` : undefined}
+                  icon="bell"
+                  hideChevron
+                  style={styles.innerRow}
+                />
+              </Card>
             ))}
-            <Text style={[styles.worklistDivider, {color: colors.textSecondary}]}>
-              All Notifications
-            </Text>
+            <SectionHeader title="All Notifications" style={styles.worklistDivider} />
           </View>
         ) : null
       }
       ListEmptyComponent={
-        <View style={styles.center}>
-          <Text style={[styles.empty, {color: colors.textSecondary}]}>
-            No open tasks
-          </Text>
-        </View>
+        <EmptyState
+          icon="checkCircle"
+          title="No open tasks"
+          message="All notifications have been addressed."
+        />
       }
       renderItem={({item}) => (
-        <Pressable
-          style={[styles.card, {backgroundColor: colors.surface}]}
-          onPress={() => navigation.navigate('NotificationDetail', {notificationId: item.id})}>
+        <Card
+          onPress={() => navigation.navigate('NotificationDetail', {notificationId: item.id})}
+          style={styles.card}
+          accessibilityLabel={`Task: ${item.title}. ${item.notification_class}. Status: ${item.status}.`}>
           <View style={styles.cardHeader}>
-            <View style={[styles.badge, {backgroundColor: urgencyColor(item.urgency)}]}>
-              <Text style={styles.badgeText}>{item.urgency}</Text>
-            </View>
-            <Text style={[styles.status, {color: colors.textSecondary}]}>
-              {item.status}
-            </Text>
+            <UrgencyBadge value={item.urgency} size="sm" />
+            <Badge label={item.status} tone="neutral" size="sm" />
           </View>
-          <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>
-            {item.title}
-          </Text>
-          <Text style={[styles.cardSub, {color: colors.textSecondary}]}>
-            {item.notification_class}
-            {item.due_datetime ? `  ·  Due: ${item.due_datetime}` : ''}
-          </Text>
-        </Pressable>
+          <ListRow
+            title={item.title}
+            subtitle={item.notification_class}
+            meta={item.due_datetime ? `Due: ${item.due_datetime}` : undefined}
+            icon="clipboard"
+            hideChevron
+            style={styles.innerRow}
+          />
+        </Card>
       )}
     />
   );
@@ -181,17 +159,10 @@ export function TaskListScreen() {
 
 const styles = StyleSheet.create({
   container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  empty: {fontSize: 14},
-  card: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12},
-  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8},
-  cardTitle: {fontSize: 15, fontWeight: '600'},
-  cardSub: {fontSize: 12, marginTop: 4},
-  badge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
-  badgeText: {color: '#fff', fontSize: 11, fontWeight: '700'},
-  status: {fontSize: 11, fontWeight: '600'},
-  worklistSection: {paddingHorizontal: 16, paddingTop: 16},
-  worklistTitle: {fontSize: 16, fontWeight: '700', marginBottom: 8},
-  worklistCard: {marginVertical: 6, padding: 16, borderRadius: 12},
-  worklistDivider: {fontSize: 14, fontWeight: '600', marginTop: 16, marginBottom: 4},
+  card: {marginHorizontal: space[4], marginVertical: space[2]},
+  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space[2], gap: space[2]},
+  innerRow: {marginBottom: 0, borderWidth: 0, backgroundColor: 'transparent', elevation: 0, shadowOpacity: 0},
+  worklistSection: {paddingHorizontal: space[4], paddingTop: space[4]},
+  worklistCard: {marginVertical: space[2]},
+  worklistDivider: {marginTop: space[4]},
 });

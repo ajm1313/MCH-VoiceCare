@@ -1,34 +1,51 @@
 {% extends "base.html" %}
 {% load mch_tags %}
-{% block title %}CWC Sessions — MCH VoiceCare{% endblock %}
+{% block title %}CWC Sessions · MCH VoiceCare{% endblock %}
 {% block navbar_title %}CWC Sessions{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div>
-    <h1 class="text-2xl font-bold">CWC Sessions</h1>
-    <p class="text-sm text-base-content/50">Child Welfare Clinic sessions</p>
+<div class="space-y-7">
+  <div class="page-header">
+    <div class="flex-1">
+      <p class="overline">Child welfare</p>
+      <h1 class="page-title">CWC Sessions</h1>
+      <p class="page-subtitle">Child Welfare Clinic sessions.</p>
+    </div>
   </div>
 
-  <div class="overflow-x-auto card-section">
-    <table class="table table-zebra">
-      <thead><tr><th>Facility</th><th>Date</th><th>Type</th><th>Status</th><th>Expected</th><th>Attended</th></tr></thead>
-      <tbody>
-        {% for s in sessions %}
-        <tr>
-          <td class="font-medium">{{ s.facility_name }}</td>
-          <td>{{ s.session_date }}</td>
-          <td><span class="badge badge-sm">{{ s.session_type }}</span></td>
-          <td><span class="badge badge-sm {{ s.status|status_badge }}">{{ s.status }}</span></td>
-          <td>{{ s.expected_count }}</td>
-          <td>{{ s.attended_count }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="text-center text-base-content/50 py-8">No sessions found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="segmented-control">
+    <a href="{% url 'immunisation_list' %}" class="segmented-item">Children</a>
+    <a href="{% url 'cwc_session_list' %}" class="segmented-item segmented-item-active">CWC Sessions</a>
+    <a href="{% url 'defaulter_list' %}" class="segmented-item">Defaulters</a>
   </div>
+
+  <section class="card-section animate-in">
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead><tr><th class="px-5 py-3 text-left">Facility</th><th class="px-5 py-3 text-left">Date</th><th class="px-5 py-3 text-left">Type</th><th class="px-5 py-3 text-left">Status</th><th class="px-5 py-3 text-left">Expected</th><th class="px-5 py-3 text-left">Attended</th></tr></thead>
+        <tbody>
+          {% for s in sessions %}
+          <tr>
+            <td class="px-5 py-3 font-medium">{{ s.facility_name }}</td>
+            <td class="px-5 py-3 text-small text-base-content/55">{{ s.session_date }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ s.session_type }}</span></td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ s.status }}</span></td>
+            <td class="px-5 py-3">{{ s.expected_count }}</td>
+            <td class="px-5 py-3 {% if s.attended_count == s.expected_count %}text-success font-semibold{% elif s.attended_count < s.expected_count %}text-warning font-semibold{% endif %}">{{ s.attended_count }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="px-5 py-12 text-center">
+            <div class="empty-state">
+              <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+              <p class="empty-state-title">No sessions found</p>
+              <p class="empty-state-body">CWC sessions will appear here once scheduled.</p>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   {% if is_paginated %}
   <div class="flex justify-center">

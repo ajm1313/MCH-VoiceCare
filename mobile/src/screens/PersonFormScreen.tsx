@@ -6,13 +6,21 @@
  * model_training_consent, ivr_contact_consent, safe_calling_times, shared_phone_status).
  */
 import React, {useEffect, useState} from 'react';
-import {Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Alert, Pressable, StyleSheet, View} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors} from '../theme/colors';
 import {query, getDb} from '../core/db/database';
 import type {RootStackParamList} from '../core/navigation/types';
+import {
+  AppText,
+  Button,
+  Card,
+  Field,
+  Screen,
+  SectionHeader,
+} from '../components/ui';
+import {useTheme} from '../theme/useTheme';
+import {border, radius, space} from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PersonForm'>;
 
@@ -20,8 +28,7 @@ const LANGUAGES = ['ENGLISH', 'TWI', 'DAGBANI', 'FANTE', 'GA', 'EWE', 'HAUSA'];
 const SHARED_PHONE_OPTIONS = ['PERSONAL', 'SHARED', 'COMMUNITY'];
 
 export function PersonFormScreen({route, navigation}: Props) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const editing = route.params?.personId != null;
   const personId = route.params?.personId;
 
@@ -126,123 +133,214 @@ export function PersonFormScreen({route, navigation}: Props) {
     ]);
   };
 
+  const renderOption = (
+    label: string,
+    selected: boolean,
+    onPress: () => void,
+  ) => (
+    <Pressable
+      key={label}
+      onPress={onPress}
+      style={[
+        styles.option,
+        {
+          borderColor: selected ? colors.primary : colors.border,
+          backgroundColor: selected ? colors.primarySubtle : 'transparent',
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{selected}}>
+      <AppText
+        variant="body"
+        tone="inherit"
+        style={{color: selected ? colors.primaryStrong : colors.textPrimary, fontWeight: selected ? '700' : '400'}}>
+        {label}
+      </AppText>
+    </Pressable>
+  );
+
+  const renderToggle = (
+    label: string,
+    value: boolean,
+    onPress: () => void,
+  ) => (
+    <Pressable
+      style={styles.toggleRow}
+      onPress={onPress}
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityState={{checked: value}}>
+      <AppText variant="body" style={styles.toggleLabel}>{label}</AppText>
+      <AppText
+        variant="smallStrong"
+        tone="inherit"
+        style={{color: value ? colors.primary : colors.textSecondary}}>
+        {value ? 'YES' : 'NO'}
+      </AppText>
+    </Pressable>
+  );
+
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={[styles.back, {color: colors.primary}]}>‹ Back</Text>
-        </Pressable>
-        <Text style={[styles.title, {color: colors.textPrimary}]}>{editing ? 'Edit Person' : 'New Person'}</Text>
+    <Screen scroll>
+      <View style={styles.backRow}>
+        <Button
+          label="Back"
+          variant="ghost"
+          icon="chevronLeft"
+          onPress={() => navigation.goBack()}
+        />
+        <AppText variant="h2">{editing ? 'Edit Person' : 'New Person'}</AppText>
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Demographics */}
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Demographics</Text>
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Full Name *</Text>
-          <TextInput style={[styles.input, {borderColor: colors.border, color: colors.textPrimary}]} value={fullName} onChangeText={setFullName} placeholder="Full name" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Date of Birth</Text>
-          <TextInput style={[styles.input, {borderColor: colors.border, color: colors.textPrimary}]} value={dob} onChangeText={setDob} placeholder="YYYY-MM-DD" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Sex</Text>
-          {['FEMALE', 'MALE', 'OTHER'].map(g => (
-            <Pressable key={g} onPress={() => setSex(g)} style={[styles.option, sex === g && {borderColor: colors.primary}]}>
-              <Text style={{color: sex === g ? colors.primary : colors.textPrimary, fontSize: 14, fontWeight: sex === g ? '700' : '400'}}>{g}</Text>
-            </Pressable>
-          ))}
-          <Text style={[styles.label, {color: colors.textSecondary}]}>National ID</Text>
-          <TextInput style={[styles.input, {borderColor: colors.border, color: colors.textPrimary}]} value={nationalId} onChangeText={setNationalId} placeholder="Ghana Card / NHIS" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Phone</Text>
-          <TextInput style={[styles.input, {borderColor: colors.border, color: colors.textPrimary}]} value={phone} onChangeText={setPhone} placeholder="Phone number" keyboardType="phone-pad" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Alternate Phone</Text>
-          <TextInput style={[styles.input, {borderColor: colors.border, color: colors.textPrimary}]} value={altPhone} onChangeText={setAltPhone} placeholder="Alternate phone" keyboardType="phone-pad" />
-        </View>
 
-        {/* Address */}
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Address</Text>
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Address</Text>
-          <TextInput style={[styles.input, {borderColor: colors.border, color: colors.textPrimary}]} value={address} onChangeText={setAddress} placeholder="Street / house address" multiline />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Community</Text>
-          <TextInput style={[styles.input, {borderColor: colors.border, color: colors.textPrimary}]} value={community} onChangeText={setCommunity} placeholder="Community name" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Landmark</Text>
-          <TextInput style={[styles.input, {borderColor: colors.border, color: colors.textPrimary}]} value={landmark} onChangeText={setLandmark} placeholder="Landmark description" multiline />
-        </View>
+      {/* Demographics */}
+      <Card style={styles.card}>
+        <SectionHeader title="Demographics" />
+        <Field
+          label="Full Name"
+          required
+          value={fullName}
+          onChangeText={setFullName}
+          placeholder="Full name"
+          icon="user"
+        />
+        <Field
+          label="Date of Birth"
+          value={dob}
+          onChangeText={setDob}
+          placeholder="YYYY-MM-DD"
+          icon="calendar"
+        />
+        <AppText variant="smallStrong" tone="secondary" style={styles.optionLabel}>Sex</AppText>
+        {['FEMALE', 'MALE', 'OTHER'].map(g => (
+          <View key={g}>
+            {renderOption(g, sex === g, () => setSex(g))}
+          </View>
+        ))}
+        <Field
+          label="National ID"
+          value={nationalId}
+          onChangeText={setNationalId}
+          placeholder="Ghana Card / NHIS"
+          icon="clipboard"
+        />
+        <Field
+          label="Phone"
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="Phone number"
+          keyboardType="phone-pad"
+          icon="phone"
+        />
+        <Field
+          label="Alternate Phone"
+          value={altPhone}
+          onChangeText={setAltPhone}
+          placeholder="Alternate phone"
+          keyboardType="phone-pad"
+          icon="phone"
+        />
+      </Card>
 
-        {/* Language */}
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Language</Text>
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Preferred Language</Text>
-          {LANGUAGES.map(lang => (
-            <Pressable key={lang} onPress={() => setPreferredLanguage(lang)} style={[styles.option, preferredLanguage === lang && {borderColor: colors.primary}]}>
-              <Text style={{color: preferredLanguage === lang ? colors.primary : colors.textPrimary, fontSize: 14, fontWeight: preferredLanguage === lang ? '700' : '400'}}>{lang}</Text>
-            </Pressable>
-          ))}
-        </View>
+      {/* Address */}
+      <Card style={styles.card}>
+        <SectionHeader title="Address" />
+        <Field
+          label="Address"
+          value={address}
+          onChangeText={setAddress}
+          placeholder="Street / house address"
+          multiline
+          icon="mapPin"
+        />
+        <Field
+          label="Community"
+          value={community}
+          onChangeText={setCommunity}
+          placeholder="Community name"
+        />
+        <Field
+          label="Landmark"
+          value={landmark}
+          onChangeText={setLandmark}
+          placeholder="Landmark description"
+          multiline
+        />
+      </Card>
 
-        {/* Consent (spec §26) */}
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Consent & Privacy (§26)</Text>
-          <Pressable style={styles.toggleRow} onPress={() => setCareConsent(!careConsent)}>
-            <Text style={{color: colors.textPrimary, fontSize: 14, flex: 1}}>Care consent</Text>
-            <Text style={{color: careConsent ? colors.primary : colors.textSecondary, fontWeight: '700'}}>{careConsent ? 'YES' : 'NO'}</Text>
-          </Pressable>
-          <Pressable style={styles.toggleRow} onPress={() => setModelTrainingConsent(!modelTrainingConsent)}>
-            <Text style={{color: colors.textPrimary, fontSize: 14, flex: 1}}>Model training / research consent</Text>
-            <Text style={{color: modelTrainingConsent ? colors.primary : colors.textSecondary, fontWeight: '700'}}>{modelTrainingConsent ? 'YES' : 'NO'}</Text>
-          </Pressable>
-          <Pressable style={styles.toggleRow} onPress={() => setCommunicationOptOut(!communicationOptOut)}>
-            <Text style={{color: colors.textPrimary, fontSize: 14, flex: 1}}>Communication opt-out</Text>
-            <Text style={{color: communicationOptOut ? colors.primary : colors.textSecondary, fontWeight: '700'}}>{communicationOptOut ? 'YES' : 'NO'}</Text>
-          </Pressable>
-        </View>
+      {/* Language */}
+      <Card style={styles.card}>
+        <SectionHeader title="Language" />
+        <AppText variant="smallStrong" tone="secondary" style={styles.optionLabel}>Preferred Language</AppText>
+        {LANGUAGES.map(lang => (
+          <View key={lang}>
+            {renderOption(lang, preferredLanguage === lang, () => setPreferredLanguage(lang))}
+          </View>
+        ))}
+      </Card>
 
-        {/* Telephony contact preferences (spec §26) */}
-        <View style={[styles.card, {backgroundColor: colors.surface}]}>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Contact Preferences (§26)</Text>
-          <Pressable style={styles.toggleRow} onPress={() => setIvrContactConsent(!ivrContactConsent)}>
-            <Text style={{color: colors.textPrimary, fontSize: 14, flex: 1}}>IVR/DTMF contact consent</Text>
-            <Text style={{color: ivrContactConsent ? colors.primary : colors.textSecondary, fontWeight: '700'}}>{ivrContactConsent ? 'YES' : 'NO'}</Text>
-          </Pressable>
-          <Pressable style={styles.toggleRow} onPress={() => setUssdContactConsent(!ussdContactConsent)}>
-            <Text style={{color: colors.textPrimary, fontSize: 14, flex: 1}}>USSD contact consent</Text>
-            <Text style={{color: ussdContactConsent ? colors.primary : colors.textSecondary, fontWeight: '700'}}>{ussdContactConsent ? 'YES' : 'NO'}</Text>
-          </Pressable>
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Safe calling times</Text>
-          <TextInput style={[styles.input, {borderColor: colors.border, color: colors.textPrimary}]} value={safeCallingTimes} onChangeText={setSafeCallingTimes} placeholder="e.g. Mon-Fri 9am-4pm" />
-          <Text style={[styles.label, {color: colors.textSecondary}]}>Shared phone status</Text>
-          {SHARED_PHONE_OPTIONS.map(opt => (
-            <Pressable key={opt} onPress={() => setSharedPhoneStatus(opt)} style={[styles.option, sharedPhoneStatus === opt && {borderColor: colors.primary}]}>
-              <Text style={{color: sharedPhoneStatus === opt ? colors.primary : colors.textPrimary, fontSize: 14, fontWeight: sharedPhoneStatus === opt ? '700' : '400'}}>{opt}</Text>
-            </Pressable>
-          ))}
-        </View>
+      {/* Consent (spec §26) */}
+      <Card style={styles.card}>
+        <SectionHeader title="Consent & Privacy" overline="§26" />
+        {renderToggle('Care consent', careConsent, () => setCareConsent(!careConsent))}
+        {renderToggle('Model training / research consent', modelTrainingConsent, () => setModelTrainingConsent(!modelTrainingConsent))}
+        {renderToggle('Communication opt-out', communicationOptOut, () => setCommunicationOptOut(!communicationOptOut))}
+      </Card>
 
-        <Pressable style={[styles.saveButton, {backgroundColor: colors.primary}]} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>{editing ? 'Update' : 'Create'}</Text>
-        </Pressable>
-        {editing && (
-          <Pressable style={[styles.deleteButton, {borderColor: '#EF4444'}]} onPress={handleDelete}>
-            <Text style={[styles.deleteButtonText, {color: '#EF4444'}]}>Delete</Text>
-          </Pressable>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+      {/* Telephony contact preferences (spec §26) */}
+      <Card style={styles.card}>
+        <SectionHeader title="Contact Preferences" overline="§26" />
+        {renderToggle('IVR/DTMF contact consent', ivrContactConsent, () => setIvrContactConsent(!ivrContactConsent))}
+        {renderToggle('USSD contact consent', ussdContactConsent, () => setUssdContactConsent(!ussdContactConsent))}
+        <Field
+          label="Safe calling times"
+          value={safeCallingTimes}
+          onChangeText={setSafeCallingTimes}
+          placeholder="e.g. Mon-Fri 9am-4pm"
+          icon="clock"
+        />
+        <AppText variant="smallStrong" tone="secondary" style={styles.optionLabel}>Shared phone status</AppText>
+        {SHARED_PHONE_OPTIONS.map(opt => (
+          <View key={opt}>
+            {renderOption(opt, sharedPhoneStatus === opt, () => setSharedPhoneStatus(opt))}
+          </View>
+        ))}
+      </Card>
+
+      <Button
+        label={editing ? 'Update' : 'Create'}
+        icon="check"
+        fullWidth
+        onPress={handleSave}
+        style={styles.saveButton}
+      />
+      {editing && (
+        <Button
+          label="Delete"
+          variant="danger"
+          icon="trash"
+          fullWidth
+          onPress={handleDelete}
+          style={styles.deleteButton}
+        />
+      )}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  header: {flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12},
-  back: {fontSize: 16},
-  title: {fontSize: 18, fontWeight: '700'},
-  content: {padding: 16, gap: 12},
-  card: {borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', gap: 8},
-  sectionTitle: {fontSize: 16, fontWeight: '700', marginBottom: 4},
-  label: {fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginTop: 8},
-  input: {borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 14, minHeight: 48},
-  option: {paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1, marginTop: 4},
-  toggleRow: {flexDirection: 'row', alignItems: 'center', paddingVertical: 8},
-  saveButton: {padding: 14, borderRadius: 12, alignItems: 'center'},
-  saveButtonText: {color: '#fff', fontWeight: '700', fontSize: 15},
-  deleteButton: {padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1},
-  deleteButtonText: {fontWeight: '700', fontSize: 15},
+  backRow: {flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[3]},
+  card: {marginBottom: space[3]},
+  optionLabel: {marginBottom: space[1], marginTop: space[2]},
+  option: {
+    paddingVertical: space[3],
+    paddingHorizontal: space[4],
+    borderRadius: radius.md,
+    borderWidth: border.thick,
+    marginTop: space[1],
+  },
+  toggleRow: {flexDirection: 'row', alignItems: 'center', paddingVertical: space[2]},
+  toggleLabel: {flex: 1},
+  saveButton: {marginTop: space[2]},
+  deleteButton: {marginTop: space[3], marginBottom: space[4]},
 });

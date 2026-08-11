@@ -3,24 +3,25 @@
  * MCHVC-SPEC-001 v1.1 §15-21. Offline-first (DEC-007).
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
+import {FlatList, RefreshControl, StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
 import {query} from '../core/db/database';
 import {SearchBar, FilterChips} from '../components/SearchFilter';
 import {BottomTabBar} from '../components/BottomTabBar';
 import type {RootStackParamList} from '../core/navigation/types';
+import {
+  Screen,
+  Card,
+  Button,
+  AppText,
+  UrgencyBadge,
+  EmptyState,
+  LoadingState,
+} from '../components/ui';
+import {useTheme} from '../theme/useTheme';
+import {space} from '../theme/tokens';
 
 type NewbornRow = {
   id: string;
@@ -35,8 +36,7 @@ type NewbornRow = {
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function NewbornListScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
 
   const [rows, setRows] = useState<NewbornRow[]>([]);
@@ -74,16 +74,6 @@ export function NewbornListScreen() {
     loadData();
   }, [loadData]);
 
-  const urgencyColor = (cls: string) => {
-    switch (cls) {
-      case 'RED': return urgency.RED;
-      case 'ORANGE': return urgency.ORANGE;
-      case 'AMBER': return urgency.AMBER;
-      case 'GREEN': return urgency.GREEN;
-      default: return urgency.GREY;
-    }
-  };
-
   const filtered = rows.filter(r => {
     const matchesSearch = !search ||
       r.child_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -94,85 +84,92 @@ export function NewbornListScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, {backgroundColor: colors.background}]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <Screen padded={false}>
+        <LoadingState />
+      </Screen>
     );
   }
 
   return (
-    <>
-      <View style={[styles.header, {backgroundColor: colors.surface}]}>
-        <Text style={[styles.headerTitle, {color: colors.textPrimary}]}>Newborns</Text>
-        <Pressable
+    <Screen padded={false}>
+      <View style={styles.header}>
+        <AppText variant="h2">Newborns</AppText>
+        <Button
+          label="Register"
           onPress={() => navigation.navigate('NewbornRegister')}
-          style={[styles.registerBtn, {backgroundColor: colors.primary}]}>
-          <Text style={styles.registerBtnText}>+ Register</Text>
-        </Pressable>
+          size="sm"
+          icon="plus"
+        />
       </View>
       <SearchBar value={search} onChange={setSearch} placeholder="Search child or mother..." />
       <FilterChips options={['RED', 'ORANGE', 'AMBER', 'GREEN']} selected={filter} onSelect={setFilter} />
       <FlatList
-      style={[styles.container, {backgroundColor: colors.background}]}
-      data={filtered}
-      keyExtractor={item => item.id}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => {
-            setRefreshing(true);
-            loadData();
-          }}
-          colors={[colors.primary]}
-        />
-      }
-      ListEmptyComponent={
-        <View style={styles.center}>
-          <Text style={[styles.empty, {color: colors.textSecondary}]}>
-            No active newborn episodes
-          </Text>
-        </View>
-      }
-      renderItem={({item}) => (
-        <Pressable
-          onPress={() => navigation.navigate('NewbornDetail', {episodeId: item.id})}
-          style={[styles.card, {backgroundColor: colors.surface, borderLeftColor: urgencyColor(item.minimum_class)}]}>
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>
-              {item.child_name}
-            </Text>
-            <View style={[styles.badge, {backgroundColor: urgencyColor(item.minimum_class)}]}>
-              <Text style={styles.badgeText}>{item.minimum_class}</Text>
+        style={styles.list}
+        data={filtered}
+        keyExtractor={item => item.id}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadData();
+            }}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+        ListEmptyComponent={
+          <EmptyState
+            icon="baby"
+            title="No active newborn episodes"
+            message="Register a newborn to begin tracking their care."
+          />
+        }
+        renderItem={({item}) => (
+          <Card
+            onPress={() => navigation.navigate('NewbornDetail', {episodeId: item.id})}
+            style={styles.card}>
+            <View style={styles.cardHeader}>
+              <AppText variant="bodyStrong" numberOfLines={1} style={styles.cardTitle}>
+                {item.child_name}
+              </AppText>
+              <UrgencyBadge value={item.minimum_class} size="sm" />
             </View>
-          </View>
-          <Text style={[styles.cardSub, {color: colors.textSecondary}]}>
-            Mother: {item.mother_name}
-          </Text>
-          <Text style={[styles.cardMeta, {color: colors.textSecondary}]}>
-            {item.birth_weight_g ? `${item.birth_weight_g}g` : 'Weight unknown'}
-            {item.age_hours != null ? `  ·  ${item.age_hours}h old` : ''}
-          </Text>
-        </Pressable>
-      )}
+            <AppText variant="small" tone="secondary" style={styles.cardSub}>
+              Mother: {item.mother_name}
+            </AppText>
+            <AppText variant="caption" tone="tertiary" style={styles.cardMeta}>
+              {item.birth_weight_g ? `${item.birth_weight_g}g` : 'Weight unknown'}
+              {item.age_hours != null ? `  ·  ${item.age_hours}h old` : ''}
+            </AppText>
+          </Card>
+        )}
       />
       <BottomTabBar activeRoute="NewbornList" />
-    </>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  empty: {fontSize: 14},
-  header: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12},
-  headerTitle: {fontSize: 20, fontWeight: '700'},
-  registerBtn: {paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8},
-  registerBtnText: {color: '#fff', fontSize: 14, fontWeight: '600'},
-  card: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#ccc'},
-  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  cardTitle: {fontSize: 16, fontWeight: '700'},
-  cardSub: {fontSize: 13, marginTop: 4},
-  cardMeta: {fontSize: 12, marginTop: 2},
-  badge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
-  badgeText: {color: '#fff', fontSize: 11, fontWeight: '700'},
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+  },
+  list: {flex: 1},
+  card: {
+    marginHorizontal: space[4],
+    marginVertical: space[2],
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: space[2],
+  },
+  cardTitle: {flex: 1},
+  cardSub: {marginTop: space[1]},
+  cardMeta: {marginTop: space[1]},
 });

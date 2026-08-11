@@ -1,24 +1,34 @@
 {% extends "base.html" %}
-{% block title %}System Configuration{% endblock %}
+{% block title %}System Configuration · MCH VoiceCare{% endblock %}
 {% block navbar_title %}System Configuration{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'dashboard' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'dashboard' %}" class="btn-back" aria-label="Back to dashboard">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">System Configuration</h1>
+    <div class="flex-1">
+      <p class="overline">Administration</p>
+      <h1 class="page-title">System Configuration</h1>
+      <p class="page-subtitle">Clinical ML mode, feature flags, sync, referral, and scan retention settings.</p>
+    </div>
   </div>
 
   {% if can_manage %}
-  <form method="post" action="{% url 'config_update_web' %}" class="space-y-4">
+  <form method="post" action="{% url 'config_update_web' %}" class="space-y-5">
     {% csrf_token %}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="card-section">
-        <div class="card-body">
-          <h2 class="card-title">Clinical ML Mode</h2>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+      {# ── Clinical ML Mode ── #}
+      <section class="card-section animate-in">
+        <div class="panel-header">
+          <h2 class="text-base font-semibold tracking-tight">Clinical ML Mode</h2>
+          <span class="pill pill-info">Spec §3.2</span>
+        </div>
+        <div class="card-body space-y-4">
           <div class="form-field">
             <label for="clinical_ml_mode">ML Mode</label>
             <select name="clinical_ml_mode" class="select select-bordered select-sm" id="clinical_ml_mode">
@@ -26,103 +36,117 @@
               <option value="{{ value }}" {% if config.clinical_ml_mode == value %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
             </select>
+            <p class="form-help">RULES_ONLY is the safe default. ASSISTED requires governance approval.</p>
           </div>
           <div class="form-field">
             <label for="active_rule_bundle_version">Active Rule Bundle Version</label>
-            <input type="text" name="active_rule_bundle_version" value="{{ config.active_rule_bundle_version }}" class="input input-bordered input-sm" id="active_rule_bundle_version">
+            <input type="text" name="active_rule_bundle_version" value="{{ config.active_rule_bundle_version }}" class="input input-bordered input-sm font-mono" id="active_rule_bundle_version">
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="card-section">
-        <div class="card-body">
-          <h2 class="card-title">Feature Flags</h2>
-          <div class="space-y-2">
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" name="engagement_model_enabled" {% if config.engagement_model_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
-              <span class="text-sm">Engagement Model</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" name="ocr_enabled" {% if config.ocr_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
-              <span class="text-sm">OCR</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" name="ivr_dtmf_enabled" {% if config.ivr_dtmf_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
-              <span class="text-sm">IVR / DTMF</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" name="ussd_enabled" {% if config.ussd_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
-              <span class="text-sm">USSD</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" name="speech_capture_enabled" {% if config.speech_capture_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary" disabled>
-              <span class="text-sm text-base-content/50">Speech Capture (disabled in v1)</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" name="remote_emergency_cascade_enabled" {% if config.remote_emergency_cascade_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
-              <span class="text-sm">Remote Emergency Cascade</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" name="print_referral_slip_enabled" {% if config.print_referral_slip_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
-              <span class="text-sm">Print Referral Slip</span>
-            </label>
-          </div>
+      {# ── Feature Flags ── #}
+      <section class="card-section animate-in stagger-1">
+        <div class="panel-header">
+          <h2 class="text-base font-semibold tracking-tight">Feature Flags</h2>
         </div>
-      </div>
+        <div class="card-body space-y-3">
+          <label class="flag-row">
+            <input type="checkbox" name="engagement_model_enabled" {% if config.engagement_model_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
+            <span class="flag-label">Engagement Model</span>
+          </label>
+          <label class="flag-row">
+            <input type="checkbox" name="ocr_enabled" {% if config.ocr_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
+            <span class="flag-label">OCR</span>
+          </label>
+          <label class="flag-row">
+            <input type="checkbox" name="ivr_dtmf_enabled" {% if config.ivr_dtmf_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
+            <span class="flag-label">IVR / DTMF</span>
+          </label>
+          <label class="flag-row">
+            <input type="checkbox" name="ussd_enabled" {% if config.ussd_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
+            <span class="flag-label">USSD</span>
+          </label>
+          <label class="flag-row">
+            <input type="checkbox" name="speech_capture_enabled" {% if config.speech_capture_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary" disabled>
+            <span class="flag-label text-base-content/50">Speech Capture (disabled in v1)</span>
+          </label>
+          <label class="flag-row">
+            <input type="checkbox" name="remote_emergency_cascade_enabled" {% if config.remote_emergency_cascade_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
+            <span class="flag-label">Remote Emergency Cascade</span>
+          </label>
+          <label class="flag-row">
+            <input type="checkbox" name="print_referral_slip_enabled" {% if config.print_referral_slip_enabled %}checked{% endif %} class="toggle toggle-sm toggle-primary">
+            <span class="flag-label">Print Referral Slip</span>
+          </label>
+        </div>
+      </section>
 
-      <div class="card-section">
-        <div class="card-body">
-          <h2 class="card-title">Sync Settings</h2>
-          <div class="space-y-3">
-            <div class="form-field">
-              <label for="sync_batch_size">Batch Size</label>
-              <input type="number" name="sync_batch_size" value="{{ config.sync_batch_size }}" class="input input-bordered input-sm" id="sync_batch_size">
-            </div>
-            <div class="form-field">
-              <label for="sync_retry_max">Retry Max</label>
-              <input type="number" name="sync_retry_max" value="{{ config.sync_retry_max }}" class="input input-bordered input-sm" id="sync_retry_max">
-            </div>
-            <div class="form-field">
-              <label for="sync_retry_backoff_base_seconds">Retry Backoff Base (seconds)</label>
-              <input type="number" name="sync_retry_backoff_base_seconds" value="{{ config.sync_retry_backoff_base_seconds }}" class="input input-bordered input-sm" id="sync_retry_backoff_base_seconds">
-            </div>
+      {# ── Sync ── #}
+      <section class="card-section animate-in stagger-2">
+        <div class="panel-header">
+          <h2 class="text-base font-semibold tracking-tight">Sync Settings</h2>
+        </div>
+        <div class="card-body space-y-4">
+          <div class="form-field">
+            <label for="sync_batch_size">Batch Size</label>
+            <input type="number" name="sync_batch_size" value="{{ config.sync_batch_size }}" class="input input-bordered input-sm" id="sync_batch_size">
+          </div>
+          <div class="form-field">
+            <label for="sync_retry_max">Retry Max</label>
+            <input type="number" name="sync_retry_max" value="{{ config.sync_retry_max }}" class="input input-bordered input-sm" id="sync_retry_max">
+          </div>
+          <div class="form-field">
+            <label for="sync_retry_backoff_base_seconds">Retry Backoff Base (seconds)</label>
+            <input type="number" name="sync_retry_backoff_base_seconds" value="{{ config.sync_retry_backoff_base_seconds }}" class="input input-bordered input-sm" id="sync_retry_backoff_base_seconds">
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="card-section">
-        <div class="card-body">
-          <h2 class="card-title">Referral & Scan Settings</h2>
-          <div class="space-y-3">
-            <div class="form-field">
-              <label for="referral_ack_timeout_minutes">Referral Ack Timeout (minutes)</label>
-              <input type="number" name="referral_ack_timeout_minutes" value="{{ config.referral_ack_timeout_minutes }}" class="input input-bordered input-sm" id="referral_ack_timeout_minutes">
-            </div>
-            <div class="form-field">
-              <label for="referral_escalation_timeout_minutes">Referral Escalation Timeout (minutes)</label>
-              <input type="number" name="referral_escalation_timeout_minutes" value="{{ config.referral_escalation_timeout_minutes }}" class="input input-bordered input-sm" id="referral_escalation_timeout_minutes">
-            </div>
-            <div class="form-field">
-              <label for="scan_retention_mode">Scan Retention Mode</label>
-              <input type="text" name="scan_retention_mode" value="{{ config.scan_retention_mode }}" class="input input-bordered input-sm" id="scan_retention_mode">
-            </div>
-            <div class="form-field">
-              <label for="scan_temporary_retention_hours">Scan Temporary Retention (hours)</label>
-              <input type="number" name="scan_temporary_retention_hours" value="{{ config.scan_temporary_retention_hours }}" class="input input-bordered input-sm" id="scan_temporary_retention_hours">
-            </div>
+      {# ── Referral & Scan ── #}
+      <section class="card-section animate-in stagger-3">
+        <div class="panel-header">
+          <h2 class="text-base font-semibold tracking-tight">Referral &amp; Scan Settings</h2>
+        </div>
+        <div class="card-body space-y-4">
+          <div class="form-field">
+            <label for="referral_ack_timeout_minutes">Referral Ack Timeout (minutes)</label>
+            <input type="number" name="referral_ack_timeout_minutes" value="{{ config.referral_ack_timeout_minutes }}" class="input input-bordered input-sm" id="referral_ack_timeout_minutes">
+          </div>
+          <div class="form-field">
+            <label for="referral_escalation_timeout_minutes">Referral Escalation Timeout (minutes)</label>
+            <input type="number" name="referral_escalation_timeout_minutes" value="{{ config.referral_escalation_timeout_minutes }}" class="input input-bordered input-sm" id="referral_escalation_timeout_minutes">
+          </div>
+          <div class="form-field">
+            <label for="scan_retention_mode">Scan Retention Mode</label>
+            <input type="text" name="scan_retention_mode" value="{{ config.scan_retention_mode }}" class="input input-bordered input-sm font-mono" id="scan_retention_mode">
+            <p class="form-help">LEGAL_RECORD disables all purge jobs (spec §25).</p>
+          </div>
+          <div class="form-field">
+            <label for="scan_temporary_retention_hours">Scan Temporary Retention (hours)</label>
+            <input type="number" name="scan_temporary_retention_hours" value="{{ config.scan_temporary_retention_hours }}" class="input input-bordered input-sm" id="scan_temporary_retention_hours">
           </div>
         </div>
-      </div>
+      </section>
     </div>
 
-    <button type="submit" class="btn btn-primary">Save Configuration</button>
+    <div class="flex justify-end gap-2 pt-2">
+      <a href="{% url 'dashboard' %}" class="btn btn-ghost">Cancel</a>
+      <button type="submit" class="btn btn-primary gap-2 shadow-card">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+        Save Configuration
+      </button>
+    </div>
   </form>
   {% else %}
-  <div class="card-section">
+  <section class="card-section">
     <div class="card-body">
-      <p class="text-base-content/50">You do not have permission to manage system configuration.</p>
+      <div class="alert alert-warning border border-warning/30">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+        <span class="text-small">You do not have permission to manage system configuration.</span>
+      </div>
     </div>
-  </div>
+  </section>
   {% endif %}
 </div>
 {% endblock %}

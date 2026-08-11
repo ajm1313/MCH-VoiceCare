@@ -1,46 +1,57 @@
 {% extends "base.html" %}
-{% block title %}Users{% endblock %}
+{% block title %}Users · MCH VoiceCare{% endblock %}
 {% block navbar_title %}User Management{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center gap-3">
-    <a href="{% url 'dashboard' %}" class="btn btn-ghost btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'dashboard' %}" class="btn-back" aria-label="Back to dashboard">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
       Back
     </a>
-    <h1 class="text-2xl font-bold">Users</h1>
+    <div class="flex-1">
+      <p class="overline">Administration</p>
+      <h1 class="page-title">Users</h1>
+    </div>
     {% if can_manage %}
-    <a href="{% url 'user_create' %}" class="btn btn-primary btn-sm">Create User</a>
+    <a href="{% url 'user_create' %}" class="btn btn-primary btn-sm gap-2 shadow-card">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      Create User
+    </a>
     {% endif %}
   </div>
 
-  <div class="card-section">
-    <div class="card-body">
-      <form method="get" class="mb-4">
-        <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Search users..." class="input input-bordered input-sm w-full max-w-xs">
-        <button type="submit" class="btn btn-ghost btn-sm">Search</button>
-      </form>
-      <div class="overflow-x-auto">
-        <table class="table table-sm">
-          <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Org Unit</th><th>Active</th><th></th></tr></thead>
-          <tbody>
-            {% for u in users %}
-            <tr>
-              <td>{{ u.username }}</td>
-              <td>{{ u.full_name|default:"—" }}</td>
-              <td><span class="badge badge-sm">{{ u.get_system_role_display }}</span></td>
-              <td>{{ u.organisation_unit|default:"—" }}</td>
-              <td>{% if u.is_active %}<span class="badge badge-success badge-sm">Yes</span>{% else %}<span class="badge badge-error badge-sm">No</span>{% endif %}</td>
-              <td><a href="{% url 'user_detail' u.pk %}" class="btn btn-ghost btn-xs">View</a></td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6" class="text-center text-base-content/50 py-4">No users found.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+  <form method="get" class="search-bar">
+    <span class="search-bar-icon">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
+    </span>
+    <input type="text" name="q" value="{{ request.GET.q }}" class="search-bar-input" placeholder="Search users…">
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+  </form>
+
+  <section class="card-section animate-in">
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead><tr><th class="px-5 py-3 text-left">Username</th><th class="px-5 py-3 text-left">Full Name</th><th class="px-5 py-3 text-left">Role</th><th class="px-5 py-3 text-left">Org Unit</th><th class="px-5 py-3 text-left">Active</th><th class="px-5 py-3"></th></tr></thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td class="px-5 py-3 font-medium">{{ u.username }}</td>
+            <td class="px-5 py-3 text-base-content/70">{{ u.full_name|default:"—" }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ u.get_system_role_display }}</span></td>
+            <td class="px-5 py-3 text-base-content/70">{{ u.organisation_unit|default:"—" }}</td>
+            <td class="px-5 py-3">{% if u.is_active %}<span class="pill pill-success">Yes</span>{% else %}<span class="pill pill-error">No</span>{% endif %}</td>
+            <td class="px-5 py-3 text-right"><a href="{% url 'user_detail' u.pk %}" class="btn btn-ghost btn-xs gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+              View
+            </a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="px-5 py-12 text-center text-base-content/40">No users found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </div>
+  </section>
 </div>
 {% endblock %}

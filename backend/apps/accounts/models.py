@@ -122,6 +122,7 @@ class Device(TimeStampedModel):
     )
     public_key = models.TextField(blank=True, verbose_name="Public Key")
     minimum_app_version = models.CharField(max_length=50, blank=True)
+    fcm_token = models.CharField(max_length=500, blank=True, default="", verbose_name="FCM Token")
     is_revoked = models.BooleanField(default=False)
     revoked_at = models.DateTimeField(null=True, blank=True)
     last_seen_at = models.DateTimeField(null=True, blank=True)

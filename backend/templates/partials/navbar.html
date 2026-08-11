@@ -1,38 +1,59 @@
+{% load static %}
 <!-- Top navbar -->
-<header class="navbar bg-base-100 border-b border-base-300 px-6">
-  <div class="flex-1">
-    <h2 class="text-lg font-semibold">{% block navbar_title %}{% endblock %}</h2>
+<header class="navbar bg-base-100/80 backdrop-blur-sm border-b border-base-300 px-6 sticky top-0 z-30 no-print">
+  <div class="flex-1 min-w-0">
+    <h2 class="text-lg font-semibold tracking-tight truncate">
+      {% block navbar_title %}{% endblock %}
+    </h2>
   </div>
-  <div class="flex-none gap-2">
-    <label class="swap swap-rotate btn btn-ghost btn-circle btn-sm">
+
+  <div class="flex-none gap-1.5">
+    {# Quick links — visible only on wider screens. #}
+    <a href="{% url 'referral_list' %}"
+       class="btn btn-ghost btn-sm gap-2 hidden md:inline-flex text-base-content/65 hover:text-base-content">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
+      <span>Referrals</span>
+    </a>
+    <a href="{% url 'notification_list' %}"
+       class="btn btn-ghost btn-sm btn-circle text-base-content/65 hover:text-base-content"
+       aria-label="Notifications">
+      <span class="relative">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></svg>
+      </span>
+    </a>
+
+    <div class="divider divider-horizontal mx-1 h-6"></div>
+
+    {# Theme toggle #}
+    <label class="swap swap-rotate btn btn-ghost btn-circle btn-sm" title="Toggle theme" aria-label="Toggle light/dark theme">
       <input type="checkbox" class="theme-controller" value="dark" id="theme-toggle" />
       <svg class="swap-on fill-current w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.64 17.64A9 9 0 0 1 17.64 5.64 9 9 0 1 0 5.64 17.64Z"/></svg>
       <svg class="swap-off fill-current w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.592-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.757 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z"/></svg>
     </label>
   </div>
 </header>
+
 <script>
-(function() {
+(function () {
   function updateLogos() {
     var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    var lightLogos = document.querySelectorAll('.logo-light');
-    var darkLogos = document.querySelectorAll('.logo-dark');
-    lightLogos.forEach(function(el) { el.classList.toggle('hidden', isDark); });
-    darkLogos.forEach(function(el) { el.classList.toggle('hidden', !isDark); });
+    document.querySelectorAll('.logo-light').forEach(function (el) { el.classList.toggle('hidden', isDark); });
+    document.querySelectorAll('.logo-dark').forEach(function (el) { el.classList.toggle('hidden', !isDark); });
   }
   var toggle = document.getElementById('theme-toggle');
   if (toggle) {
-    toggle.addEventListener('change', function() {
+    toggle.addEventListener('change', function () {
       var isDark = this.checked;
       document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'mchvoicecare');
-      try { localStorage.setItem('theme', isDark ? 'dark' : 'mchvoicecare'); } catch(e) {}
+      try { localStorage.setItem('theme', isDark ? 'dark' : 'mchvoicecare'); } catch (e) {}
       updateLogos();
+      if (window.mchUpdateLogos) window.mchUpdateLogos();
     });
   }
   var saved = null;
-  try { saved = localStorage.getItem('theme'); } catch(e) {}
-  if (saved === 'dark') {
-    if (toggle) toggle.checked = true;
+  try { saved = localStorage.getItem('theme'); } catch (e) {}
+  if (saved === 'dark' && toggle) {
+    toggle.checked = true;
     document.documentElement.setAttribute('data-theme', 'dark');
   }
   updateLogos();

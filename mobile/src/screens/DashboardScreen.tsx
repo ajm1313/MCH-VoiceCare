@@ -5,15 +5,17 @@
  * All clinical modules are accessible from the dashboard:
  * Pregnancy, Newborn, Immunisation, Growth, Referrals, OCR, Voice,
  * plus support tools and admin modules.
+ *
+ * UX-003: restyled with the shared design system primitives and SVG
+ * icons. Clinical behaviour, queries, navigation targets and
+ * accessibility labels are unchanged.
  */
 import React, {useEffect, useState} from 'react';
 import {
   Alert,
   FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -23,24 +25,58 @@ import {useAuthStore} from '../core/auth/authStore';
 import {useIsAdmin, useIsSuperAdmin} from '../core/auth/useIsAdmin';
 import {getQueueDepth} from '../core/sync/outbox';
 import {subscribeToSyncDepth, syncFull} from '../core/sync/engine';
-import {brand, urgency, lightColors} from '../theme/colors';
+import {brand, urgency} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
+import {border, radius, space, elevation, pressedStyle, MIN_TOUCH} from '../theme/tokens';
 import {checkRulePackageStatus} from '../core/rules/rulePackage';
 import {query} from '../core/db/database';
 import {getCachedDashboard} from '../core/sync/dashboardSync';
 import {BottomTabBar} from '../components/BottomTabBar';
+import {Icon, type IconName} from '../components/ui/Icon';
+import {AppText} from '../components/ui/Text';
+import {UrgencyBadge} from '../components/ui/Badge';
+import {StatCard, SectionHeader, ListRow} from '../components/ui/Layout';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
 
+type NavTarget =
+  | 'TaskList'
+  | 'SyncStatus'
+  | 'PregnancyList'
+  | 'NewbornList'
+  | 'ImmunisationList'
+  | 'GrowthList'
+  | 'DefaulterList'
+  | 'CWCSession'
+  | 'ReferralList'
+  | 'PersonList'
+  | 'AuditList';
+
 interface UrgencyCard {
-  key: string;
+  key: 'RED' | 'ORANGE' | 'AMBER' | 'GREY';
   label: string;
-  color: string;
   description: string;
   count: number;
 }
 
+interface ModuleEntry {
+  label: string;
+  desc: string;
+  target: NavTarget;
+  icon: IconName;
+}
+
+interface CareStage {
+  title: string;
+  icon: IconName;
+  desc: string;
+  accent: string;
+  modules: ModuleEntry[];
+}
+
 export function DashboardScreen({navigation}: Props) {
+  const {colors} = useTheme();
   const {user, logout} = useAuthStore();
   const isAdmin = useIsAdmin();
   const isSuperAdmin = useIsSuperAdmin();
@@ -48,7 +84,7 @@ export function DashboardScreen({navigation}: Props) {
   const ruleStatus = checkRulePackageStatus();
   const [counts, setCounts] = useState({RED: 0, ORANGE: 0, AMBER: 0, GREY: 0});
   const [quickStats, setQuickStats] = useState({overdueAssessments: 0, dosesDue: 0, defaulters: 0, pendingSync: 0});
-  const [recentActivity, setRecentActivity] = useState<{label: string; sub: string; time: string; icon: string}[]>([]);
+  const [recentActivity, setRecentActivity] = useState<{label: string; sub: string; time: string; icon: IconName}[]>([]);
   const [analytics, setAnalytics] = useState({coverageRate: 0, totalChildren: 0, childrenWithDoses: 0, defaulterRate: 0, openDefaulters: 0});
   const [serverAggregate, setServerAggregate] = useState(getCachedDashboard());
 
@@ -73,10 +109,10 @@ export function DashboardScreen({navigation}: Props) {
         pendingSync: Number((pendingRows[0] as any)?.cnt || 0),
       });
 
-      const activities: {label: string; sub: string; time: string; icon: string}[] = [];
+      const activities: {label: string; sub: string; time: string; icon: IconName}[] = [];
       const pregObs = query(`SELECT recorded_at FROM pregnancy_observations ORDER BY recorded_at DESC LIMIT 5`);
       for (const r of pregObs as any[]) {
-        activities.push({label: 'Pregnancy observation', sub: 'Recorded', time: String(r.recorded_at || ''), icon: '🤰'});
+        activities.push({label: 'Pregnancy observation', sub: 'Recorded', time: String(r.recorded_at || ''), icon: 'heart'});
       }
       activities.sort((a, b) => b.time.localeCompare(a.time));
       setRecentActivity(activities.slice(0, 5));
@@ -110,283 +146,302 @@ export function DashboardScreen({navigation}: Props) {
   }, [queueDepth]);
 
   const quickActions = [
-    {label: 'Overdue', value: quickStats.overdueAssessments, icon: '⚠️', color: urgency.ORANGE, target: 'TaskList' as const},
-    {label: 'Pending Sync', value: quickStats.pendingSync, icon: '⟳', color: urgency.GREY, target: 'SyncStatus' as const},
+    {label: 'Overdue', value: quickStats.overdueAssessments, icon: 'alertTriangle' as IconName, accent: urgency.AMBER, target: 'TaskList' as NavTarget},
+    {label: 'Pending Sync', value: quickStats.pendingSync, icon: 'refresh' as IconName, accent: urgency.GREY, target: 'SyncStatus' as NavTarget},
   ];
 
   const cards: UrgencyCard[] = [
-    {key: 'RED', label: 'RED — Emergency', color: urgency.RED, description: 'Immediate action', count: counts.RED},
-    {key: 'ORANGE', label: 'ORANGE — Same day', color: urgency.ORANGE, description: 'Urgent today', count: counts.ORANGE},
-    {key: 'AMBER', label: 'AMBER — High risk', color: urgency.AMBER, description: 'Enhanced follow-up', count: counts.AMBER},
-    {key: 'GREY', label: 'GREY — Data missing', color: urgency.GREY, description: 'Assessment needed', count: counts.GREY},
+    {key: 'RED', label: 'Emergency', description: 'Immediate action', count: counts.RED},
+    {key: 'ORANGE', label: 'Same day', description: 'Urgent today', count: counts.ORANGE},
+    {key: 'AMBER', label: 'High risk', description: 'Enhanced follow-up', count: counts.AMBER},
+    {key: 'GREY', label: 'Data missing', description: 'Assessment needed', count: counts.GREY},
   ];
 
-  // All clinical care stages with their modules
-  const careStages = [
+  const careStages: CareStage[] = [
     {
       title: 'Pregnancy & Antenatal',
-      icon: '🤰',
+      icon: 'heart',
       desc: 'Active pregnancies, observations & assessments',
-      color: brand.teal,
+      accent: brand.teal,
       modules: [
-        {label: 'Pregnancy', desc: 'Active episodes & assessments', target: 'PregnancyList' as const, icon: '🤰'},
+        {label: 'Pregnancy', desc: 'Active episodes & assessments', target: 'PregnancyList', icon: 'heart'},
       ],
     },
     {
       title: 'Newborn Care',
-      icon: '👶',
+      icon: 'baby',
       desc: 'Newborn episodes, observations & assessments',
-      color: '#7C3AED',
+      accent: '#7C3AED',
       modules: [
-        {label: 'Newborn', desc: 'Newborn episodes & observations', target: 'NewbornList' as const, icon: '👶'},
+        {label: 'Newborn', desc: 'Newborn episodes & observations', target: 'NewbornList', icon: 'baby'},
       ],
     },
     {
       title: 'Child Health',
-      icon: '💉',
+      icon: 'beaker',
       desc: 'Immunisation, growth monitoring & defaulter tracing',
-      color: '#059669',
+      accent: '#059669',
       modules: [
-        {label: 'Immunisation', desc: 'EPI schedule & vaccine doses', target: 'ImmunisationList' as const, icon: '💉'},
-        {label: 'Growth', desc: 'Growth measurements & charts', target: 'GrowthList' as const, icon: '📈'},
-        {label: 'Defaulter Tracing', desc: 'Track & trace defaulters', target: 'DefaulterList' as const, icon: '🔍'},
-        {label: 'CWC Sessions', desc: 'Child welfare clinic sessions', target: 'CWCSession' as const, icon: '🏥'},
+        {label: 'Immunisation', desc: 'EPI schedule & vaccine doses', target: 'ImmunisationList', icon: 'beaker'},
+        {label: 'Growth', desc: 'Growth measurements & charts', target: 'GrowthList', icon: 'clipboard'},
+        {label: 'Defaulter Tracing', desc: 'Track & trace defaulters', target: 'DefaulterList', icon: 'search'},
+        {label: 'CWC Sessions', desc: 'Child welfare clinic sessions', target: 'CWCSession', icon: 'home'},
       ],
     },
     {
       title: 'Referrals',
-      icon: '🚑',
+      icon: 'arrowRight',
       desc: 'Patient referral management & tracking',
-      color: urgency.RED,
+      accent: urgency.RED,
       modules: [
-        {label: 'Referrals', desc: 'Create & track referrals', target: 'ReferralList' as const, icon: '🚑'},
+        {label: 'Referrals', desc: 'Create & track referrals', target: 'ReferralList', icon: 'arrowRight'},
       ],
     },
     {
       title: 'Quick Capture',
-      icon: '📷',
+      icon: 'clipboard',
       desc: 'OCR document scanning & voice recording',
-      color: '#6366F1',
+      accent: '#6366F1',
       modules: [
-        {label: 'OCR Scan', desc: 'Select client & scan document', target: 'PersonList' as const, icon: '📷'},
-        {label: 'Voice Record', desc: 'Select episode & record voice', target: 'PregnancyList' as const, icon: '🎤'},
+        {label: 'OCR Scan', desc: 'Select client & scan document', target: 'PersonList', icon: 'clipboard'},
+        {label: 'Voice Record', desc: 'Select episode & record voice', target: 'PregnancyList', icon: 'heart'},
       ],
     },
   ];
 
-  const supportModules = [
-    {label: 'Tasks', desc: 'Open notifications & action items', target: 'TaskList' as const, adminOnly: false, icon: '📋'},
-    {label: 'Clients', desc: 'Persons & households', target: 'PersonList' as const, adminOnly: false, icon: '👤'},
-    {label: 'Sync Status', desc: 'Last sync, queue & conflicts', target: 'SyncStatus' as const, adminOnly: false, icon: '⟳'},
-    {label: 'Audit Log', desc: 'System audit trail', target: 'AuditList' as const, superAdminOnly: true, icon: '🔒'},
-  ].filter(m => {
-    if (m.superAdminOnly) return isSuperAdmin;
-    if (m.adminOnly) return isAdmin;
-    return true;
-  });
+  const allSupportModules: ModuleEntry[] = [
+    {label: 'Tasks', desc: 'Open notifications & action items', target: 'TaskList', icon: 'clipboard'},
+    {label: 'Clients', desc: 'Persons & households', target: 'PersonList', icon: 'users'},
+    {label: 'Sync Status', desc: 'Last sync, queue & conflicts', target: 'SyncStatus', icon: 'refresh'},
+    {label: 'Audit Log', desc: 'System audit trail', target: 'AuditList', icon: 'lock'},
+  ];
+  const supportModules: ModuleEntry[] = allSupportModules.filter(m =>
+    m.label === 'Audit Log' ? isSuperAdmin : true,
+  );
+
+  const handleLogout = () => {
+    const {hasUnsynced, count} = useAuthStore.getState().checkUnsyncedBeforeLogout();
+    if (hasUnsynced) {
+      Alert.alert(
+        'Unsynchronised Data',
+        `You have ${count} record${count > 1 ? 's' : ''} pending synchronisation. Signing out may lose this data.\n\nSign out anyway?`,
+        [
+          {text: 'Cancel', style: 'cancel'},
+          {text: 'Sign out anyway', style: 'destructive', onPress: () => logout(true)},
+        ],
+      );
+    } else {
+      logout();
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['bottom']}>
+      {/* ── Header ── */}
+      <View style={[styles.header, {backgroundColor: colors.surface, borderBottomColor: colors.border}]}>
         <View style={styles.headerLeft}>
-          <Text style={styles.greeting}>Welcome, {user?.fullName || user?.username}</Text>
-          <Text style={styles.role}>{user?.systemRole?.replace(/_/g, ' ')}</Text>
+          <AppText variant="h2" tone="primary">Welcome, {user?.fullName || user?.username}</AppText>
+          <AppText variant="caption" tone="secondary" style={styles.role}>
+            {(user?.systemRole || '').replace(/_/g, ' ')}
+          </AppText>
         </View>
-        <Pressable style={styles.logoutBtn} onPress={() => {
-          const {hasUnsynced, count} = useAuthStore.getState().checkUnsyncedBeforeLogout();
-          if (hasUnsynced) {
-            Alert.alert(
-              'Unsynchronised Data',
-              `You have ${count} record${count > 1 ? 's' : ''} pending synchronisation. Signing out may lose this data.\n\nSign out anyway?`,
-              [
-                {text: 'Cancel', style: 'cancel'},
-                {text: 'Sign out anyway', style: 'destructive', onPress: () => logout(true)},
-              ],
-            );
-          } else {
-            logout();
-          }
-        }}>
-          <Text style={styles.logout}>Sign out</Text>
+        <Pressable
+          style={({pressed}) => [
+            styles.logoutBtn,
+            {backgroundColor: colors.primarySubtle},
+            pressed && pressedStyle,
+          ]}
+          onPress={handleLogout}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out">
+          <Icon name="arrowRight" size={16} color={colors.primary} strokeWidth={2} />
+          <AppText variant="smallStrong" tone="brand">Sign out</AppText>
         </Pressable>
       </View>
 
+      {/* ── Sync banner ── */}
       {queueDepth > 0 && (
         <Pressable
-          style={styles.syncBanner}
-          onPress={() => syncFull()}>
-          <Text style={styles.syncText}>
+          style={({pressed}) => [
+            styles.syncBanner,
+            {backgroundColor: colors.warningSubtle, borderColor: colors.warning + '30'},
+            pressed && pressedStyle,
+          ]}
+          onPress={() => syncFull()}
+          accessibilityRole="button"
+          accessibilityLabel={`${queueDepth} records pending sync. Tap to retry.`}>
+          <Icon name="refresh" size={16} color={colors.warning} strokeWidth={2} />
+          <AppText variant="smallStrong" style={{color: colors.warning, flex: 1}}>
             {queueDepth} record{queueDepth > 1 ? 's' : ''} pending sync — tap to retry
-          </Text>
+          </AppText>
         </Pressable>
       )}
 
-      {ruleStatus.warning && (
-        <View style={styles.ruleWarningBanner}>
-          <Text style={styles.ruleWarningText}>{ruleStatus.warning}</Text>
+      {/* ── Rule warning ── */}
+      {ruleStatus.warning ? (
+        <View style={[styles.ruleWarningBanner, {backgroundColor: colors.warningSubtle, borderColor: colors.warning + '30'}]}>
+          <Icon name="alertTriangle" size={16} color={colors.warning} strokeWidth={2} />
+          <AppText variant="small" style={{color: colors.warning, flex: 1}}>{ruleStatus.warning}</AppText>
         </View>
-      )}
+      ) : null}
 
       <FlatList
         data={cards}
         keyExtractor={(item) => item.key}
         renderItem={({item}) => (
-          <View style={styles.card}>
-            <View style={[styles.dot, {backgroundColor: item.color}]} />
-            <View style={styles.cardBody}>
-              <Text style={styles.cardLabel}>{item.label}</Text>
-              <Text style={styles.cardDesc}>{item.description}</Text>
+          <View style={styles.urgencyRow}>
+            <UrgencyBadge value={item.key} size="md" />
+            <View style={styles.urgencyBody}>
+              <AppText variant="bodyStrong" tone="primary">{item.label}</AppText>
+              <AppText variant="caption" tone="secondary">{item.description}</AppText>
             </View>
-            <Text style={styles.cardCount}>{item.count}</Text>
+            <AppText variant="h2" tone="primary" style={styles.urgencyCount}>{item.count}</AppText>
           </View>
         )}
         ListHeaderComponent={
           <View>
             {/* Analytics widgets */}
-            {analytics.totalChildren > 0 && (
-              <View style={styles.analyticsContainer}>
-                <Text style={styles.sectionTitle}>Pregnancy Analytics</Text>
-                <View style={styles.analyticsRow}>
-                  <View style={[styles.quickCard, {borderTopColor: urgency.ORANGE}]}>
-                    <Text style={styles.quickIcon}>⚠️</Text>
-                    <Text style={styles.analyticsValue}>{analytics.coverageRate}%</Text>
-                    <Text style={styles.quickLabel}>High Risk</Text>
-                    <View style={styles.analyticsBarBg}>
-                      <View style={[styles.analyticsBarFill, {width: `${analytics.coverageRate}%`, backgroundColor: analytics.coverageRate > 30 ? urgency.RED : analytics.coverageRate > 15 ? urgency.ORANGE : urgency.GREEN}]} />
-                    </View>
-                    <Text style={styles.analyticsSub}>{analytics.childrenWithDoses}/{analytics.totalChildren} pregnancies</Text>
-                  </View>
-                  <View style={[styles.quickCard, {borderTopColor: urgency.GREEN}]}>
-                    <Text style={styles.quickIcon}>📝</Text>
-                    <Text style={styles.analyticsValue}>{analytics.openDefaulters}</Text>
-                    <Text style={styles.quickLabel}>Observations</Text>
-                    <Text style={styles.analyticsSub}>Total recorded</Text>
-                  </View>
+            {analytics.totalChildren > 0 ? (
+              <View style={styles.sectionBlock}>
+                <SectionHeader title="Pregnancy Analytics" />
+                <View style={styles.statRow}>
+                  <StatCard
+                    label="High Risk"
+                    value={`${analytics.coverageRate}%`}
+                    caption={`${analytics.childrenWithDoses}/${analytics.totalChildren} pregnancies`}
+                    icon="alertTriangle"
+                    accentColor={urgency.AMBER}
+                    style={styles.statFlex}
+                  />
+                  <StatCard
+                    label="Observations"
+                    value={String(analytics.openDefaulters)}
+                    caption="Total recorded"
+                    icon="clipboard"
+                    accentColor={urgency.GREEN}
+                    style={styles.statFlex}
+                  />
                 </View>
               </View>
-            )}
+            ) : null}
 
             {/* Server aggregate stats */}
-            {serverAggregate && (
-              <View style={styles.analyticsContainer}>
-                <Text style={styles.sectionTitle}>Server Overview</Text>
-                <View style={styles.analyticsRow}>
-                  <View style={[styles.quickCard, {borderTopColor: urgency.RED}]}>
-                    <Text style={styles.quickIcon}>🤰</Text>
-                    <Text style={styles.analyticsValue}>{serverAggregate.pregnancy.active}</Text>
-                    <Text style={styles.quickLabel}>Active Preg</Text>
-                    {serverAggregate.pregnancy.emergency > 0 && (
-                      <Text style={[styles.analyticsSub, {color: urgency.RED}]}>{serverAggregate.pregnancy.emergency} emergency</Text>
-                    )}
-                  </View>
-                  <View style={[styles.quickCard, {borderTopColor: urgency.AMBER}]}>
-                    <Text style={styles.quickIcon}>🔗</Text>
-                    <Text style={styles.analyticsValue}>{serverAggregate.referrals.open}</Text>
-                    <Text style={styles.quickLabel}>Open Referrals</Text>
-                    {serverAggregate.referrals.emergency > 0 && (
-                      <Text style={[styles.analyticsSub, {color: urgency.RED}]}>{serverAggregate.referrals.emergency} emergency</Text>
-                    )}
-                  </View>
+            {serverAggregate ? (
+              <View style={styles.sectionBlock}>
+                <SectionHeader title="Server Overview" />
+                <View style={styles.statRow}>
+                  <StatCard
+                    label="Active Preg"
+                    value={String(serverAggregate.pregnancy.active)}
+                    caption={serverAggregate.pregnancy.emergency > 0 ? `${serverAggregate.pregnancy.emergency} emergency` : undefined}
+                    icon="heart"
+                    accentColor={urgency.RED}
+                    style={styles.statFlex}
+                  />
+                  <StatCard
+                    label="Open Referrals"
+                    value={String(serverAggregate.referrals.open)}
+                    caption={serverAggregate.referrals.emergency > 0 ? `${serverAggregate.referrals.emergency} emergency` : undefined}
+                    icon="arrowRight"
+                    accentColor={urgency.AMBER}
+                    style={styles.statFlex}
+                  />
                 </View>
               </View>
-            )}
+            ) : null}
 
             {/* Quick actions */}
-            <View style={styles.quickActions}>
-            {quickActions.map(qa => (
-              <Pressable
-                key={qa.label}
-                style={[styles.quickCard, {borderTopColor: qa.color}]}
-                onPress={() => navigation.navigate(qa.target)}
-                accessibilityRole="button"
-                accessibilityLabel={`${qa.label}: ${qa.value}`}
-                accessibilityHint={`Go to ${qa.label}`}>
-                <Text style={styles.quickIcon} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{qa.icon}</Text>
-                <Text style={styles.quickValue} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{qa.value}</Text>
-                <Text style={styles.quickLabel} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{qa.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+            <View style={styles.sectionBlock}>
+              <SectionHeader title="Quick Actions" />
+              <View style={styles.statRow}>
+                {quickActions.map(qa => (
+                  <Pressable
+                    key={qa.label}
+                    style={({pressed}) => [
+                      styles.statFlex,
+                      pressed && pressedStyle,
+                    ]}
+                    onPress={() => navigation.navigate(qa.target)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${qa.label}: ${qa.value}`}
+                    accessibilityHint={`Go to ${qa.label}`}>
+                    <StatCard
+                      label={qa.label}
+                      value={String(qa.value)}
+                      icon={qa.icon}
+                      accentColor={qa.accent}
+                    />
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           </View>
         }
         ListFooterComponent={
           <View style={styles.modules}>
             {/* Continuity of Care — all clinical modules */}
-            <Text style={styles.sectionTitle}>Continuity of Care</Text>
-            <Text style={styles.sectionSubtitle}>Maternal & child health workflows</Text>
+            <SectionHeader title="Continuity of Care" subtitle="Maternal & child health workflows" />
 
             {careStages.map((stage, si) => (
               <View key={si} style={styles.stageGroup}>
-                <View style={[styles.stageHeader, {borderLeftColor: stage.color}]}>
-                  <Text style={styles.stageIcon}>{stage.icon}</Text>
+                <View style={[styles.stageHeader, {borderLeftColor: stage.accent, backgroundColor: colors.surface, ...elevation.sm}]}>
+                  <View style={[styles.stageIconWrap, {backgroundColor: stage.accent + '15'}]}>
+                    <Icon name={stage.icon} size={20} color={stage.accent} strokeWidth={1.75} />
+                  </View>
                   <View style={styles.stageHeaderText}>
-                    <Text style={styles.stageTitle}>{stage.title}</Text>
-                    <Text style={styles.stageDesc}>{stage.desc}</Text>
+                    <AppText variant="bodyStrong" tone="primary">{stage.title}</AppText>
+                    <AppText variant="caption" tone="secondary">{stage.desc}</AppText>
                   </View>
                 </View>
                 {stage.modules.map((m) => (
-                  <Pressable
+                  <ListRow
                     key={m.label}
-                    style={styles.moduleCard}
+                    icon={m.icon}
+                    title={m.label}
+                    subtitle={m.desc}
                     onPress={() => navigation.navigate(m.target)}
-                    accessibilityRole="button"
-                    accessibilityLabel={m.label}
-                    accessibilityHint={m.desc}>
-                    <View style={styles.moduleLeft}>
-                      <Text style={styles.moduleIcon}>{m.icon}</Text>
-                      <View>
-                        <Text style={styles.moduleLabel} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.label}</Text>
-                        <Text style={styles.moduleDesc} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.desc}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.arrow} allowFontScaling={true} maxFontSizeMultiplier={1.5}>›</Text>
-                  </Pressable>
+                  />
                 ))}
-                {si < careStages.length - 1 && <View style={styles.flowArrow}>
-                  <Text style={styles.flowArrowText}>↓</Text>
-                </View>}
+                {si < careStages.length - 1 ? (
+                  <View style={styles.flowArrow}>
+                    <Icon name="chevronDown" size={16} color={colors.primary + '60'} strokeWidth={2} />
+                  </View>
+                ) : null}
               </View>
             ))}
 
             {/* Recent Activity */}
-            {recentActivity.length > 0 && (
-              <>
-                <Text style={[styles.sectionTitle, {marginTop: 24}]}>Recent Activity</Text>
+            {recentActivity.length > 0 ? (
+              <View style={styles.sectionBlock}>
+                <SectionHeader title="Recent Activity" />
                 {recentActivity.map((act, i) => (
-                  <View key={i} style={styles.activityRow}>
-                    <Text style={styles.activityIcon}>{act.icon}</Text>
-                    <View style={styles.activityBody}>
-                      <Text style={styles.activityLabel}>{act.label}</Text>
-                      <Text style={styles.activitySub}>{act.sub}</Text>
+                  <View key={i} style={[styles.activityRow, {borderBottomColor: colors.border + '50'}]}>
+                    <View style={[styles.activityIconWrap, {backgroundColor: colors.primarySubtle}]}>
+                      <Icon name={act.icon} size={16} color={colors.primary} strokeWidth={1.75} />
                     </View>
-                    <Text style={styles.activityTime}>{act.time}</Text>
+                    <View style={styles.activityBody}>
+                      <AppText variant="smallStrong" tone="primary">{act.label}</AppText>
+                      <AppText variant="caption" tone="secondary">{act.sub}</AppText>
+                    </View>
+                    <AppText variant="caption" tone="tertiary">{act.time}</AppText>
                   </View>
                 ))}
-              </>
-            )}
+              </View>
+            ) : null}
 
             {/* Support Modules */}
-            <Text style={[styles.sectionTitle, {marginTop: 24}]}>
-              {isAdmin ? 'Support & Administration' : 'Support Tools'}
-            </Text>
-            {supportModules.map((m) => (
-              <Pressable
-                key={m.label}
-                style={styles.moduleCard}
-                onPress={() => navigation.navigate(m.target)}
-                accessibilityRole="button"
-                accessibilityLabel={m.label}
-                accessibilityHint={m.desc}>
-                <View style={styles.moduleLeft}>
-                  <Text style={styles.moduleIcon}>{m.icon}</Text>
-                  <View>
-                    <Text style={styles.moduleLabel} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.label}</Text>
-                    <Text style={styles.moduleDesc} allowFontScaling={true} maxFontSizeMultiplier={1.5}>{m.desc}</Text>
-                  </View>
-                </View>
-                <Text style={styles.arrow} allowFontScaling={true} maxFontSizeMultiplier={1.5}>›</Text>
-              </Pressable>
-            ))}
+            <View style={styles.sectionBlock}>
+              <SectionHeader title={isAdmin ? 'Support & Administration' : 'Support Tools'} />
+              {supportModules.map((m) => (
+                <ListRow
+                  key={m.label}
+                  icon={m.icon}
+                  title={m.label}
+                  subtitle={m.desc}
+                  onPress={() => navigation.navigate(m.target)}
+                />
+              ))}
+            </View>
           </View>
         }
         contentContainerStyle={styles.list}
@@ -397,151 +452,96 @@ export function DashboardScreen({navigation}: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#F0F4F8'},
+  container: {flex: 1},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingHorizontal: space[5],
+    paddingVertical: space[4],
+    borderBottomWidth: border.hairline,
+    ...elevation.sm,
   },
   headerLeft: {flex: 1},
-  greeting: {fontSize: 20, fontWeight: '800', color: '#0F172A'},
-  role: {fontSize: 12, color: '#64748B', marginTop: 2, textTransform: 'capitalize'},
+  role: {marginTop: 2, textTransform: 'capitalize'},
   logoutBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: brand.teal + '15',
-    borderRadius: 20,
-  },
-  logout: {fontSize: 13, color: brand.teal, fontWeight: '700'},
-  syncBanner: {
-    backgroundColor: urgency.AMBER + '18',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: urgency.AMBER + '30',
-  },
-  syncText: {fontSize: 13, color: urgency.AMBER, fontWeight: '600'},
-  ruleWarningBanner: {
-    backgroundColor: urgency.ORANGE + '15',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginHorizontal: 16,
-    borderRadius: 10,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: urgency.ORANGE + '30',
-  },
-  ruleWarningText: {fontSize: 12, color: urgency.ORANGE, fontWeight: '600'},
-  list: {padding: 16, gap: 10},
-  quickActions: {flexDirection: 'row', gap: 10, marginBottom: 16},
-  analyticsContainer: {marginBottom: 16},
-  analyticsRow: {flexDirection: 'row', gap: 10},
-  quickCard: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderTopWidth: 3,
-    borderRadius: 14,
-    padding: 14,
-    minHeight: 100,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  quickIcon: {fontSize: 24, marginBottom: 4},
-  quickValue: {fontSize: 26, fontWeight: '800', color: '#0F172A'},
-  quickLabel: {fontSize: 11, color: '#64748B', marginTop: 2, fontWeight: '600'},
-  activityRow: {flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E2E8F050'},
-  activityIcon: {fontSize: 20, marginRight: 12},
-  activityBody: {flex: 1},
-  activityLabel: {fontSize: 14, fontWeight: '600', color: '#0F172A'},
-  activitySub: {fontSize: 11, color: '#64748B', marginTop: 1},
-  activityTime: {fontSize: 11, color: '#94A3B8'},
-  card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
+    gap: space[1],
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+    borderRadius: radius.md,
+    minHeight: MIN_TOUCH,
   },
-  dot: {width: 12, height: 12, borderRadius: 6, marginRight: 14},
-  cardBody: {flex: 1},
-  cardLabel: {fontSize: 14, fontWeight: '700', color: '#0F172A'},
-  cardDesc: {fontSize: 12, color: '#64748B', marginTop: 2},
-  cardCount: {fontSize: 30, fontWeight: '800', color: '#0F172A'},
-  modules: {marginTop: 24},
-  sectionTitle: {fontSize: 17, fontWeight: '800', color: '#0F172A', marginBottom: 4},
-  sectionSubtitle: {fontSize: 12, color: '#64748B', marginBottom: 16},
-  stageGroup: {marginBottom: 12},
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+    marginHorizontal: space[4],
+    marginTop: space[3],
+    borderRadius: radius.md,
+    borderWidth: border.thick,
+  },
+  ruleWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+    marginHorizontal: space[4],
+    borderRadius: radius.md,
+    marginTop: space[2],
+    borderWidth: border.thick,
+  },
+  list: {padding: space[4], gap: space[3]},
+  sectionBlock: {marginBottom: space[4]},
+  statRow: {flexDirection: 'row', gap: space[3]},
+  statFlex: {flex: 1},
+  urgencyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3],
+    backgroundColor: 'transparent',
+    paddingVertical: space[3],
+  },
+  urgencyBody: {flex: 1},
+  urgencyCount: {minWidth: 40, textAlign: 'right'},
+  modules: {marginTop: space[6]},
+  stageGroup: {marginBottom: space[3]},
   stageHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    gap: space[3],
+    marginBottom: space[2],
+    paddingHorizontal: space[3],
+    paddingVertical: space[3],
+    borderRadius: radius.md,
     borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
   },
-  stageIcon: {fontSize: 24, marginRight: 12},
-  stageHeaderText: {flex: 1},
-  stageTitle: {fontSize: 15, fontWeight: '800', color: '#0F172A'},
-  stageDesc: {fontSize: 11, color: '#64748B', marginTop: 1},
-  flowArrow: {alignItems: 'center', paddingVertical: 4},
-  flowArrowText: {fontSize: 18, color: brand.teal + '60'},
-  moduleCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  stageIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 8,
-    minHeight: 60,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    justifyContent: 'center',
   },
-  moduleLeft: {flexDirection: 'row', alignItems: 'center', flex: 1},
-  moduleIcon: {fontSize: 22, marginRight: 12},
-  moduleLabel: {fontSize: 15, fontWeight: '700', color: '#0F172A'},
-  moduleDesc: {fontSize: 12, color: '#64748B', marginTop: 2},
-  arrow: {fontSize: 24, color: '#CBD5E1'},
-  analyticsValue: {fontSize: 26, fontWeight: '800', color: '#0F172A', marginTop: 4},
-  analyticsBarBg: {height: 5, borderRadius: 3, backgroundColor: '#E2E8F060', marginTop: 8, overflow: 'hidden', width: '100%'},
-  analyticsBarFill: {height: '100%', borderRadius: 3},
-  analyticsSub: {fontSize: 10, color: '#64748B', marginTop: 4},
+  stageHeaderText: {flex: 1},
+  flowArrow: {alignItems: 'center', paddingVertical: space[1]},
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3],
+    paddingVertical: space[3],
+    borderBottomWidth: border.hairline,
+  },
+  activityIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityBody: {flex: 1},
 });

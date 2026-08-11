@@ -24,6 +24,12 @@ from .views import (
     FHIRLibraryDetailView,
     FHIRPlanDefinitionListView,
     FHIRPlanDefinitionDetailView,
+    FHIROrganizationListView,
+    FHIROrganizationDetailView,
+    FHIRLocationListView,
+    FHIRLocationDetailView,
+    FHIRQuestionnaireResponseListView,
+    FHIRQuestionnaireResponseDetailView,
 )
 
 urlpatterns = [
@@ -61,4 +67,13 @@ urlpatterns = [
     # PlanDefinition
     path("PlanDefinition", FHIRPlanDefinitionListView.as_view(), name="fhir-plandefinition-list"),
     path("PlanDefinition/<str:pk>", FHIRPlanDefinitionDetailView.as_view(), name="fhir-plandefinition-detail"),
+    # Organization (spec §8.3)
+    path("Organization", FHIROrganizationListView.as_view(), name="fhir-organization-list"),
+    path("Organization/<str:pk>", FHIROrganizationDetailView.as_view(), name="fhir-organization-detail"),
+    # Location (spec §8.3)
+    path("Location", FHIRLocationListView.as_view(), name="fhir-location-list"),
+    path("Location/<str:pk>", FHIRLocationDetailView.as_view(), name="fhir-location-detail"),
+    # QuestionnaireResponse (spec §8.3)
+    path("QuestionnaireResponse", FHIRQuestionnaireResponseListView.as_view(), name="fhir-questionnaireresponse-list"),
+    path("QuestionnaireResponse/<str:pk>", FHIRQuestionnaireResponseDetailView.as_view(), name="fhir-questionnaireresponse-detail"),
 ]

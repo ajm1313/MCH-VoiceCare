@@ -1,4 +1,4 @@
-package com.mchvoicecare.security
+package com.mchvoicecare.mch_voicecare_mobile.ocr
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
@@ -6,15 +6,11 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
 /**
- * React Native package that registers the ScreenSecurity native module.
- *
- * This package is added to the list of packages in MainApplication.kt
- * so that NativeModules.ScreenSecurity is available from JS.
+ * React Native package for the OCR native module (spec §16).
  */
-class ScreenSecurityPackage : ReactPackage {
-
+class OcrPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return listOf(ScreenSecurityModule(reactContext))
+        return listOf(OcrModule(reactContext))
     }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {

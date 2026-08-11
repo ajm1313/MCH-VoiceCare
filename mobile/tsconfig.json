@@ -15,7 +15,8 @@
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["jest", "node"]
   },
   "include": ["src", "index.js"]
 }

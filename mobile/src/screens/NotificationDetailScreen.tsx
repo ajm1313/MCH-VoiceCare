@@ -2,13 +2,25 @@
  * NotificationDetailScreen — notification detail with acknowledge/close actions.
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Alert, Pressable, StyleSheet, View} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
 import {query, getDb} from '../core/db/database';
 import type {RootStackParamList} from '../core/navigation/types';
+import {
+  AppText,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  LoadingState,
+  Screen,
+  SectionHeader,
+  UrgencyBadge,
+  Badge,
+} from '../components/ui';
+import {useTheme} from '../theme/useTheme';
+import {border, radius, space} from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NotificationDetail'>;
 
@@ -20,8 +32,7 @@ type ActionRecord = {
 };
 
 export function NotificationDetailScreen({route, navigation}: Props) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const {notificationId} = route.params;
 
   const [notif, setNotif] = useState<Record<string, any> | null>(null);
@@ -84,124 +95,167 @@ export function NotificationDetailScreen({route, navigation}: Props) {
   };
 
   if (loading) {
-    return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.primary} /></View>;
+    return (
+      <Screen>
+        <LoadingState message="Loading notification…" />
+      </Screen>
+    );
   }
 
-  const urgencyColor = notif ? urgency[notif.urgency as keyof typeof urgency] || urgency.GREY : urgency.GREY;
-
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={[styles.back, {color: colors.primary}]}>‹ Back</Text>
-        </Pressable>
+    <Screen
+      scroll
+      refreshing={refreshing}
+      onRefresh={() => { setRefreshing(true); loadData(); }}>
+      <View style={styles.backRow}>
+        <Button
+          label="Back"
+          variant="ghost"
+          icon="chevronLeft"
+          onPress={() => navigation.goBack()}
+        />
       </View>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} colors={[colors.primary]} />}>
-        {notif ? (
-          <>
-            <View style={[styles.card, {backgroundColor: colors.surface}]}>
-              <View style={styles.badgeRow}>
-                <View style={[styles.badge, {backgroundColor: urgencyColor}]}>
-                  <Text style={styles.badgeText}>{String(notif.urgency)}</Text>
-                </View>
-                <Text style={[styles.status, {color: colors.textSecondary}]}>{String(notif.status)}</Text>
-              </View>
-              <Text style={[styles.title, {color: colors.textPrimary}]}>{String(notif.title)}</Text>
-              <Text style={[styles.sub, {color: colors.textSecondary}]}>{String(notif.notification_class)}</Text>
-              {notif.due_datetime && <Text style={[styles.sub, {color: colors.textSecondary}]}>Due: {String(notif.due_datetime)}</Text>}
-              <Text style={[styles.sub, {color: colors.textSecondary}]}>Created: {String(notif.created_at)}</Text>
+      {notif ? (
+        <>
+          <Card style={styles.card}>
+            <View style={styles.badgeRow}>
+              <UrgencyBadge value={String(notif.urgency)} size="md" />
+              <Badge label={String(notif.status)} tone="neutral" size="sm" />
             </View>
-
-            {notif.status === 'OPEN' && (
-              <Pressable style={[styles.actionButton, {backgroundColor: colors.primary}]} onPress={handleAcknowledge}>
-                <Text style={styles.actionButtonText}>Acknowledge</Text>
-              </Pressable>
+            <AppText variant="h2" style={styles.title}>{String(notif.title)}</AppText>
+            <AppText variant="small" tone="secondary">{String(notif.notification_class)}</AppText>
+            {notif.due_datetime && (
+              <AppText variant="small" tone="secondary">Due: {String(notif.due_datetime)}</AppText>
             )}
-            {notif.status !== 'CLOSED' && (
-              <Pressable style={[styles.closeButton, {borderColor: colors.textSecondary}]} onPress={handleClose}>
-                <Text style={[styles.closeButtonText, {color: colors.textSecondary}]}>Close Notification</Text>
-              </Pressable>
-            )}
+            <AppText variant="caption" tone="tertiary">Created: {String(notif.created_at)}</AppText>
+          </Card>
 
-            <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Action Records</Text>
-            {actions.length === 0 ? (
-              <Text style={[styles.empty, {color: colors.textSecondary}]}>No actions recorded</Text>
-            ) : (
-              actions.map(a => (
-                <View key={a.id} style={[styles.actionCard, {backgroundColor: colors.surface}]}>
-                  <Text style={[styles.actionType, {color: colors.textPrimary}]}>{a.action_type.replace(/_/g, ' ')}</Text>
-                  <Text style={[styles.actionTime, {color: colors.textSecondary}]}>{a.recorded_at}</Text>
-                  {a.notes ? <Text style={[styles.actionNotes, {color: colors.textPrimary}]}>{a.notes}</Text> : null}
-                </View>
-              ))
-            )}
+          {notif.status === 'OPEN' && (
+            <Button
+              label="Acknowledge"
+              icon="check"
+              fullWidth
+              onPress={handleAcknowledge}
+              style={styles.actionBtn}
+            />
+          )}
+          {notif.status !== 'CLOSED' && (
+            <Button
+              label="Close Notification"
+              variant="ghost"
+              icon="close"
+              fullWidth
+              onPress={handleClose}
+              style={styles.closeBtn}
+            />
+          )}
 
-            {!showActionForm ? (
-              <Pressable style={[styles.addActionButton, {borderColor: colors.primary}]} onPress={() => setShowActionForm(true)}>
-                <Text style={[styles.addActionText, {color: colors.primary}]}>+ Add Action</Text>
-              </Pressable>
-            ) : (
-              <View style={[styles.card, {backgroundColor: colors.surface}]}>
-                <Text style={[styles.label, {color: colors.textSecondary}]}>Action Type</Text>
-                {['FOLLOW_UP_CALL', 'HOME_VISIT', 'ESCALATED', 'RESOLVED', 'OTHER'].map(t => (
-                  <Pressable key={t} onPress={() => setActionType(t)} style={[styles.option, actionType === t && {borderColor: colors.primary}]}>
-                    <Text style={{color: actionType === t ? colors.primary : colors.textPrimary, fontSize: 14}}>{t.replace(/_/g, ' ')}</Text>
-                  </Pressable>
-                ))}
-                <Text style={[styles.label, {color: colors.textSecondary}]}>Notes</Text>
-                <TextInput style={[styles.input, {borderColor: colors.border, color: colors.textPrimary}]} value={actionNotes} onChangeText={setActionNotes} placeholder="Action notes..." multiline numberOfLines={3} textAlignVertical="top" />
-                <View style={styles.formActions}>
-                  <Pressable style={[styles.cancelBtn, {borderColor: colors.border}]} onPress={() => setShowActionForm(false)}>
-                    <Text style={[styles.cancelText, {color: colors.textSecondary}]}>Cancel</Text>
-                  </Pressable>
-                  <Pressable style={[styles.saveBtn, {backgroundColor: colors.primary}]} onPress={handleSaveAction}>
-                    <Text style={styles.saveBtnText}>Save</Text>
-                  </Pressable>
-                </View>
+          <SectionHeader title="Action Records" style={styles.sectionHeader} />
+          {actions.length === 0 ? (
+            <EmptyState
+              icon="clipboard"
+              title="No actions recorded"
+              message="Actions taken on this notification will appear here."
+            />
+          ) : (
+            actions.map(a => (
+              <Card key={a.id} style={styles.actionCard} variant="outlined">
+                <AppText variant="bodyStrong">{a.action_type.replace(/_/g, ' ')}</AppText>
+                <AppText variant="caption" tone="secondary">{a.recorded_at}</AppText>
+                {a.notes ? <AppText variant="small" style={styles.actionNotes}>{a.notes}</AppText> : null}
+              </Card>
+            ))
+          )}
+
+          {!showActionForm ? (
+            <Button
+              label="Add Action"
+              variant="secondary"
+              icon="plus"
+              fullWidth
+              onPress={() => setShowActionForm(true)}
+              style={styles.addActionBtn}
+            />
+          ) : (
+            <Card style={styles.card}>
+              <AppText variant="smallStrong" tone="secondary">Action Type</AppText>
+              {['FOLLOW_UP_CALL', 'HOME_VISIT', 'ESCALATED', 'RESOLVED', 'OTHER'].map(t => (
+                <Pressable
+                  key={t}
+                  onPress={() => setActionType(t)}
+                  style={[
+                    styles.option,
+                    {
+                      borderColor: actionType === t ? colors.primary : colors.border,
+                      backgroundColor: actionType === t ? colors.primarySubtle : 'transparent',
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.replace(/_/g, ' ')}
+                  accessibilityState={{selected: actionType === t}}>
+                  <AppText
+                    variant="body"
+                    tone="inherit"
+                    style={{color: actionType === t ? colors.primaryStrong : colors.textPrimary, fontWeight: actionType === t ? '700' : '400'}}>
+                    {t.replace(/_/g, ' ')}
+                  </AppText>
+                </Pressable>
+              ))}
+              <Field
+                label="Notes"
+                value={actionNotes}
+                onChangeText={setActionNotes}
+                placeholder="Action notes..."
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+              <View style={styles.formActions}>
+                <Button
+                  label="Cancel"
+                  variant="ghost"
+                  onPress={() => setShowActionForm(false)}
+                  style={styles.formBtn}
+                />
+                <Button
+                  label="Save"
+                  icon="check"
+                  onPress={handleSaveAction}
+                  style={styles.formBtn}
+                />
               </View>
-            )}
-          </>
-        ) : (
-          <Text style={[styles.empty, {color: colors.textSecondary}]}>Notification not found</Text>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+            </Card>
+          )}
+        </>
+      ) : (
+        <EmptyState
+          icon="bell"
+          title="Notification not found"
+          message="This notification may have been deleted or synced from another device."
+        />
+      )}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  header: {paddingHorizontal: 16, paddingVertical: 12},
-  back: {fontSize: 16},
-  content: {padding: 16, gap: 12},
-  card: {borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', gap: 6},
-  badgeRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8},
-  badge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
-  badgeText: {color: '#fff', fontSize: 11, fontWeight: '700'},
-  status: {fontSize: 11, fontWeight: '600'},
-  title: {fontSize: 18, fontWeight: '700'},
-  sub: {fontSize: 13, marginTop: 2},
-  actionButton: {padding: 14, borderRadius: 12, alignItems: 'center'},
-  actionButtonText: {color: '#fff', fontWeight: '700', fontSize: 15},
-  closeButton: {padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1},
-  closeButtonText: {fontWeight: '600', fontSize: 14},
-  sectionTitle: {fontSize: 16, fontWeight: '700', marginTop: 8},
-  empty: {fontSize: 14, paddingVertical: 16},
-  actionCard: {borderRadius: 10, padding: 14, borderWidth: 1, borderColor: '#E2E8F0'},
-  actionType: {fontSize: 14, fontWeight: '600'},
-  actionTime: {fontSize: 11, marginTop: 2},
-  actionNotes: {fontSize: 13, marginTop: 4},
-  addActionButton: {padding: 12, borderRadius: 10, borderWidth: 1, alignItems: 'center', borderStyle: 'dashed'},
-  addActionText: {fontWeight: '600', fontSize: 14},
-  label: {fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginTop: 8},
-  option: {paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1, marginTop: 4},
-  input: {borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 14, minHeight: 60},
-  formActions: {flexDirection: 'row', gap: 12, marginTop: 12},
-  cancelBtn: {flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, alignItems: 'center'},
-  cancelText: {fontWeight: '600', fontSize: 14},
-  saveBtn: {flex: 1, padding: 12, borderRadius: 10, alignItems: 'center'},
-  saveBtnText: {color: '#fff', fontWeight: '700', fontSize: 14},
+  backRow: {marginBottom: space[2]},
+  card: {marginBottom: space[3]},
+  badgeRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space[2], gap: space[2]},
+  title: {marginBottom: space[1]},
+  actionBtn: {marginBottom: space[2]},
+  closeBtn: {marginBottom: space[3]},
+  sectionHeader: {marginTop: space[4]},
+  actionCard: {marginBottom: space[2]},
+  actionNotes: {marginTop: space[1]},
+  addActionBtn: {marginTop: space[2]},
+  option: {
+    paddingVertical: space[3],
+    paddingHorizontal: space[4],
+    borderRadius: radius.md,
+    borderWidth: border.thick,
+    marginTop: space[1],
+  },
+  formActions: {flexDirection: 'row', gap: space[3], marginTop: space[3]},
+  formBtn: {flex: 1},
 });

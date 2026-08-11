@@ -3,23 +3,24 @@
  * MCHVC-SPEC-001 v1.1 §51. Offline-first (DEC-007).
  */
 import React, {useCallback, useEffect, useState} from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
+import {FlatList, StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {darkColors, lightColors, urgency} from '../theme/colors';
+import {useTheme} from '../theme/useTheme';
 import {query} from '../core/db/database';
 import {SearchBar, FilterChips} from '../components/SearchFilter';
 import {BottomTabBar} from '../components/BottomTabBar';
+import {
+  Screen,
+  Card,
+  Badge,
+  EmptyState,
+  LoadingState,
+  AppText,
+  type BadgeTone,
+} from '../components/ui';
+import {space} from '../theme/tokens';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type GrowthRow = {
@@ -34,8 +35,7 @@ type GrowthRow = {
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function GrowthListScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? darkColors : lightColors;
+  const {colors} = useTheme();
   const navigation = useNavigation<Nav>();
 
   const [rows, setRows] = useState<GrowthRow[]>([]);
@@ -70,11 +70,18 @@ export function GrowthListScreen() {
     loadData();
   }, [loadData]);
 
-  const indicatorColor = (ind: string) => {
-    if (ind.includes('SEVERELY') || ind.includes('SAM') || ind.includes('OEDEMA')) return urgency.RED;
-    if (ind.includes('WASTED') || ind.includes('STUNTED') || ind.includes('UNDERWEIGHT') || ind.includes('MAM')) return urgency.ORANGE;
-    if (ind.includes('OVERWEIGHT') || ind.includes('OBESE')) return urgency.AMBER;
-    return urgency.GREEN;
+  const indicatorTone = (ind: string): BadgeTone => {
+    if (ind.includes('SEVERELY') || ind.includes('SAM') || ind.includes('OEDEMA')) return 'danger';
+    if (ind.includes('WASTED') || ind.includes('STUNTED') || ind.includes('UNDERWEIGHT') || ind.includes('MAM')) return 'warning';
+    if (ind.includes('OVERWEIGHT') || ind.includes('OBESE')) return 'warning';
+    return 'success';
+  };
+
+  const indicatorColor = (ind: string): string => {
+    if (ind.includes('SEVERELY') || ind.includes('SAM') || ind.includes('OEDEMA')) return colors.danger;
+    if (ind.includes('WASTED') || ind.includes('STUNTED') || ind.includes('UNDERWEIGHT') || ind.includes('MAM')) return colors.warning;
+    if (ind.includes('OVERWEIGHT') || ind.includes('OBESE')) return colors.warning;
+    return colors.success;
   };
 
   const filtered = rows.filter(r => {
@@ -88,9 +95,9 @@ export function GrowthListScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, {backgroundColor: colors.background}]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <Screen>
+        <LoadingState message="Loading growth measurements…" />
+      </Screen>
     );
   }
 
@@ -99,62 +106,57 @@ export function GrowthListScreen() {
       <SearchBar value={search} onChange={setSearch} placeholder="Search child name..." />
       <FilterChips options={['NORMAL', 'AT_RISK', 'SEVERE']} selected={filter} onSelect={setFilter} />
       <FlatList
-      style={[styles.container, {backgroundColor: colors.background}]}
-      data={filtered}
-      keyExtractor={item => item.id}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => {
-            setRefreshing(true);
-            loadData();
-          }}
-          colors={[colors.primary]}
-        />
-      }
-      ListEmptyComponent={
-        <View style={styles.center}>
-          <Text style={[styles.empty, {color: colors.textSecondary}]}>
-            No growth measurements recorded
-          </Text>
-        </View>
-      }
-      renderItem={({item}) => (
-        <Pressable
-          onPress={() => navigation.navigate('GrowthDetail', {childId: item.id})}
-          style={[styles.card, {backgroundColor: colors.surface, borderLeftColor: indicatorColor(item.indicator)}]}>
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, {color: colors.textPrimary}]}>
-              {item.child_name}
-            </Text>
-            <View style={[styles.badge, {backgroundColor: indicatorColor(item.indicator)}]}>
-              <Text style={styles.badgeText}>{item.indicator}</Text>
+        style={[styles.container, {backgroundColor: colors.background}]}
+        data={filtered}
+        keyExtractor={item => item.id}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          loadData();
+        }}
+        ListEmptyComponent={
+          <EmptyState
+            icon="chart"
+            title="No growth measurements recorded"
+            message="Record a growth measurement to start tracking child nutrition."
+          />
+        }
+        renderItem={({item}) => (
+          <Card
+            onPress={() => navigation.navigate('GrowthDetail', {childId: item.id})}
+            accentColor={indicatorColor(item.indicator)}
+            style={styles.card}
+            accessibilityLabel={`${item.child_name}. ${item.indicator}`}>
+            <View style={styles.cardHeader}>
+              <AppText variant="bodyStrong" numberOfLines={1} style={styles.flex}>
+                {item.child_name}
+              </AppText>
+              <Badge
+                label={item.indicator}
+                tone={indicatorTone(item.indicator)}
+                size="sm"
+                solid
+              />
             </View>
-          </View>
-          <Text style={[styles.cardSub, {color: colors.textSecondary}]}>
-            {item.measurement_date}
-          </Text>
-          <Text style={[styles.cardMeta, {color: colors.textSecondary}]}>
-            {item.weight_kg ? `${item.weight_kg}kg` : 'No weight'}
-            {item.muac_mm ? `  ·  MUAC: ${item.muac_mm}mm` : ''}
-          </Text>
-        </Pressable>
-      )}
-    />
-    <BottomTabBar activeRoute="GrowthList" />
+            <AppText variant="small" tone="secondary">
+              {item.measurement_date}
+            </AppText>
+            <AppText variant="caption" tone="tertiary" style={styles.cardMeta}>
+              {item.weight_kg ? `${item.weight_kg}kg` : 'No weight'}
+              {item.muac_mm ? `  ·  MUAC: ${item.muac_mm}mm` : ''}
+            </AppText>
+          </Card>
+        )}
+      />
+      <BottomTabBar activeRoute="GrowthList" />
     </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {flex: 1},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
-  empty: {fontSize: 14},
-  card: {marginHorizontal: 16, marginVertical: 6, padding: 16, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#ccc'},
-  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  cardTitle: {fontSize: 16, fontWeight: '700'},
-  cardSub: {fontSize: 13, marginTop: 4},
-  cardMeta: {fontSize: 12, marginTop: 2},
-  badge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
-  badgeText: {color: '#fff', fontSize: 10, fontWeight: '700'},
+  card: {marginHorizontal: space[4], marginVertical: space[2]},
+  cardHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space[2]},
+  cardMeta: {marginTop: 2},
+  flex: {flex: 1},
 });

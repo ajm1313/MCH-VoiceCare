@@ -26,6 +26,7 @@ import {darkColors, lightColors} from '../theme/colors';
 import {AppConfig} from '../config/appConfig';
 import {useAuthStore} from '../core/auth/authStore';
 import {getConfigNumber} from '../core/sync/configStore';
+import {apiFetch} from '../core/security/secureFetch';
 import type {RootStackParamList} from '../core/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OCRConfirm'>;
@@ -69,7 +70,7 @@ export function OCRConfirmScreen({route, navigation}: Props) {
 
   async function loadJob() {
     try {
-      const resp = await fetch(`${AppConfig.apiBaseUrl}/ocr/jobs/${jobId}`, {
+      const resp = await apiFetch(`${AppConfig.apiBaseUrl}/ocr/jobs/${jobId}`, {
         headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
       });
       if (resp.ok) {
@@ -130,7 +131,7 @@ export function OCRConfirmScreen({route, navigation}: Props) {
 
     setConfirming(true);
     try {
-      const resp = await fetch(`${AppConfig.apiBaseUrl}/ocr/jobs/${jobId}/confirm`, {
+      const resp = await apiFetch(`${AppConfig.apiBaseUrl}/ocr/jobs/${jobId}/confirm`, {
         method: 'POST',
         headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -178,7 +179,7 @@ export function OCRConfirmScreen({route, navigation}: Props) {
           onPress: async () => {
             setConfirming(true);
             try {
-              const resp = await fetch(`${AppConfig.apiBaseUrl}/ocr/jobs/${jobId}/reject`, {
+              const resp = await apiFetch(`${AppConfig.apiBaseUrl}/ocr/jobs/${jobId}/reject`, {
                 method: 'POST',
                 headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
                 body: JSON.stringify({

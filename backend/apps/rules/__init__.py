@@ -14,6 +14,36 @@ SOURCE_ORG = "Ghana Health Service"
 SOURCE_VERSION = "2016"
 SOURCE_DATE = "2016-01-01"
 
+# Critical fields that MUST be present to produce a non-ABSTAIN disposition
+# (spec §3.1: "Missing critical fields MUST produce ABSTAIN, not routine")
+# These are the minimum required observations for a safe ANC assessment per
+# GHS Safe Motherhood Protocol.
+CRITICAL_FIELDS = [
+    ("bp_systolic", "Blood pressure (systolic)"),
+    ("bp_diastolic", "Blood pressure (diastolic)"),
+    ("temperature_c", "Temperature"),
+    ("fhr_bpm", "Fetal heart rate"),
+]
+
+
+def _compute_missing_critical_fields(episode) -> list:
+    """
+    Check if critical fields are missing from the latest observation (spec §12.2).
+
+    Returns a list of field names that are required but not present.
+    If there is no observation at all, all critical fields are missing.
+    """
+    latest_obs = episode.observations.first()
+    if not latest_obs:
+        return [f[0] for f in CRITICAL_FIELDS]
+
+    missing = []
+    for field_name, _label in CRITICAL_FIELDS:
+        value = getattr(latest_obs, field_name, None)
+        if value is None or value == "":
+            missing.append(field_name)
+    return missing
+
 
 def _make_rule(rule_id, severity, reason, code=""):
     return {
@@ -131,6 +161,17 @@ def run_pregnancy_assessment(episode) -> dict:
     if not fired:
         disposition = UrgencyLevel.ROUTINE
 
+    # Compute missing critical fields (spec §12.2, §3.1)
+    missing_critical = _compute_missing_critical_fields(episode)
+
+    # Missing critical fields MUST NOT silently produce a routine/green
+    # result (spec §3.1). If no rules fired (disposition would be ROUTINE)
+    # and critical fields are missing, upgrade to ABSTAIN. Emergency and
+    # priority rules still fire regardless — a patient with severe
+    # hypertension needs emergency care even if temperature is missing.
+    if missing_critical and disposition == UrgencyLevel.ROUTINE:
+        disposition = UrgencyLevel.ABSTAIN
+
     action_map = {
         UrgencyLevel.EMERGENCY: "Refer immediately to nearest CEmONC facility. Activate emergency protocol.",
         UrgencyLevel.PRIORITY: "Arrange priority review at facility within 48 hours.",
@@ -144,6 +185,6 @@ def run_pregnancy_assessment(episode) -> dict:
         "recommended_action": action_map.get(disposition, ""),
         "rule_set_version": RULE_SET_VERSION,
         "bundleVersion": RULE_SET_VERSION,
-        "missingCriticalFields": [],
+        "missingCriticalFields": missing_critical,
         "evaluatedAt": datetime.utcnow().isoformat() + "Z",
     }

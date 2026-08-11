@@ -1,40 +1,52 @@
 {% extends "base.html" %}
 {% load mch_tags %}
-{% block title %}Referrals — MCH VoiceCare{% endblock %}
+{% block title %}Referrals · MCH VoiceCare{% endblock %}
 {% block navbar_title %}Referrals{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold">Referrals</h1>
-      <p class="text-sm text-base-content/50">Closed-loop referral coordination</p>
+<div class="space-y-7">
+  <div class="page-header">
+    <div class="flex-1">
+      <p class="overline">Closed-loop coordination</p>
+      <h1 class="page-title">Referrals</h1>
+      <p class="page-subtitle">Closed-loop referral coordination.</p>
     </div>
-    <a href="{% url 'referral_create' %}" class="btn btn-primary btn-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+    <a href="{% url 'referral_create' %}" class="btn btn-primary btn-sm gap-2 shadow-card">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
       Create Referral
     </a>
   </div>
 
-  <div class="overflow-x-auto card-section">
-    <table class="table table-zebra">
-      <thead><tr><th>Patient</th><th>Destination</th><th>Status</th><th>Urgency</th><th>Created</th><th class="text-right">Actions</th></tr></thead>
-      <tbody>
-        {% for r in referrals %}
-        <tr>
-          <td class="font-medium">{{ r.patient.full_name }}</td>
-          <td>{{ r.destination_facility.name|default:"—" }}</td>
-          <td><span class="badge badge-sm {{ r.status|status_badge }}">{{ r.status }}</span></td>
-          <td><span class="badge badge-sm {{ r.urgency|urgency_badge }}">{{ r.urgency }}</span></td>
-          <td>{{ r.created_at|date:"M d, Y" }}</td>
-          <td class="text-right"><a href="{% url 'referral_detail' r.pk %}" class="btn btn-ghost btn-xs">View</a></td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="text-center text-base-content/50 py-8">No referrals found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <section class="card-section animate-in">
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead><tr><th class="px-5 py-3 text-left">Patient</th><th class="px-5 py-3 text-left">Destination</th><th class="px-5 py-3 text-left">Status</th><th class="px-5 py-3 text-left">Urgency</th><th class="px-5 py-3 text-left">Created</th><th class="px-5 py-3 text-right">Actions</th></tr></thead>
+        <tbody>
+          {% for r in referrals %}
+          <tr class="{% if r.urgency == 'EMERGENCY' %}row-accent-red{% elif r.urgency == 'PRIORITY' %}row-accent-amber{% endif %}">
+            <td class="px-5 py-3 font-medium">{{ r.patient.full_name }}</td>
+            <td class="px-5 py-3 text-base-content/70">{{ r.destination_facility.name|default:"—" }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ r.status }}</span></td>
+            <td class="px-5 py-3">{% include "partials/urgency_badge.html" with value=r.urgency %}</td>
+            <td class="px-5 py-3 text-small text-base-content/55">{{ r.created_at|date:"M d, Y" }}</td>
+            <td class="px-5 py-3 text-right"><a href="{% url 'referral_detail' r.pk %}" class="btn btn-ghost btn-xs gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+              View
+            </a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="px-5 py-12 text-center">
+            <div class="empty-state">
+              <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
+              <p class="empty-state-title">No referrals found</p>
+              <p class="empty-state-body">Create a referral to start a closed-loop transfer.</p>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   {% if is_paginated %}
   <div class="flex justify-center">

@@ -49,6 +49,7 @@ class DeviceProvisionView(APIView):
             defaults={
                 "facility": user.organisation_unit,
                 "public_key": data.get("public_key", ""),
+                "fcm_token": data.get("fcm_token", ""),
                 "last_seen_at": timezone.now(),
                 "is_revoked": False,
                 "revoked_at": None,

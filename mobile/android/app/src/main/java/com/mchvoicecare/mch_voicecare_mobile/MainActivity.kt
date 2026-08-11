@@ -1,4 +1,4 @@
-package com.mchvoicecare
+package com.mchvoicecare.mch_voicecare_mobile
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

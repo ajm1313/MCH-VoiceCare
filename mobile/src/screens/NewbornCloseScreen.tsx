@@ -2,18 +2,30 @@
  * NewbornCloseScreen — close a newborn episode.
  */
 import React, {useEffect, useState} from 'react';
-import {Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Alert, Pressable, StyleSheet, View} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {query, getDb} from '../core/db/database';
-import {brand, lightColors} from '../theme/colors';
 import type {RootStackParamList} from '../core/navigation/types';
+import {
+  Screen,
+  Card,
+  Button,
+  Field,
+  AppText,
+  SectionHeader,
+  Divider,
+} from '../components/ui';
+import {useTheme} from '../theme/useTheme';
+import {space} from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NewbornClose'>;
 
+const OUTCOMES = ['DISCHARGED', 'REFERRED', 'DEATH', 'TRANSFERRED'] as const;
+
 export function NewbornCloseScreen({route, navigation}: Props) {
   const {episodeId} = route.params;
+  const {colors} = useTheme();
   const [outcome, setOutcome] = useState('DISCHARGED');
   const [notes, setNotes] = useState('');
   const [childName, setChildName] = useState('');
@@ -44,48 +56,97 @@ export function NewbornCloseScreen({route, navigation}: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>‹ Back</Text>
-        </Pressable>
-        <Text style={styles.title}>Close Newborn Episode</Text>
+    <Screen scroll>
+      <View style={styles.backRow}>
+        <Button
+          label="Back"
+          variant="ghost"
+          icon="chevronLeft"
+          onPress={() => navigation.goBack()}
+        />
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.label}>Child</Text>
-          <Text style={styles.value}>{childName}</Text>
-          <Text style={styles.label}>Outcome</Text>
-          {['DISCHARGED', 'REFERRED', 'DEATH', 'TRANSFERRED'].map(o => (
-            <Pressable key={o} onPress={() => setOutcome(o)} style={[styles.option, outcome === o && styles.optionSelected]}>
-              <Text style={[styles.optionText, outcome === o && styles.optionTextSelected]}>{o.replace(/_/g, ' ')}</Text>
-            </Pressable>
-          ))}
-          <Text style={styles.label}>Notes</Text>
-          <TextInput style={styles.input} value={notes} onChangeText={setNotes} placeholder="Closing notes..." multiline numberOfLines={3} textAlignVertical="top" />
+      <SectionHeader title="Close Newborn Episode" />
+
+      <Card>
+        <AppText variant="smallStrong" tone="secondary">
+          Child
+        </AppText>
+        <AppText variant="bodyLg" style={styles.valueSpacing}>
+          {childName}
+        </AppText>
+
+        <Divider style={styles.dividerSpacing} />
+
+        <AppText variant="smallStrong" tone="secondary" style={styles.labelSpacing}>
+          Outcome
+        </AppText>
+        <View style={styles.optionList}>
+          {OUTCOMES.map(o => {
+            const selected = outcome === o;
+            return (
+              <Pressable
+                key={o}
+                onPress={() => setOutcome(o)}
+                accessibilityRole="button"
+                accessibilityLabel={o.replace(/_/g, ' ')}
+                accessibilityState={{selected}}
+                style={[
+                  styles.option,
+                  {
+                    borderColor: selected ? colors.primary : colors.border,
+                    backgroundColor: selected ? colors.primarySubtle : 'transparent',
+                  },
+                ]}>
+                <AppText
+                  variant="body"
+                  tone={selected ? 'brand' : 'primary'}
+                  style={selected ? styles.optionTextSelected : null}>
+                  {o.replace(/_/g, ' ')}
+                </AppText>
+              </Pressable>
+            );
+          })}
         </View>
-        <Pressable style={styles.closeButton} onPress={handleClose}>
-          <Text style={styles.closeButtonText}>Close Episode</Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+
+        <Divider style={styles.dividerSpacing} />
+
+        <Field
+          label="Notes"
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Closing notes..."
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+          containerStyle={styles.fieldSpacing}
+        />
+      </Card>
+
+      <Button
+        label="Close Episode"
+        onPress={handleClose}
+        variant="danger"
+        fullWidth
+        icon="checkCircle"
+        style={styles.closeButton}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: lightColors.background},
-  header: {flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12},
-  back: {fontSize: 16, color: brand.teal},
-  title: {fontSize: 18, fontWeight: '700', color: lightColors.textPrimary},
-  content: {padding: 16, gap: 12},
-  card: {backgroundColor: lightColors.surface, borderWidth: 1, borderColor: lightColors.border, borderRadius: 12, padding: 16, gap: 8},
-  label: {fontSize: 11, fontWeight: '600', color: lightColors.textSecondary, textTransform: 'uppercase', marginTop: 8},
-  value: {fontSize: 16, fontWeight: '600', color: lightColors.textPrimary},
-  option: {paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1, borderColor: lightColors.border, marginTop: 4},
-  optionSelected: {borderColor: brand.teal, backgroundColor: brand.teal + '10'},
-  optionText: {fontSize: 14, color: lightColors.textPrimary},
-  optionTextSelected: {color: brand.teal, fontWeight: '600'},
-  input: {borderWidth: 1, borderColor: lightColors.border, borderRadius: 8, padding: 12, fontSize: 14, color: lightColors.textPrimary, minHeight: 80},
-  closeButton: {backgroundColor: brand.teal, padding: 14, borderRadius: 12, alignItems: 'center'},
-  closeButtonText: {color: '#fff', fontWeight: '700', fontSize: 15},
+  backRow: {marginBottom: space[2]},
+  valueSpacing: {marginTop: space[1], marginBottom: space[2]},
+  dividerSpacing: {marginVertical: space[3]},
+  labelSpacing: {marginBottom: space[2]},
+  optionList: {gap: space[2]},
+  option: {
+    paddingVertical: space[3],
+    paddingHorizontal: space[4],
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  optionTextSelected: {fontWeight: '600'},
+  fieldSpacing: {marginBottom: 0},
+  closeButton: {marginTop: space[4]},
 });
