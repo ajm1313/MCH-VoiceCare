@@ -17,7 +17,6 @@ desktop.ini
 
 # Firebase credentials (never commit real keys)
 *-firebase-adminsdk-*.json
-google-services.json
 
 # Python
 __pycache__/

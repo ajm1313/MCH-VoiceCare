@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "606474393497",
+    "project_id": "mchvoicecare",
+    "storage_bucket": "mchvoicecare.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:606474393497:android:f9b03283487a36c16ae508",
+        "android_client_info": {
+          "package_name": "com.mchvoicecare.mch_voicecare_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwxmTnbs0-uaZArdLxLaLGqZraRQIxG6s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
