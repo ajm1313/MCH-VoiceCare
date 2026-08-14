@@ -11,13 +11,20 @@
  * offline or when the backend API call fails, the user is offered a manual
  * data-entry fallback so clinical capture is never blocked.
  */
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef, useCallback} from 'react';
 import {
   Alert,
   StyleSheet,
   View,
+  TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+} from 'react-native-vision-camera';
 
 import {AppConfig} from '../config/appConfig';
 import {useAuthStore} from '../core/auth/authStore';
@@ -26,13 +33,7 @@ import {apiFetch} from '../core/security/secureFetch';
 import {isOcrEnabled} from '../core/auth/featureFlags';
 import {setCachedJSON, getCachedJSON} from '../core/sync/contentCache';
 import {checkOcrAvailability, recognizeText, mapTextToFields} from '../core/ocr/ocrService';
-import {
-  isCameraAvailable,
-  requestCameraPermission,
-  checkCameraPermission,
-  capturePhoto,
-  readImageAsBase64,
-} from '../core/camera/cameraService';
+import {readImageAsBase64} from '../core/camera/cameraService';
 import type {RootStackParamList} from '../core/navigation/types';
 import {useTheme} from '../theme/useTheme';
 import {border, radius, space} from '../theme/tokens';
@@ -103,8 +104,8 @@ interface CaptureQuality {
 export function ScanScreen({route, navigation}: Props) {
   const {colors} = useTheme();
 
-  const {patientId} = route.params;
-  const episode = route.params.episode || '';
+  const patientId = route.params?.patientId;
+  const episode = route.params?.episode || '';
 
   const {token} = useAuthStore();
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
@@ -113,11 +114,16 @@ export function ScanScreen({route, navigation}: Props) {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [offlineMode, setOfflineMode] = useState(false);
 
+  // Patient selection (when no patientId is passed from navigation)
+  const [selectedPatientId, setSelectedPatientId] = useState<string>(patientId ?? '');
+  const [patients, setPatients] = useState<Array<{id: string; full_name: string}>>([]);
+
   // Multi-page capture support (spec §16.2 / Phase 4).
   const [capturedPages, setCapturedPages] = useState<CapturedPage[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [captureQuality, setCaptureQuality] = useState<CaptureQuality | null>(null);
   const [showGuidance, setShowGuidance] = useState(true);
+  const [torchOn, setTorchOn] = useState(false);
 
   // Feature flag gate (spec §34)
   const ocrEnabled = isOcrEnabled();
@@ -125,6 +131,11 @@ export function ScanScreen({route, navigation}: Props) {
   // On-device OCR availability (spec §16)
   const [onDeviceOcrAvailable, setOnDeviceOcrAvailable] = useState(false);
   const [onDeviceOcrEngine, setOnDeviceOcrEngine] = useState('none');
+
+  // Camera setup — react-native-vision-camera v4 hooks
+  const cameraRef = useRef<Camera>(null);
+  const device = useCameraDevice('back');
+  const {hasPermission, requestPermission} = useCameraPermission();
 
   useEffect(() => {
     if (ocrEnabled) {
@@ -143,6 +154,24 @@ export function ScanScreen({route, navigation}: Props) {
       setLoadingTemplates(false);
     }
   }, [ocrEnabled]);
+
+  // Load patients from local DB if no patientId was passed
+  useEffect(() => {
+    if (!patientId) {
+      try {
+        const {query} = require('../core/db/database');
+        const rows = query('SELECT id, full_name FROM persons ORDER BY full_name LIMIT 100');
+        setPatients(rows.map((r: any) => ({id: String(r.id), full_name: String(r.full_name || '')})));
+      } catch {}
+    }
+  }, [patientId]);
+
+  // Request camera permission on mount if not granted
+  useEffect(() => {
+    if (hasPermission === false) {
+      requestPermission();
+    }
+  }, [hasPermission, requestPermission]);
 
   async function loadTemplates() {
     // Try cached templates first
@@ -177,11 +206,11 @@ export function ScanScreen({route, navigation}: Props) {
   }
 
   function enterManually() {
-    // Navigate to manual observation entry based on episode context
+    const pid = selectedPatientId || patientId || '';
     if (episode === 'newborn' || episode === 'NEWBORN') {
-      navigation.navigate('NewbornObserve', {episodeId: patientId});
+      navigation.navigate('NewbornObserve', {episodeId: pid});
     } else {
-      navigation.navigate('PregnancyObserve', {episodeId: patientId});
+      navigation.navigate('PregnancyObserve', {episodeId: pid});
     }
   }
 
@@ -223,21 +252,14 @@ export function ScanScreen({route, navigation}: Props) {
    * (e.g., in tests or on a simulator). Poor-quality captures are flagged
    * so the user can retake.
    */
-  async function capturePage() {
-    // Check camera permission first
-    if (isCameraAvailable()) {
-      const perm = await checkCameraPermission();
-      if (!perm.granted) {
-        const requested = await requestCameraPermission();
-        if (!requested.granted) {
-          Alert.alert(
-            'Camera Permission Required',
-            'Please grant camera permission to scan documents.',
-            [{text: 'OK'}],
-          );
-          return;
-        }
-      }
+  const capturePage = useCallback(async () => {
+    if (!cameraRef.current) {
+      Alert.alert('Camera Not Ready', 'The camera is still initializing. Please wait a moment.', [{text: 'OK'}]);
+      return;
+    }
+    if (!device) {
+      Alert.alert('No Camera', 'No back camera device found on this phone.', [{text: 'OK'}]);
+      return;
     }
 
     let imagePath: string;
@@ -245,10 +267,13 @@ export function ScanScreen({route, navigation}: Props) {
     let imageHeight = 3024;
 
     try {
-      const result = await capturePhoto({ flash: 'auto', quality: 'high' });
-      imagePath = result.path;
-      imageWidth = result.width;
-      imageHeight = result.height;
+      const photo = await cameraRef.current.takePhoto({
+        flash: torchOn ? 'on' : 'auto',
+        enableShutterSound: true,
+      });
+      imagePath = `file://${photo.path}`;
+      imageWidth = photo.width;
+      imageHeight = photo.height;
     } catch (err: any) {
       Alert.alert(
         'Capture Failed',
@@ -264,7 +289,6 @@ export function ScanScreen({route, navigation}: Props) {
     setCaptureQuality(quality);
 
     if (!quality.isAcceptable) {
-      // Prompt retake for poor quality captures (spec §16.2).
       Alert.alert(
         'Poor Capture Quality',
         quality.message,
@@ -276,7 +300,7 @@ export function ScanScreen({route, navigation}: Props) {
       return;
     }
     storeCapturedPage(imagePath, imageHash, quality);
-  }
+  }, [device, torchOn, currentPage]);
 
   function storeCapturedPage(imagePath: string, imageHash: string, quality: CaptureQuality) {
     const page: CapturedPage = {
@@ -361,7 +385,7 @@ export function ScanScreen({route, navigation}: Props) {
           method: 'POST',
           headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
           body: JSON.stringify({
-            patientId,
+            patientId: selectedPatientId || patientId,
             templateId: selectedTemplate,
             episode,
             imagePath: page.imagePath,
@@ -473,6 +497,44 @@ export function ScanScreen({route, navigation}: Props) {
         subtitle="Capture a document page, select a template, and submit for OCR extraction."
       />
 
+      {/* Patient selector (only when no patientId was passed) */}
+      {!patientId && (
+        <Card style={styles.sectionCard}>
+          <AppText variant="smallStrong" tone="secondary" style={styles.fieldLabel}>
+            Select Patient *
+          </AppText>
+          {patients.length === 0 ? (
+            <AppText variant="small" tone="secondary">
+              No patients registered. Register a patient first or enter data manually.
+            </AppText>
+          ) : (
+            patients.map(p => {
+              const selected = selectedPatientId === p.id;
+              return (
+                <Card
+                  key={p.id}
+                  variant={selected ? 'elevated' : 'outlined'}
+                  onPress={() => setSelectedPatientId(p.id)}
+                  style={[
+                    styles.option,
+                    selected && {borderColor: colors.primary, backgroundColor: colors.primarySubtle},
+                  ]}>
+                  <View style={styles.optionRow}>
+                    <Icon name="user" size={18} color={selected ? colors.primary : colors.textTertiary} />
+                    <View style={styles.flex}>
+                      <AppText variant="bodyStrong" tone={selected ? 'brand' : 'primary'}>
+                        {p.full_name}
+                      </AppText>
+                    </View>
+                    {selected ? <Icon name="check" size={18} color={colors.primary} /> : null}
+                  </View>
+                </Card>
+              );
+            })
+          )}
+        </Card>
+      )}
+
       {/* Template selector */}
       <Card style={styles.sectionCard}>
         <AppText variant="smallStrong" tone="secondary" style={styles.fieldLabel}>
@@ -524,34 +586,74 @@ export function ScanScreen({route, navigation}: Props) {
         )}
       </Card>
 
-      {/* Camera preview + capture guidance overlay (spec §16.2 / Phase 4) */}
+      {/* Live camera viewfinder + capture controls (spec §16.2) */}
       <Card style={styles.sectionCard}>
         <AppText variant="smallStrong" tone="secondary" style={styles.fieldLabel}>
           Document Capture
         </AppText>
-        <View style={styles.cameraPlaceholder}>
-          {showGuidance ? (
-            <View style={styles.guidanceOverlay}>
-              <Icon name="scan" size={32} color={colors.textTertiary} />
-              <AppText variant="bodyStrong" center style={styles.guidanceTitle}>
-                Positioning Guide
-              </AppText>
-              <AppText variant="small" tone="secondary" center style={styles.cameraHint}>
-                {'\u2022'} Place the document flat on a contrasting surface.{'\n'}
-                {'\u2022'} Fill the frame with the page (all four corners visible).{'\n'}
-                {'\u2022'} Avoid shadows and direct reflections.{'\n'}
-                {'\u2022'} Hold the device steady and parallel to the page.
-              </AppText>
-            </View>
-          ) : (
-            <View style={styles.guidanceOverlay}>
-              <Icon name="camera" size={32} color={colors.textTertiary} />
-              <AppText variant="small" tone="secondary" center style={styles.cameraHint}>
-                Camera preview will appear here when react-native-vision-camera is integrated.
-              </AppText>
-            </View>
-          )}
-        </View>
+
+        {/* Camera permission not granted */}
+        {hasPermission === false ? (
+          <View style={styles.cameraPlaceholder}>
+            <Icon name="camera" size={32} color={colors.textTertiary} />
+            <AppText variant="bodyStrong" center style={styles.guidanceTitle}>
+              Camera Permission Needed
+            </AppText>
+            <AppText variant="small" tone="secondary" center style={styles.cameraHint}>
+              MCH VoiceCare needs camera access to scan health documents.
+            </AppText>
+            <Button
+              label="Grant Permission"
+              variant="primary"
+              onPress={requestPermission}
+              icon="camera"
+              style={styles.marginTop}
+            />
+          </View>
+        ) : device == null ? (
+          <View style={styles.cameraPlaceholder}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <AppText variant="small" tone="secondary" center style={styles.cameraHint}>
+              Looking for camera…
+            </AppText>
+          </View>
+        ) : (
+          <View style={styles.cameraContainer}>
+            <Camera
+              ref={cameraRef}
+              style={styles.cameraView}
+              device={device}
+              isActive={true}
+              photo={true}
+              torch={torchOn ? 'on' : 'off'}
+              enableZoomGesture={true}
+            />
+            {showGuidance && (
+              <View style={styles.frameOverlay} pointerEvents="none">
+                <View style={styles.frameCornerTL} />
+                <View style={styles.frameCornerTR} />
+                <View style={styles.frameCornerBL} />
+                <View style={styles.frameCornerBR} />
+                <View style={styles.frameHint}>
+                  <AppText variant="small" style={styles.frameHintText}>
+                    Align document within frame
+                  </AppText>
+                </View>
+              </View>
+            )}
+            {device.hasTorch && (
+              <TouchableOpacity
+                style={styles.torchButton}
+                onPress={() => setTorchOn(prev => !prev)}>
+                <Icon
+                  name="bolt"
+                  size={20}
+                  color={torchOn ? '#FFD60A' : '#FFFFFF'}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Brightness indicator (spec §16.2) */}
         {captureQuality ? (
@@ -647,7 +749,7 @@ export function ScanScreen({route, navigation}: Props) {
         variant="primary"
         onPress={submitScan}
         loading={submitting}
-        disabled={submitting || !selectedTemplate || !hasCapturedPages}
+        disabled={submitting || !selectedTemplate || !hasCapturedPages || (!patientId && !selectedPatientId)}
         icon="scan"
         fullWidth
         size="lg"
@@ -685,7 +787,7 @@ const styles = StyleSheet.create({
   flex: {flex: 1},
   safetyRow: {flexDirection: 'row', alignItems: 'center', gap: space[1], marginTop: space[1]},
   cameraPlaceholder: {
-    height: 200,
+    height: 300,
     borderWidth: border.heavy,
     borderColor: '#E2E8F0',
     borderStyle: 'dashed',
@@ -694,6 +796,83 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: space[4],
   },
+  cameraContainer: {
+    height: 400,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+  },
+  cameraView: {
+    flex: 1,
+  },
+  frameOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  frameCornerTL: {
+    position: 'absolute',
+    top: 30,
+    left: 20,
+    width: 30,
+    height: 30,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  frameCornerTR: {
+    position: 'absolute',
+    top: 30,
+    right: 20,
+    width: 30,
+    height: 30,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  frameCornerBL: {
+    position: 'absolute',
+    bottom: 30,
+    left: 20,
+    width: 30,
+    height: 30,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  frameCornerBR: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 30,
+    height: 30,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  frameHint: {
+    position: 'absolute',
+    bottom: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: space[3],
+    paddingVertical: space[1],
+    borderRadius: radius.sm,
+  },
+  frameHintText: {
+    color: '#FFFFFF',
+  },
+  torchButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  marginTop: {marginTop: space[3]},
   guidanceOverlay: {alignItems: 'center', justifyContent: 'center', padding: space[1], gap: space[2]},
   guidanceTitle: {marginBottom: space[1]},
   cameraHint: {lineHeight: 18},

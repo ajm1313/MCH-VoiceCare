@@ -19,6 +19,7 @@ urlpatterns = [
     path("logout/", LogoutView.as_view(), name="logout"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("accounts/", include("apps.accounts.web_urls")),
+    path("organisations/", include("apps.organisations.web_urls")),
     path("system/", include("apps.core.web_urls")),
     path("clients/", include("apps.clients.urls")),
     path("pregnancy/", include("apps.pregnancy.urls")),

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Organisation Units · MCH VoiceCare{% endblock %}
+{% block navbar_title %}Facilities & Organisation{% endblock %}
+
+{% block content %}
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'dashboard' %}" class="btn-back" aria-label="Back to dashboard">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <div class="flex-1">
+      <p class="overline">Administration</p>
+      <h1 class="page-title">Facilities &amp; Organisation</h1>
+    </div>
+    {% if can_manage %}
+    <a href="{% url 'orgunit_create' %}" class="btn btn-primary btn-sm gap-2 shadow-card">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      Create Unit
+    </a>
+    {% endif %}
+  </div>
+
+  {# ── Summary cards ── #}
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <a href="?unit_type=REGION" class="card-section p-5 group hover:shadow-float transition-shadow">
+      <p class="stat-card-label">Regions</p>
+      <p class="stat-card-value text-info">{{ count_regions }}</p>
+    </a>
+    <a href="?unit_type=DISTRICT" class="card-section p-5 group hover:shadow-float transition-shadow">
+      <p class="stat-card-label">Districts</p>
+      <p class="stat-card-value text-warning">{{ count_districts }}</p>
+    </a>
+    <a href="?unit_type=SUBDISTRICT" class="card-section p-5 group hover:shadow-float transition-shadow">
+      <p class="stat-card-label">Sub-districts</p>
+      <p class="stat-card-value" style="color: #8b5cf6">{{ count_subdistricts }}</p>
+    </a>
+    <a href="?unit_type=FACILITY" class="card-section p-5 group hover:shadow-float transition-shadow">
+      <p class="stat-card-label">Facilities</p>
+      <p class="stat-card-value text-urgency-red">{{ count_facilities }}</p>
+    </a>
+  </div>
+
+  {# ── Filters ── #}
+  <form method="get" class="flex flex-wrap gap-3 items-end">
+    <div class="flex-1 min-w-[200px]">
+      <label class="block text-caption text-base-content/55 mb-1">Filter by type</label>
+      <select name="unit_type" class="select select-bordered w-full" onchange="this.form.submit()">
+        <option value="">All types</option>
+        {% for value, label in unit_types %}
+        <option value="{{ value }}" {% if current_unit_type == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex-1 min-w-[200px]">
+      <label class="block text-caption text-base-content/55 mb-1">Search</label>
+      <input type="text" name="q" value="{{ request.GET.q }}" class="input input-bordered w-full" placeholder="Search by name or code…">
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+  </form>
+
+  {# ── Table ── #}
+  <section class="card-section animate-in">
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead>
+          <tr>
+            <th class="px-5 py-3 text-left">Name</th>
+            <th class="px-5 py-3 text-left">Code</th>
+            <th class="px-5 py-3 text-left">Type</th>
+            <th class="px-5 py-3 text-left">Parent</th>
+            <th class="px-5 py-3 text-left">Path</th>
+            <th class="px-5 py-3 text-left">Status</th>
+            <th class="px-5 py-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in org_units %}
+          <tr>
+            <td class="px-5 py-3 font-medium">{{ u.name }}</td>
+            <td class="px-5 py-3 text-base-content/70">{{ u.code|default:"—" }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ u.get_unit_type_display }}</span></td>
+            <td class="px-5 py-3 text-base-content/70">{{ u.parent.name|default:"—" }}</td>
+            <td class="px-5 py-3 text-base-content/50 text-small">{{ u.path }}</td>
+            <td class="px-5 py-3">
+              {% if u.status == 'ACTIVE' %}<span class="pill pill-success">Active</span>{% else %}<span class="pill pill-error">{{ u.status }}</span>{% endif %}
+            </td>
+            <td class="px-5 py-3 text-right">
+              <a href="{% url 'orgunit_detail' u.pk %}" class="btn btn-ghost btn-xs gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                View
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="px-5 py-12 text-center text-base-content/40">No organisation units found. Create one to get started.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}{{ org_unit.name }} · MCH VoiceCare{% endblock %}
+{% block navbar_title %}{{ org_unit.name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'orgunit_list' %}" class="btn-back" aria-label="Back to organisation units">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <div class="flex-1">
+      <p class="overline">{{ org_unit.get_unit_type_display }}</p>
+      <h1 class="page-title">{{ org_unit.name }}</h1>
+      <p class="text-small text-base-content/50 mt-1">{{ org_unit.path }}</p>
+    </div>
+    {% if can_manage %}
+    <a href="{% url 'orgunit_edit' org_unit.pk %}" class="btn btn-primary btn-sm gap-2">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+      Edit
+    </a>
+    {% endif %}
+  </div>
+
+  {# ── Details ── #}
+  <section class="card-section animate-in">
+    <div class="panel-header">
+      <h2 class="text-lg font-semibold tracking-tight">Details</h2>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5">
+      <div>
+        <p class="text-caption text-base-content/45">Code</p>
+        <p class="font-medium">{{ org_unit.code|default:"—" }}</p>
+      </div>
+      <div>
+        <p class="text-caption text-base-content/45">Type</p>
+        <p><span class="pill pill-neutral">{{ org_unit.get_unit_type_display }}</span></p>
+      </div>
+      <div>
+        <p class="text-caption text-base-content/45">Parent</p>
+        <p class="font-medium">
+          {% if org_unit.parent %}
+          <a href="{% url 'orgunit_detail' org_unit.parent.pk %}" class="text-primary hover:underline">{{ org_unit.parent.name }}</a>
+          {% else %}—{% endif %}
+        </p>
+      </div>
+      <div>
+        <p class="text-caption text-base-content/45">Status</p>
+        <p>
+          {% if org_unit.status == 'ACTIVE' %}<span class="pill pill-success">Active</span>{% else %}<span class="pill pill-error">{{ org_unit.status }}</span>{% endif %}
+        </p>
+      </div>
+      {% if org_unit.unit_type == 'FACILITY' %}
+      <div>
+        <p class="text-caption text-base-content/45">Facility Type</p>
+        <p class="font-medium">{{ org_unit.get_facility_type_display|default:"—" }}</p>
+      </div>
+      <div>
+        <p class="text-caption text-base-content/45">Coordinates</p>
+        <p class="font-medium text-small">
+          {% if org_unit.latitude %}{{ org_unit.latitude }}, {{ org_unit.longitude }}{% else %}—{% endif %}
+        </p>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ── Facility capabilities ── #}
+  {% if org_unit.unit_type == 'FACILITY' %}
+  <section class="card-section animate-in">
+    <div class="panel-header">
+      <h2 class="text-lg font-semibold tracking-tight">Facility Capabilities</h2>
+    </div>
+    {% if capability %}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-5">
+      <div class="flex items-center gap-2">
+        {% if capability.maternity_triage_24_7 %}<span class="pill pill-success">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}
+        <span class="text-small">24/7 Maternity Triage</span>
+      </div>
+      <div class="flex items-center gap-2">
+        {% if capability.bemonc %}<span class="pill pill-success">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}
+        <span class="text-small">BEmONC</span>
+      </div>
+      <div class="flex items-center gap-2">
+        {% if capability.cemonc %}<span class="pill pill-success">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}
+        <span class="text-small">CEmONC</span>
+      </div>
+      <div class="flex items-center gap-2">
+        {% if capability.theatre %}<span class="pill pill-success">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}
+        <span class="text-small">Theatre</span>
+      </div>
+      <div class="flex items-center gap-2">
+        {% if capability.blood %}<span class="pill pill-success">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}
+        <span class="text-small">Blood Bank</span>
+      </div>
+      <div class="flex items-center gap-2">
+        {% if capability.specialist_obstetrics %}<span class="pill pill-success">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}
+        <span class="text-small">Obstetrics Specialist</span>
+      </div>
+      <div class="flex items-center gap-2">
+        {% if capability.newborn_support %}<span class="pill pill-success">Yes</span>{% else %}<span class="pill pill-neutral">No</span>{% endif %}
+        <span class="text-small">Newborn Support</span>
+      </div>
+    </div>
+    {% if capability.primary_referral_destination %}
+    <div class="px-5 pb-4 text-small text-base-content/60">
+      <strong>Primary referral:</strong> {{ capability.primary_referral_destination.name }}
+      {% if capability.backup_referral_destination %} · <strong>Backup:</strong> {{ capability.backup_referral_destination.name }}{% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="p-5 text-base-content/50">
+      <p>No capability record configured for this facility.</p>
+      {% if can_manage %}
+      <p class="mt-2"><a href="/admin/apps/organisations/facilitycapability/add/?facility={{ org_unit.pk }}" class="btn btn-ghost btn-sm gap-1">Configure in Django Admin</a></p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {# ── Child units (cascaded hierarchy) ── #}
+  {% if children %}
+  <section class="card-section animate-in">
+    <div class="panel-header">
+      <h2 class="text-lg font-semibold tracking-tight">Child Units ({{ children|length }})</h2>
+      {% if can_manage %}
+      <a href="{% url 'orgunit_create' %}?parent={{ org_unit.pk }}" class="btn btn-ghost btn-sm gap-1 text-primary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Add Child
+      </a>
+      {% endif %}
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead><tr><th class="px-5 py-3 text-left">Name</th><th class="px-5 py-3 text-left">Type</th><th class="px-5 py-3 text-left">Status</th><th class="px-5 py-3"></th></tr></thead>
+        <tbody>
+          {% for child in children %}
+          <tr>
+            <td class="px-5 py-3 font-medium">{{ child.name }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ child.get_unit_type_display }}</span></td>
+            <td class="px-5 py-3">{% if child.status == 'ACTIVE' %}<span class="pill pill-success">Active</span>{% else %}<span class="pill pill-error">{{ child.status }}</span>{% endif %}</td>
+            <td class="px-5 py-3 text-right"><a href="{% url 'orgunit_detail' child.pk %}" class="btn btn-ghost btn-xs">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% elif org_unit.unit_type != 'FACILITY' %}
+  <section class="card-section animate-in">
+    <div class="p-5 text-center text-base-content/50">
+      <p>No child units under {{ org_unit.name }}.</p>
+      {% if can_manage %}
+      <a href="{% url 'orgunit_create' %}?parent={{ org_unit.pk }}" class="btn btn-primary btn-sm gap-2 mt-3">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Add Child Unit
+      </a>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  {# ── Assigned users ── #}
+  {% if users %}
+  <section class="card-section animate-in">
+    <div class="panel-header">
+      <h2 class="text-lg font-semibold tracking-tight">Assigned Users ({{ users|length }})</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table-premium">
+        <thead><tr><th class="px-5 py-3 text-left">Username</th><th class="px-5 py-3 text-left">Full Name</th><th class="px-5 py-3 text-left">Role</th><th class="px-5 py-3 text-left">Active</th><th class="px-5 py-3"></th></tr></thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td class="px-5 py-3 font-medium">{{ u.username }}</td>
+            <td class="px-5 py-3 text-base-content/70">{{ u.full_name|default:"—" }}</td>
+            <td class="px-5 py-3"><span class="pill pill-neutral">{{ u.get_system_role_display }}</span></td>
+            <td class="px-5 py-3">{% if u.is_active %}<span class="pill pill-success">Yes</span>{% else %}<span class="pill pill-error">No</span>{% endif %}</td>
+            <td class="px-5 py-3 text-right"><a href="{% url 'user_detail' u.pk %}" class="btn btn-ghost btn-xs">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

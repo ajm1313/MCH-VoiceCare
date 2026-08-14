@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ form.instance.pk|yesno:"Edit,Create" }} Organisation Unit · MCH VoiceCare{% endblock %}
+{% block navbar_title %}{{ form.instance.pk|yesno:"Edit Unit,Create Unit" }}{% endblock %}
+
+{% block content %}
+<div class="space-y-7">
+  <div class="page-header">
+    <a href="{% url 'orgunit_list' %}" class="btn-back" aria-label="Back to organisation units">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Back
+    </a>
+    <div class="flex-1">
+      <p class="overline">Administration</p>
+      <h1 class="page-title">{{ form.instance.pk|yesno:"Edit,Create" }} Organisation Unit</h1>
+    </div>
+  </div>
+
+  {% if parent_unit %}
+  <div class="alert alert-info">
+    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
+    <span>Creating a child unit under <strong>{{ parent_unit.name }}</strong> ({{ parent_unit.get_unit_type_display }})</span>
+  </div>
+  {% endif %}
+
+  <section class="card-section animate-in">
+    <form method="post" class="space-y-5 p-5">
+      {% csrf_token %}
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label class="block text-small font-semibold mb-1.5" for="{{ form.name.id_for_label }}">Name *</label>
+          {{ form.name }}
+          {% if form.name.errors %}<p class="text-small text-error mt-1">{{ form.name.errors|join:", " }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-small font-semibold mb-1.5" for="{{ form.code.id_for_label }}">Code</label>
+          {{ form.code }}
+          {% if form.code.errors %}<p class="text-small text-error mt-1">{{ form.code.errors|join:", " }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-small font-semibold mb-1.5" for="{{ form.unit_type.id_for_label }}">Unit Type *</label>
+          {{ form.unit_type }}
+          {% if form.unit_type.errors %}<p class="text-small text-error mt-1">{{ form.unit_type.errors|join:", " }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-small font-semibold mb-1.5" for="{{ form.parent.id_for_label }}">Parent Unit</label>
+          {{ form.parent }}
+          {% if form.parent.errors %}<p class="text-small text-error mt-1">{{ form.parent.errors|join:", " }}</p>{% endif %}
+          <p class="text-caption text-base-content/45 mt-1">Leave blank for top-level (Region).</p>
+        </div>
+
+        <div>
+          <label class="block text-small font-semibold mb-1.5" for="{{ form.facility_type.id_for_label }}">Facility Type</label>
+          {{ form.facility_type }}
+          {% if form.facility_type.errors %}<p class="text-small text-error mt-1">{{ form.facility_type.errors|join:", " }}</p>{% endif %}
+          <p class="text-caption text-base-content/45 mt-1">Only applies to Facility-type units.</p>
+        </div>
+
+        <div>
+          <label class="block text-small font-semibold mb-1.5" for="{{ form.status.id_for_label }}">Status</label>
+          {{ form.status }}
+          {% if form.status.errors %}<p class="text-small text-error mt-1">{{ form.status.errors|join:", " }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-small font-semibold mb-1.5" for="{{ form.latitude.id_for_label }}">Latitude</label>
+          {{ form.latitude }}
+          {% if form.latitude.errors %}<p class="text-small text-error mt-1">{{ form.latitude.errors|join:", " }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-small font-semibold mb-1.5" for="{{ form.longitude.id_for_label }}">Longitude</label>
+          {{ form.longitude }}
+          {% if form.longitude.errors %}<p class="text-small text-error mt-1">{{ form.longitude.errors|join:", " }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-3">
+        <button type="submit" class="btn btn-primary gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          {{ form.instance.pk|yesno:"Save Changes,Create Unit" }}
+        </button>
+        <a href="{% url 'orgunit_list' %}" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

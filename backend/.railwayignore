@@ -1,0 +1,8 @@
+node_modules/
+media/
+staticfiles/
+*.pyc
+__pycache__/
+*.egg-info/
+.env
+db_backups/

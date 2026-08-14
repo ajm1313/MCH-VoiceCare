@@ -51,7 +51,8 @@ type NavTarget =
   | 'CWCSession'
   | 'ReferralList'
   | 'PersonList'
-  | 'AuditList';
+  | 'AuditList'
+  | 'Scan';
 
 interface UrgencyCard {
   key: 'RED' | 'ORANGE' | 'AMBER' | 'GREY';
@@ -213,7 +214,7 @@ export function DashboardScreen({navigation}: Props) {
       desc: 'OCR document scanning & voice recording',
       accent: '#6366F1',
       modules: [
-        {label: 'OCR Scan', desc: 'Select client & scan document', target: 'PersonList', icon: 'clipboard'},
+        {label: 'OCR Scan', desc: 'Scan document with camera', target: 'Scan', icon: 'scan'},
         {label: 'Voice Record', desc: 'Select episode & record voice', target: 'PregnancyList', icon: 'heart'},
       ],
     },
@@ -371,7 +372,7 @@ export function DashboardScreen({navigation}: Props) {
                       styles.statFlex,
                       pressed && pressedStyle,
                     ]}
-                    onPress={() => navigation.navigate(qa.target)}
+                    onPress={() => (navigation as any).navigate(qa.target)}
                     accessibilityRole="button"
                     accessibilityLabel={`${qa.label}: ${qa.value}`}
                     accessibilityHint={`Go to ${qa.label}`}>
@@ -409,7 +410,7 @@ export function DashboardScreen({navigation}: Props) {
                     icon={m.icon}
                     title={m.label}
                     subtitle={m.desc}
-                    onPress={() => navigation.navigate(m.target)}
+                    onPress={() => (navigation as any).navigate(m.target)}
                   />
                 ))}
                 {si < careStages.length - 1 ? (
@@ -448,7 +449,7 @@ export function DashboardScreen({navigation}: Props) {
                   icon={m.icon}
                   title={m.label}
                   subtitle={m.desc}
-                  onPress={() => navigation.navigate(m.target)}
+                  onPress={() => (navigation as any).navigate(m.target)}
                 />
               ))}
             </View>

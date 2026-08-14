@@ -28,9 +28,13 @@ export function isSpeechCaptureEnabled(): boolean {
 
 /**
  * OCR scanning feature flag (spec §34).
+ * Defaults to true when config hasn't been synced yet, matching the
+ * backend default (SystemConfig.ocr_enabled = True).
  */
 export function isOcrEnabled(): boolean {
-  return isFeatureEnabled('OCR_ENABLED');
+  const val = getConfigValue('FEATURE_OCR_ENABLED');
+  if (!val) return true;
+  return val.value_number === 1 || val.value_string === 'true';
 }
 
 /**

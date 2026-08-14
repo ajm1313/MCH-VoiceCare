@@ -4,11 +4,11 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
-import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {NativeStackScreenProps, NativeStackNavigationProp} from '@react-navigation/native-stack';
+import type {RootStackParamList} from '../core/navigation/types';
 
 import {query} from '../core/db/database';
 import {logLocalAudit} from '../core/utils/audit';
-import type {RootStackParamList} from '../core/navigation/types';
 import {
   AppText,
   Button,
@@ -86,6 +86,15 @@ export function PersonDetailScreen({route}: Props) {
           message="This person may have been deleted or synced from another device."
         />
       )}
+      {item && (
+        <Button
+          label="Scan Document"
+          variant="primary"
+          icon="scan"
+          onPress={() => (navigation as any).navigate('Scan', {patientId: personId})}
+          style={styles.scanBtn}
+        />
+      )}
     </Screen>
   );
 }
@@ -94,4 +103,5 @@ const styles = StyleSheet.create({
   backRow: {marginBottom: space[2]},
   card: {marginBottom: space[3]},
   title: {marginBottom: space[3]},
+  scanBtn: {marginTop: space[3]},
 });
