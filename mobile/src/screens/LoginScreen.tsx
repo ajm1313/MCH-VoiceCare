@@ -14,13 +14,12 @@ import React, {useState, useEffect, useCallback} from 'react';
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {useAuthStore} from '../core/auth/authStore';
 import {useTheme} from '../theme/useTheme';
@@ -37,9 +36,11 @@ import {
   storeCredentialsWithBiometric,
   type BiometricAvailability,
 } from '../core/auth/biometricAuth';
+import {setFlagSecureSync} from '../core/security/ScreenSecurity';
 
 export function LoginScreen() {
   const {colors} = useTheme();
+  const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -51,6 +52,13 @@ export function LoginScreen() {
   const [biometricLoading, setBiometricLoading] = useState(false);
 
   useEffect(() => {
+    // Clear FLAG_SECURE on login screen so the soft keyboard works.
+    // FLAG_SECURE blocks the keyboard on some Android devices (Samsung, etc.),
+    // causing it to flash and disappear immediately.
+    try { setFlagSecureSync(false); } catch {}
+  }, []);
+
+  useEffect(() => {
     checkBiometricAvailability().then(avail => {
       setBiometricAvail(avail);
       if (avail.available) {
@@ -60,12 +68,22 @@ export function LoginScreen() {
   }, []);
 
   const handleLogin = () => {
-    if (username && password) {
-      login(username, password).then(() => {
-        if (biometricAvail?.available) {
-          storeCredentialsWithBiometric(username, password || '');
-        }
-      });
+    try {
+      if (username && password) {
+        login(username, password).then(success => {
+          if (success && biometricAvail?.available) {
+            const { token, refreshToken, expiresAt, user } = useAuthStore.getState();
+            if (token && refreshToken && user) {
+              storeCredentialsWithBiometric(
+                username,
+                JSON.stringify({ token, refreshToken, expiresAt, user }),
+              );
+            }
+          }
+        }).catch(() => {});
+      }
+    } catch {
+      // Synchronous error in login handler — prevent crash
     }
   };
 
@@ -74,18 +92,23 @@ export function LoginScreen() {
     try {
       const creds = await biometricLogin();
       if (creds) {
-        login(creds.username, creds.token, true);
+        await login(creds.username, creds.token, true);
       }
+    } catch {
+      // Biometric login failed — user can fall back to manual login
     } finally {
       setBiometricLoading(false);
     }
   }, [login]);
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.inner}>
+    <View style={[styles.container, {backgroundColor: colors.background, paddingTop: insets.top}]}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}>
 
         {/* ── Brand banner ── */}
         <View style={styles.banner}>
@@ -208,8 +231,8 @@ export function LoginScreen() {
         <AppText variant="caption" tone="tertiary" style={styles.footer}>
           © {new Date().getFullYear()} MCH VoiceCare · Secure Health Platform
         </AppText>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -217,7 +240,11 @@ const BANNER_HEIGHT = 200;
 
 const styles = StyleSheet.create({
   container: {flex: 1},
-  inner: {flex: 1},
+  scrollView: {flex: 1},
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
   banner: {
     height: BANNER_HEIGHT,
     backgroundColor: brand.navy,

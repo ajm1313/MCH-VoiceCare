@@ -4,8 +4,13 @@
  * Clinical data entry is the highest-traffic interaction in the app, so the
  * field has a clear label, a visible focus state and an explicit error slot
  * rather than relying on colour alone.
+ *
+ * Focus state is managed via setNativeProps to avoid re-rendering the
+ * TextInput during focus changes. This prevents Fabric's async rendering
+ * from re-laying-out the TextInput, which causes the keyboard to blink
+ * and disappear on Android physical devices.
  */
-import React, {useState} from 'react';
+import React, {useRef} from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -48,13 +53,31 @@ export function Field({
   ...inputProps
 }: FieldProps) {
   const {colors} = useTheme();
-  const [focused, setFocused] = useState(false);
+  const inputRowRef = useRef<View>(null);
 
-  const borderColor = error
-    ? colors.danger
-    : focused
-    ? colors.primary
-    : colors.border;
+  const borderColor = error ? colors.danger : colors.border;
+
+  const handleFocus = (e: any) => {
+    if (!error && inputRowRef.current) {
+      try {
+        inputRowRef.current.setNativeProps({
+          borderColor: colors.primary,
+        });
+      } catch {}
+    }
+    inputProps.onFocus?.(e);
+  };
+
+  const handleBlur = (e: any) => {
+    if (!error && inputRowRef.current) {
+      try {
+        inputRowRef.current.setNativeProps({
+          borderColor: colors.border,
+        });
+      } catch {}
+    }
+    inputProps.onBlur?.(e);
+  };
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -72,6 +95,7 @@ export function Field({
       ) : null}
 
       <View
+        ref={inputRowRef}
         style={[
           styles.inputRow,
           {
@@ -79,7 +103,6 @@ export function Field({
             borderWidth: border.thick,
             backgroundColor: editable ? colors.surfaceSunken : colors.background,
           },
-          focused && !error ? {shadowColor: colors.focus, ...styles.focusRing} : null,
         ]}>
         {icon ? (
           <View style={styles.leadingIcon}>
@@ -90,14 +113,10 @@ export function Field({
         <TextInput
           {...inputProps}
           editable={editable}
-          onFocus={e => {
-            setFocused(true);
-            inputProps.onFocus?.(e);
-          }}
-          onBlur={e => {
-            setFocused(false);
-            inputProps.onBlur?.(e);
-          }}
+          importantForAccessibility="yes"
+          blurOnSubmit={false}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           placeholderTextColor={colors.textTertiary}
           style={[styles.input, typeScale.bodyLg, {color: colors.textPrimary}]}
         />
@@ -144,12 +163,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radius.md,
     minHeight: MIN_TOUCH,
-  },
-  focusRing: {
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    shadowOffset: {width: 0, height: 0},
-    elevation: 2,
   },
   leadingIcon: {paddingLeft: space[3]},
   input: {

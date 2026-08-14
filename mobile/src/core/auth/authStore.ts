@@ -12,6 +12,7 @@ import { logLocalAudit } from '../utils/audit';
 import { AppConfig } from '../../config/appConfig';
 import { getQueueDepth } from '../sync/outbox';
 import { apiFetch } from '../security/secureFetch';
+import { setFlagSecureSync } from '../security/ScreenSecurity';
 
 export interface UserRole {
   code: string;
@@ -46,6 +47,7 @@ export interface UserProfile {
   role: UserRole;
   location: UserLocation;
   organisationUnitName?: string;
+  organisationUnitId?: string;
 }
 
 interface AuthState {
@@ -55,6 +57,7 @@ interface AuthState {
   expiresAt: string | null;
   isLoading: boolean;
   error: string | null;
+  deviceId: string | null;
   login: (username: string, password: string, isBiometric?: boolean) => Promise<boolean>;
   restoreSession: () => Promise<void>;
   logout: (force?: boolean) => Promise<void>;
@@ -72,6 +75,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   expiresAt: null,
   isLoading: false,
   error: null,
+  deviceId: null,
 
   login: async (username: string, password: string, isBiometric?: boolean): Promise<boolean> => {
     set({ isLoading: true, error: null });
@@ -99,12 +103,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           expiresAt: storedData.expiresAt,
           isLoading: false,
         });
-        logLocalAudit({
+        try { logLocalAudit({
           action: 'BIOMETRIC_LOGIN',
           entityType: 'UserAccount',
           entityId: storedData.user.id,
           purpose: 'ADMIN',
-        });
+        }); } catch {}
+        try { setFlagSecureSync(true); } catch {}
         return true;
       }
 
@@ -145,12 +150,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt: data.expiresAt,
         isLoading: false,
       });
-      logLocalAudit({
+      try { logLocalAudit({
         action: 'LOGIN',
         entityType: 'UserAccount',
         entityId: data.user.id,
         purpose: 'ADMIN',
-      });
+      }); } catch {}
+      try { setFlagSecureSync(true); } catch {}
       return true;
     } catch (err) {
       set({
@@ -162,6 +168,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   restoreSession: async (): Promise<void> => {
+    // Clear any stale FLAG_SECURE from a previous session so the keyboard
+    // works on the login screen. FLAG_SECURE blocks the soft keyboard on
+    // some Android devices (Samsung Keyboard, etc.), causing it to flash
+    // and disappear immediately.
+    try { setFlagSecureSync(false); } catch {}
     try {
       const creds = await Keychain.getGenericPassword({
         service: KEYCHAIN_SERVICE,
@@ -173,15 +184,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           expiresAt: string;
           user: UserProfile;
         };
-        set({
-          user: parsed.user,
-          token: parsed.token,
-          refreshToken: parsed.refreshToken,
-          expiresAt: parsed.expiresAt,
-        });
+
+        // Check if the access token has expired
+        const isExpired = parsed.expiresAt &&
+          new Date(parsed.expiresAt).getTime() <= Date.now();
+
+        if (isExpired) {
+          // Attempt to refresh the token
+          set({
+            user: parsed.user,
+            token: parsed.token,
+            refreshToken: parsed.refreshToken,
+            expiresAt: parsed.expiresAt,
+          });
+          const newToken = await get().refreshAccessToken();
+          if (!newToken) {
+            // Refresh failed — clear credentials and require re-login
+            await Keychain.resetGenericPassword({ service: KEYCHAIN_SERVICE });
+            set({ user: null, token: null, refreshToken: null, expiresAt: null });
+            try { setFlagSecureSync(false); } catch {}
+            return;
+          }
+        } else {
+          set({
+            user: parsed.user,
+            token: parsed.token,
+            refreshToken: parsed.refreshToken,
+            expiresAt: parsed.expiresAt,
+          });
+        }
+        try { setFlagSecureSync(true); } catch {}
       }
     } catch {
       // No stored credentials — user must log in
+      try { setFlagSecureSync(false); } catch {}
     }
   },
 
@@ -287,5 +323,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       purpose: 'ADMIN',
     });
     set({ user: null, token: null, refreshToken: null, expiresAt: null });
+    try { setFlagSecureSync(false); } catch {}
   },
 }));

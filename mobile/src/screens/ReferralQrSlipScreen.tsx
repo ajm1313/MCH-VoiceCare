@@ -83,19 +83,7 @@ async function printOrShareSlip(
     `Referral ID: ${referralId}`,
   ].join('\n');
 
-  // Try React Native Print (optional dependency)
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Print = require('react-native-print');
-    if (Print && Print.print) {
-      await Print.print({html: slipText});
-      return;
-    }
-  } catch {
-    // react-native-print not installed — fall through to Share
-  }
-
-  // Fallback: use the Share API
+  // Use the Share API (react-native-print is not installed)
   try {
     await Share.share({
       message: slipText,
@@ -156,6 +144,7 @@ export function ReferralQrSlipScreen({route, navigation}: Props) {
       setQrToken(data.qr_token);
       setShortCode(data.short_code);
       const db = getDb();
+      if (!db) return;
       db.execute(
         'UPDATE referrals SET qr_token = ?, short_code = ? WHERE id = ?',
         [data.qr_token, data.short_code, referralId],

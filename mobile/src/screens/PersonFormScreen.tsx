@@ -99,6 +99,7 @@ export function PersonFormScreen({route, navigation}: Props) {
       return;
     }
     const db = getDb();
+    if (!db) return;
     const id = editing ? personId! : `person-${Date.now()}`;
     db.execute(
       `INSERT OR REPLACE INTO persons (
@@ -127,6 +128,7 @@ export function PersonFormScreen({route, navigation}: Props) {
       {text: 'Cancel', style: 'cancel'},
       {text: 'Delete', style: 'destructive', onPress: () => {
         const db = getDb();
+        if (!db) return;
         db.execute('DELETE FROM persons WHERE id = ?', [personId]);
         navigation.goBack();
       }},

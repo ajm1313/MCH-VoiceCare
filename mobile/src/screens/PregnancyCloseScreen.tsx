@@ -49,6 +49,7 @@ export function PregnancyCloseScreen({route, navigation}: Props) {
         style: 'destructive',
         onPress: () => {
           const db = getDb();
+          if (!db) return;
           db.execute(
             "UPDATE episodes SET status = 'CLOSED', updated_at = ? WHERE id = ?",
             [new Date().toISOString(), episodeId],

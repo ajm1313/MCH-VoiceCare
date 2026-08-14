@@ -3,7 +3,18 @@ buildscript {
         buildToolsVersion = "35.0.0"
         minSdkVersion = 24
         compileSdkVersion = 35
-        targetSdkVersion = 35
+        // targetSdkVersion is intentionally kept at 34, NOT 35.
+        // Android 15 (API 35) enforces edge-to-edge unconditionally once an app
+        // targets SDK 35, and Window#setDecorFitsSystemWindows() becomes a
+        // documented no-op (see developer.android.com/about/versions/15/behavior-changes-15).
+        // MainActivity.kt relies on setDecorFitsSystemWindows(true) to opt out of
+        // edge-to-edge so windowSoftInputMode=adjustResize and touch/layout
+        // coordinates behave correctly. Targeting 35 silently breaks that opt-out
+        // on real Android 15 devices, causing login fields (and other inputs) to
+        // become non-responsive even though they render correctly. Targeting 34
+        // keeps compileSdk at the latest APIs while preserving legacy system-bar
+        // behavior on all OS versions, including Android 15 hardware.
+        targetSdkVersion = 34
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.0.21"
     }

@@ -4,7 +4,8 @@
  * Enqueues to outbox for sync (SYNC-001).
  */
 import React, {useState} from 'react';
-import {KeyboardAvoidingView, Platform, Pressable, StyleSheet, View} from 'react-native';
+import {Pressable, StyleSheet, View} from 'react-native';
+import {KeyboardAvoidingViewWrapper} from '../components/ui/KeyboardAvoidingViewWrapper';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
@@ -102,9 +103,7 @@ export function ImmunisationRegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{flex: 1}}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingViewWrapper style={{flex: 1}}>
       <Screen scroll>
         <SectionHeader title="Register Child" overline="Immunisation" />
 
@@ -156,7 +155,7 @@ export function ImmunisationRegisterScreen() {
           />
         </View>
       </Screen>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingViewWrapper>
   );
 }
 

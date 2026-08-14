@@ -69,8 +69,8 @@ export async function initPushNotifications(
 
   logLocalAudit({
     action: 'PUSH_NOTIFICATION_REGISTERED',
-    entity_type: 'device',
-    details: {orgUnitId, regionId},
+    entityType: 'device',
+    metadata: {orgUnitId, regionId},
   });
 
   return tokenResult.token;
@@ -210,7 +210,7 @@ export async function unregisterPushNotifications(
 
   logLocalAudit({
     action: 'PUSH_NOTIFICATION_UNREGISTERED',
-    entity_type: 'device',
-    details: {orgUnitId},
+    entityType: 'device',
+    metadata: {orgUnitId},
   });
 }

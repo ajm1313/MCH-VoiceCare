@@ -14,6 +14,10 @@ import { getCachedDeviceConfig } from '../auth/deviceProvision';
 export type AuditAction =
   | 'LOGIN'
   | 'LOGOUT'
+  | 'BIOMETRIC_LOGIN'
+  | 'BIOMETRIC_LOGIN_SUCCESS'
+  | 'BIOMETRIC_LOGIN_FAILED'
+  | 'BIOMETRIC_LOGIN_UNAVAILABLE'
   | 'PATIENT_VIEW'
   | 'PATIENT_SEARCH'
   | 'RECORD_CREATE'
@@ -27,7 +31,11 @@ export type AuditAction =
   | 'REFERRAL_CREATED'
   | 'REFERRAL_STATE_CHANGE'
   | 'PACKAGE_ACTIVATED'
-  | 'PACKAGE_ROLLBACK';
+  | 'PACKAGE_ROLLBACK'
+  | 'PUSH_NOTIFICATION_REGISTERED'
+  | 'PUSH_NOTIFICATION_UNREGISTERED'
+  | 'TRANSPORT_SECURITY_VIOLATION'
+  | 'UNPINNED_DOMAIN_WARNING';
 
 export interface AuditEventInput {
   action: AuditAction;
@@ -50,6 +58,7 @@ export function logLocalAudit(input: AuditEventInput): void {
     const { user } = useAuthStore.getState();
     const deviceConfig = getCachedDeviceConfig();
     const db = getDb();
+    if (!db) return;
 
     db.execute(
       `INSERT OR REPLACE INTO audit_events (

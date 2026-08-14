@@ -68,6 +68,7 @@ export function NotificationDetailScreen({route, navigation}: Props) {
 
   const updateStatus = (status: string) => {
     const db = getDb();
+    if (!db) return;
     db.execute('UPDATE notifications SET status = ? WHERE id = ?', [status, notificationId]);
     setNotif(prev => prev ? {...prev, status} : prev);
   };
@@ -83,6 +84,7 @@ export function NotificationDetailScreen({route, navigation}: Props) {
 
   const handleSaveAction = () => {
     const db = getDb();
+    if (!db) return;
     const id = `action-${Date.now()}`;
     const now = new Date().toISOString();
     db.execute(

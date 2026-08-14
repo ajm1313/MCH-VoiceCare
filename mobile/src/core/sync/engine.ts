@@ -113,6 +113,7 @@ function processVoiceSyncResponse(record: any, responseData: any): void {
   if (!recordingId) return;
 
   const db = getDb();
+  if (!db) return;
   const transcript = responseData.transcript ?? '';
   const extractedData = responseData.extractedFields
     ? JSON.stringify(responseData.extractedFields)

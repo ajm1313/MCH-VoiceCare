@@ -40,6 +40,7 @@ function getLastSync(): string {
 
 function setLastSync(timestamp: string): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)`,
     [LAST_SYNC_KEY, timestamp],
@@ -97,6 +98,7 @@ function upsertRecords(
   records: Record<string, unknown>[],
 ): void {
   const db = getDb();
+  if (!db) return;
 
   for (const record of records) {
     const id = record.id as string;
@@ -152,6 +154,7 @@ function upsertRecords(
 
 function upsertEpisode(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO episodes (id, module, subject_id, status, snapshot, updated_at, sync_status)
      VALUES (?, 'pregnancy', ?, ?, ?, ?, 'SYNCED')`,
@@ -167,6 +170,7 @@ function upsertEpisode(record: Record<string, unknown>): void {
 
 function upsertNewbornEpisode(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO newborn_episodes
      (id, child_name, mother_name, sex, status, birth_weight_g, gestational_age_weeks, kmc_status, age_hours, minimum_class, created_at, sync_status)
@@ -189,6 +193,7 @@ function upsertNewbornEpisode(record: Record<string, unknown>): void {
 
 function upsertImmunisationChild(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO immunisation_children
      (id, child_name, dob, cwc_card_number, residence_status, next_due, defaulter_status, overdue_count, sync_status)
@@ -208,6 +213,7 @@ function upsertImmunisationChild(record: Record<string, unknown>): void {
 
 function upsertGrowthMeasurement(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO growth_measurements
      (id, child_name, measurement_date, weight_kg, length_cm, muac_mm, indicator, sync_status)
@@ -226,6 +232,7 @@ function upsertGrowthMeasurement(record: Record<string, unknown>): void {
 
 function upsertNotification(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO notifications
      (id, title, notification_class, status, urgency, due_datetime, created_at)
@@ -244,6 +251,7 @@ function upsertNotification(record: Record<string, unknown>): void {
 
 function upsertCWCSession(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO cwc_sessions
      (id, facility_name, session_date, session_type, status, expected_count, attended_count, completed_at, sync_status)
@@ -263,6 +271,7 @@ function upsertCWCSession(record: Record<string, unknown>): void {
 
 function upsertReferral(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   const patientId = (record.patient_id as string) ?? (record.patient as string) ?? null;
   const patientName = (record.patient_name as string) ?? '';
   const refFacilityId = (record.referring_facility_id as string) ?? (record.referring_facility as string) ?? null;
@@ -302,6 +311,7 @@ function upsertReferral(record: Record<string, unknown>): void {
 
 function upsertPerson(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO persons (id, full_name, date_of_birth, gender, phone, preferred_language, sensitive_content_consent, communication_opt_out, national_id, sync_status)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED')`,
@@ -321,6 +331,7 @@ function upsertPerson(record: Record<string, unknown>): void {
 
 function upsertRiskAssessment(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO risk_assessments
      (id, prediction_type, subject_type, subject_id, risk_band, risk_score,
@@ -346,6 +357,7 @@ function upsertRiskAssessment(record: Record<string, unknown>): void {
 
 function upsertDefaulter(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO defaulter_episodes
      (id, child_id, child_name, defaulter_status, days_overdue, last_visit_date, next_due_date, reason, trace_status, traced_at, trace_notes, sync_status)
@@ -368,6 +380,7 @@ function upsertDefaulter(record: Record<string, unknown>): void {
 
 function upsertImportRecord(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO import_records
      (id, batch_id, row_number, person_id, status, error_message, raw_data, sync_status)
@@ -386,6 +399,7 @@ function upsertImportRecord(record: Record<string, unknown>): void {
 
 function upsertVaccineDose(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO vaccine_doses
      (id, child_id, vaccine_code, dose_number, administration_datetime, batch_lot, product_name, route_site, sync_status)
@@ -405,6 +419,7 @@ function upsertVaccineDose(record: Record<string, unknown>): void {
 
 function upsertPregnancyObservation(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO episodes (id, module, subject_id, status, snapshot, updated_at, sync_status)
      VALUES (?, 'pregnancy_observation', ?, 'OBSERVED', ?, ?, 'SYNCED')`,
@@ -419,6 +434,7 @@ function upsertPregnancyObservation(record: Record<string, unknown>): void {
 
 function upsertNewbornObservation(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO newborn_observations
      (id, newborn_id, temperature_c, respiratory_rate_min, severe_chest_indrawing, convulsions,
@@ -463,6 +479,7 @@ function upsertNewbornObservation(record: Record<string, unknown>): void {
 
 function upsertImportBatch(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO import_batches
      (id, file_name, status, total_records, committed_records, error_records, created_at, sync_status)
@@ -481,6 +498,7 @@ function upsertImportBatch(record: Record<string, unknown>): void {
 
 function upsertCWCAttendance(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO cwc_session_attendance
      (id, session_id, child_id, child_name, attended, weight_kg, muac_mm, notes, sync_status)
@@ -500,6 +518,7 @@ function upsertCWCAttendance(record: Record<string, unknown>): void {
 
 function upsertAuditEvent(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO audit_events
      (id, actor, action, entity_type, entity_id, purpose, occurred_at, sync_status)
@@ -518,6 +537,7 @@ function upsertAuditEvent(record: Record<string, unknown>): void {
 
 function upsertActionRecord(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO action_records
      (id, notification_id, action_type, notes, sync_status)
@@ -533,6 +553,7 @@ function upsertActionRecord(record: Record<string, unknown>): void {
 
 function upsertPregnancyAssessment(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO assessments
      (id, module, episode_id, disposition, fired_rules, recommended_action, assessed_at, sync_status)
@@ -550,6 +571,7 @@ function upsertPregnancyAssessment(record: Record<string, unknown>): void {
 
 function upsertNewbornAssessment(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO newborn_assessments
      (id, episode_id, disposition, fired_rules, recommended_action, assessed_at, sync_status)
@@ -567,6 +589,7 @@ function upsertNewbornAssessment(record: Record<string, unknown>): void {
 
 function upsertReferralStateLog(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO referral_state_logs
      (id, referral_id, from_status, to_status, changed_by, changed_at, notes, sync_status)
@@ -585,6 +608,7 @@ function upsertReferralStateLog(record: Record<string, unknown>): void {
 
 function upsertCaregiverLink(record: Record<string, unknown>): void {
   const db = getDb();
+  if (!db) return;
   db.execute(
     `INSERT OR REPLACE INTO caregiver_links
      (id, person_id, caregiver_id, relationship, is_primary, sync_status)

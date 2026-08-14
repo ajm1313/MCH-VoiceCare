@@ -42,6 +42,7 @@ export function enqueue<TPayload>(
   const localVersion = options?.localVersion ?? 1;
 
   const db = getDb();
+  if (!db) throw new Error('Database not available');
   db.execute(
     `INSERT INTO ${TABLE} (client_id, idempotency_key, entity_type, payload, created_at_local, device_id, rule_set_version, sync_status, attempts, entity_id, operation, local_version)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'NOT_SYNCED', 0, ?, ?, ?)`,
@@ -76,6 +77,7 @@ export function updateStatus(
   error?: string | null,
 ): void {
   const db = getDb();
+  if (!db) return;
   const now = new Date().toISOString();
 
   if (status === 'RETRY_PENDING') {

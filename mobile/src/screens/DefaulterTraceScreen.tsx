@@ -39,6 +39,7 @@ export function DefaulterTraceScreen({route, navigation}: Props) {
         text: 'Save',
         onPress: () => {
           const db = getDb();
+          if (!db) return;
           const now = new Date().toISOString();
           db.execute(
             `UPDATE defaulter_episodes SET trace_status = ?, traced_at = ?, trace_notes = ?, defaulter_status = ? WHERE id = ?`,

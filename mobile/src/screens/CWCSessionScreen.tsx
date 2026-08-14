@@ -127,6 +127,7 @@ export function CWCSessionScreen() {
   const handleCreateSession = () => {
     if (!facilityName.trim() || !sessionDate.trim()) return;
     const db = getDb();
+    if (!db) return;
     if (editingSession) {
       db.execute(
         `UPDATE cwc_sessions SET facility_name = ?, session_date = ?, session_type = ?, sync_status = 'NOT_SYNCED' WHERE id = ?`,
@@ -165,6 +166,7 @@ export function CWCSessionScreen() {
   const toggleAttendance = (row: AttendanceRow) => {
     const newAttended = row.attended ? 0 : 1;
     const db = getDb();
+    if (!db) return;
     db.execute(
       `UPDATE cwc_session_attendance SET attended = ?, sync_status = 'NOT_SYNCED' WHERE id = ?`,
       [newAttended, row.id],
@@ -180,6 +182,7 @@ export function CWCSessionScreen() {
     );
     const count = Number(rows[0]?.cnt || 0);
     const db = getDb();
+    if (!db) return;
     db.execute(
       `UPDATE cwc_sessions SET attended_count = ?, sync_status = 'NOT_SYNCED' WHERE id = ?`,
       [count, sessionId],
@@ -190,6 +193,7 @@ export function CWCSessionScreen() {
   const handleCloseSession = () => {
     if (!selectedSession) return;
     const db = getDb();
+    if (!db) return;
     const now = new Date().toISOString();
     db.execute(
       `UPDATE cwc_sessions SET status = 'COMPLETED', completed_at = ?, sync_status = 'NOT_SYNCED'

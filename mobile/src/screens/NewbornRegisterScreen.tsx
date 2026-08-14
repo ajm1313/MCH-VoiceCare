@@ -5,13 +5,12 @@
  */
 import React, {useState} from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Switch,
   View,
 } from 'react-native';
+import {KeyboardAvoidingViewWrapper} from '../components/ui/KeyboardAvoidingViewWrapper';
 import {Alert} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -233,9 +232,7 @@ export function NewbornRegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{flex: 1}}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingViewWrapper style={{flex: 1}}>
       <Screen scroll>
         <SectionHeader title="Register Newborn" />
 
@@ -349,7 +346,7 @@ export function NewbornRegisterScreen() {
           style={styles.saveButton}
         />
       </Screen>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingViewWrapper>
   );
 }
 

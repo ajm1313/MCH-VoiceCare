@@ -126,7 +126,7 @@ describe('authStore — restoreSession', () => {
       password: JSON.stringify({
         token: 'restored-tok',
         refreshToken: 'rtok',
-        expiresAt: '2025-01-01T12:00:00Z',
+        expiresAt: '2099-01-01T12:00:00Z',
         user: { id: 'u1', username: 'worker', fullName: 'W',
           isActive: true, isStaff: false, isSuperuser: false,
           isSuperAdmin: false, isFacilityLevelOnly: false,

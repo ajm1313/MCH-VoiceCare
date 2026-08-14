@@ -57,5 +57,15 @@ export type RootStackParamList = {
   ClinicianOverride: { episodeId: string; episodeType: string; priorRecommendation: string };
   // OCR (spec §16, §10 — screen named "ScanScreen")
   Scan: { patientId: string; episode?: string };
-  OCRConfirm: { jobId: string };
+  OCRConfirm: {
+    jobId: string;
+    localFields?: Array<{
+      key: string;
+      value: string;
+      confidence: number;
+      safety_critical: boolean;
+      human_confirmed: boolean;
+    }>;
+    localEngine?: string;
+  };
 };

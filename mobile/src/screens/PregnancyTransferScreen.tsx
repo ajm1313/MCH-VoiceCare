@@ -47,6 +47,7 @@ export function PregnancyTransferScreen({route, navigation}: Props) {
         text: 'Transfer',
         onPress: () => {
           const db = getDb();
+          if (!db) return;
           db.execute(
             "UPDATE episodes SET status = 'TRANSFERRED', updated_at = ? WHERE id = ?",
             [new Date().toISOString(), episodeId],

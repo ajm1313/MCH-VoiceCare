@@ -51,6 +51,7 @@ export function ReferralCreateScreen({route, navigation}: Props) {
       return;
     }
     const db = getDb();
+    if (!db) return;
     const id = `ref-${Date.now()}`;
     const now = new Date().toISOString();
     db.execute(

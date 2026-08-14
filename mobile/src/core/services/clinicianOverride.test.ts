@@ -17,9 +17,10 @@ jest.mock('../auth/authStore', () => ({
 }));
 
 // Mock outbox enqueue
-const mockEnqueue = jest.fn(() => 'client-id-123');
+type EnqueueArgs = [string, Record<string, unknown>, string, string, Record<string, unknown>?];
+const mockEnqueue = jest.fn((...args: EnqueueArgs) => 'client-id-123');
 jest.mock('../sync/outbox', () => ({
-  enqueue: (...args: unknown[]) => mockEnqueue(...args),
+  enqueue: (...args: EnqueueArgs) => mockEnqueue(...args),
 }));
 
 // Mock database
@@ -91,7 +92,7 @@ describe('clinicianOverride — offline support', () => {
     expect(result.data?.override_id).toBe('override-uuid-001');
     expect(mockEnqueue).toHaveBeenCalledTimes(1);
 
-    const [, payload, deviceId, ruleSetVersion, options] = mockEnqueue.mock.calls[0];
+    const [, payload, deviceId, ruleSetVersion, options] = mockEnqueue.mock.calls[0] as EnqueueArgs;
     expect(payload.override_id).toBe('override-uuid-001');
     expect(payload.episode_id).toBe('ep-001');
     expect(payload.resulting_action).toBe('CONFIRM');

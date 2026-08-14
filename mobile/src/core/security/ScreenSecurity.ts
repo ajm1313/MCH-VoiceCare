@@ -46,8 +46,15 @@ export async function setFlagSecure(enabled: boolean): Promise<boolean> {
 }
 
 /**
- * Synchronous version of setFlagSecure for use in hooks where we can't await.
- * Returns true if the call was dispatched (does not wait for result).
+ * Synchronous-looking version of setFlagSecure for use in hooks where we can't await.
+ * Calls the async setFlagSecure method in fire-and-forget mode.
+ * The native method uses runOnUiThread to set/clear FLAG_SECURE, which is safe
+ * and works correctly in both Old and New Architecture.
+ *
+ * Note: This is NOT truly synchronous — the flag is set/cleared on the next
+ * UI thread tick. This is fine because:
+ * - On login screen mount, the useEffect calls this before the user can tap inputs
+ * - After login, the flag is set (no keyboard needed on Dashboard)
  */
 export function setFlagSecureSync(enabled: boolean): boolean {
   if (Platform.OS !== 'android') {
@@ -55,8 +62,7 @@ export function setFlagSecureSync(enabled: boolean): boolean {
   }
   if (ScreenSecurityNative && typeof ScreenSecurityNative.setFlagSecure === 'function') {
     try {
-      // Fire and forget — the native method runs on UI thread
-      ScreenSecurityNative.setFlagSecure(enabled);
+      ScreenSecurityNative.setFlagSecure(enabled).catch(() => {});
       return true;
     } catch {
       return false;

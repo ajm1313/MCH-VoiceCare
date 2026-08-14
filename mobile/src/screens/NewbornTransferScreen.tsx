@@ -44,6 +44,7 @@ export function NewbornTransferScreen({route, navigation}: Props) {
         text: 'Transfer',
         onPress: () => {
           const db = getDb();
+          if (!db) return;
           db.execute(
             "UPDATE newborn_episodes SET status = 'TRANSFERRED' WHERE id = ?",
             [episodeId],

@@ -175,6 +175,7 @@ export function VoiceRecordScreen({route, navigation}: Props) {
       // and the sync engine sends the path metadata. The backend
       // endpoint accepts multipart upload for the audio file.
       const db = getDb();
+      if (!db) return;
       db.execute(
         `INSERT OR REPLACE INTO voice_recordings
          (id, episode_id, module, audio_path, duration_ms, language, transcript, extracted_data, status, created_at, sync_status)

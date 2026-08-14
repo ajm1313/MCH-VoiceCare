@@ -66,6 +66,7 @@ export function CWCDetailScreen({route, navigation}: Props) {
 
   const toggleAttendance = (id: string, value: boolean) => {
     const db = getDb();
+    if (!db) return;
     db.execute('UPDATE cwc_session_attendance SET attended = ? WHERE id = ?', [value ? 1 : 0, id]);
     setAttendance(prev => prev.map(a => a.id === id ? {...a, attended: value ? 1 : 0} : a));
   };
@@ -78,6 +79,7 @@ export function CWCDetailScreen({route, navigation}: Props) {
         text: 'Close',
         onPress: () => {
           const db = getDb();
+          if (!db) return;
           const attended = attendance.filter(a => a.attended).length;
           db.execute(
             "UPDATE cwc_sessions SET status = 'COMPLETED', attended_count = ?, completed_at = ? WHERE id = ?",

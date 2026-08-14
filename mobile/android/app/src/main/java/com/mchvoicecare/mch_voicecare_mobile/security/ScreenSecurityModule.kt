@@ -6,6 +6,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.Promise
+import com.facebook.react.module.annotations.ReactModule
 
 /**
  * ScreenSecurity native module — exposes FLAG_SECURE toggling to JS (spec §22.2).
@@ -18,10 +19,15 @@ import com.facebook.react.bridge.Promise
  * This module allows the JS layer to dynamically enable/disable FLAG_SECURE
  * on the current activity window.
  */
+@ReactModule(name = ScreenSecurityModule.NAME)
 class ScreenSecurityModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
 
-    override fun getName(): String = "ScreenSecurity"
+    companion object {
+        const val NAME = "ScreenSecurity"
+    }
+
+    override fun getName(): String = NAME
 
     /**
      * Enable or disable FLAG_SECURE on the current activity window.

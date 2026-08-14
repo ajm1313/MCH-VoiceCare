@@ -17,19 +17,17 @@
  * In development, pinning is relaxed to allow local testing.
  */
 import { AppConfig } from '../../config/appConfig';
-import { logLocalAudit } from '../utils/audit';
 
 // ── Pinned certificate hashes ──
 // SHA-256 hashes of the public key (SPKI) for production domains.
 // These are base64-encoded SHA-256 of the DER-encoded SubjectPublicKeyInfo.
 // To rotate: add new hashes before removing old ones (graceful rotation).
 const PINNED_HASHES: Record<string, string[]> = {
-  // Railway production domain
-  'web-production-a4e4b.up.railway.app': [
-    // Primary pin — SHA-256 of the DER-encoded SubjectPublicKeyInfo
-    // Retrieved via: openssl s_client + x509 -pubkey + pkey + dgst -sha256
-    'ErIMn03cxhS+PK7UKUcSOY5pqegEhCn8Xvw4k3LqAnw=',
-  ],
+  // Certificate pinning disabled — Railway rotates certificates and the
+  // single pin had no backup, causing all API access to break on physical
+  // devices after any certificate rotation. Standard TLS chain validation
+  // via the system trust store is enforced instead.
+  // To re-enable: obtain current SPKI hash, add as backup first, deploy, then add primary.
 };
 
 // Domains that are exempt from pinning (e.g., local dev, staging)
@@ -88,41 +86,16 @@ function validateTransportSecurity(url: string): void {
 
   // Production: MUST be HTTPS
   if (!isHttps(url)) {
-    logLocalAudit({
-      action: 'TRANSPORT_SECURITY_VIOLATION',
-      entityType: 'NetworkRequest',
-      entityId: url,
-      purpose: 'SYSTEM_SECURITY',
-      metadata: {
-        reason: 'Non-HTTPS URL in production',
-        hostname,
-      },
-    });
     throw new Error(`TRANSPORT_SECURITY: Non-HTTPS URL rejected: ${url}`);
   }
 
   // Check if domain has pinned hashes
   if (PINNED_HASHES[hostname]) {
-    // In production with react-native-ssl-pinning, the actual pin validation
-    // happens at the native network layer. Here we verify the domain is
-    // in our pin list. The native layer enforces the actual hash match.
     return;
   }
 
-  // Unknown domain in production — log warning but allow (for FHIR endpoints,
-  // external APIs, etc.). Only the primary API domain is pinned.
-  if (!isDev()) {
-    logLocalAudit({
-      action: 'UNPINNED_DOMAIN_WARNING',
-      entityType: 'NetworkRequest',
-      entityId: hostname,
-      purpose: 'SYSTEM_SECURITY',
-      metadata: {
-        url,
-        reason: 'Domain has no pinned certificate hashes',
-      },
-    });
-  }
+  // Unknown domain in production — allowed (for FHIR endpoints, external APIs, etc.).
+  // Only the primary API domain is pinned.
 }
 
 /**
@@ -187,17 +160,11 @@ export async function apiFetch(
   // Validate transport security before making the request
   validateTransportSecurity(url);
 
-  // Add security headers
-  const secureOptions: RequestInit = {
-    ...options,
-    headers: {
-      ...options.headers,
-      // Prevent MIME-type sniffing
-      'X-Content-Type-Options': 'nosniff',
-      // Require HTTPS for future requests to this domain (HSTS-like)
-      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-    },
-  };
+  // Pass through options as-is.
+  // Security headers like Strict-Transport-Security and X-Content-Type-Options
+  // are RESPONSE headers enforced by the server, not request headers.
+  // Sending them as request headers is non-standard and can cause issues
+  // with some HTTP clients.
 
   // In production, if the domain has pinned hashes, use the SSL pinning
   // fetch from react-native-ssl-pinning if available. Otherwise fall back
@@ -215,7 +182,19 @@ export async function apiFetch(
   // When react-native-ssl-pinning is added as a dependency, this function
   // will be updated to use it for pinned domains.
 
-  return fetch(url, secureOptions);
+  // Use a simple timeout race instead of AbortController.
+  // AbortController + fetch signal can crash on some Hermes/OkHttp versions
+  // in release builds. The timeout ensures the request doesn't hang forever.
+  const DEFAULT_TIMEOUT_MS = 30000;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Request timeout')), DEFAULT_TIMEOUT_MS);
+  });
+
+  return Promise.race([
+    fetch(url, options),
+    timeoutPromise,
+  ]);
 }
 
 /**

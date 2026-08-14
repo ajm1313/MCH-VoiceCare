@@ -45,6 +45,7 @@ export function NewbornCloseScreen({route, navigation}: Props) {
         style: 'destructive',
         onPress: () => {
           const db = getDb();
+          if (!db) return;
           db.execute(
             "UPDATE newborn_episodes SET status = 'CLOSED' WHERE id = ?",
             [episodeId],

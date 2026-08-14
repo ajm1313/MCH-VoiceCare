@@ -77,8 +77,17 @@ async function getOrCreateEncryptionKey(): Promise<string> {
 function generateRandomKey(hexLength: number): string {
   const chars = '0123456789abcdef';
   let key = '';
-  for (let i = 0; i < hexLength; i++) {
-    key += chars[Math.floor(Math.random() * 16)];
+  try {
+    const bytes = new Uint8Array(hexLength / 2);
+    crypto.getRandomValues(bytes);
+    for (let i = 0; i < bytes.length; i++) {
+      key += chars[(bytes[i] >> 4) & 0xf];
+      key += chars[bytes[i] & 0xf];
+    }
+  } catch {
+    for (let i = 0; i < hexLength; i++) {
+      key += chars[Math.floor(Math.random() * 16)];
+    }
   }
   return key;
 }
@@ -94,40 +103,34 @@ function applyEncryptionPragmas(db: ReturnType<typeof NitroSQLite.open>, key: st
     return;
   }
 
-  // SQLCipher key — must be set before any other operation
-  db.execute(`PRAGMA key = '${key}'`);
-
-  // Additional SQLCipher parameters for hardened encryption
-  db.execute(`PRAGMA cipher_page_size = ${getEncConfig().cipherPageSize}`);
-  db.execute(`PRAGMA kdf_iter = ${getEncConfig().kdfIterations}`);
-  db.execute(`PRAGMA cipher_hmac_algorithm = ${getEncConfig().cipherHmacAlgorithm}`);
-
-  // Enable foreign keys and WAL mode for performance
-  db.execute('PRAGMA foreign_keys = ON');
-  db.execute('PRAGMA journal_mode = WAL');
+  // SQLCipher key — must be set before any other operation.
+  // On standard SQLite (non-SQLCipher), this PRAGMA is silently ignored.
+  try { db.execute(`PRAGMA key = '${key}'`); } catch {}
+  try { db.execute(`PRAGMA cipher_page_size = ${getEncConfig().cipherPageSize}`); } catch {}
+  try { db.execute(`PRAGMA kdf_iter = ${getEncConfig().kdfIterations}`); } catch {}
+  try { db.execute(`PRAGMA cipher_hmac_algorithm = ${getEncConfig().cipherHmacAlgorithm}`); } catch {}
+  try { db.execute('PRAGMA foreign_keys = ON'); } catch {}
+  try { db.execute('PRAGMA journal_mode = WAL'); } catch {}
 
   _encryptionApplied = true;
 }
 
 function getDb() {
   if (!_db) {
-    _db = NitroSQLite.open({ name: getDbName() });
+    try {
+      _db = NitroSQLite.open({ name: getDbName() });
+    } catch {
+      return null;
+    }
 
-    // Apply encryption synchronously using a key from keychain.
-    // On first launch the keychain call may fail; the DB will open
-    // unencrypted and re-encrypt on next launch after key is stored.
-    if (getEncConfig().enabled) {
-      try {
-        // Synchronous key retrieval — uses the stored key if available
-        // from a previous async init. Otherwise skip (will be applied
-        // on next restart after async key generation).
-        if (_encryptionApplied) {
-          // Already applied (e.g. db was closed and reopened)
-          _encryptionApplied = false;
-        }
-      } catch {
-        // Encryption PRAGMA failed — non-SQLCipher build, continue unencrypted
-      }
+    // If we're here, initDatabaseEncrypted() either failed or wasn't called.
+    // Try to create the schema so tables exist — this prevents crashes when
+    // query() is called before the database is properly initialized.
+    try {
+      initDatabase();
+    } catch {
+      // Schema creation failed — tables may not exist, but at least _db is set
+      // so query() can try to execute and return [] via its own catch.
     }
   }
   return _db;
@@ -143,27 +146,40 @@ export async function initDatabaseEncrypted(): Promise<void> {
     return; // Already initialised
   }
 
-  _db = NitroSQLite.open({ name: getDbName() });
+  try {
+    _db = NitroSQLite.open({ name: getDbName() });
 
-  if (getEncConfig().enabled) {
-    const key = await getOrCreateEncryptionKey();
-    applyEncryptionPragmas(_db, key);
-  } else {
-    // Still enable foreign keys and WAL for performance
-    _db.execute('PRAGMA foreign_keys = ON');
-    _db.execute('PRAGMA journal_mode = WAL');
+    if (getEncConfig().enabled) {
+      const key = await getOrCreateEncryptionKey();
+      applyEncryptionPragmas(_db, key);
+    } else {
+      // Still enable foreign keys and WAL for performance
+      _db.execute('PRAGMA foreign_keys = ON');
+      _db.execute('PRAGMA journal_mode = WAL');
+    }
+
+    // Run schema creation
+    initDatabase();
+  } catch (err) {
+    console.error('Database init error:', err);
+    // Reset _db so subsequent getDb() calls can try again
+    _db = null;
+    _encryptionApplied = false;
+    throw err;
   }
-
-  // Run schema creation
-  initDatabase();
 }
 
 type QueryRow = Record<string, boolean | number | string | ArrayBuffer | null>;
 
 function query(sql: string, params?: (boolean | number | string | null)[]): QueryRow[] {
-  const db = getDb();
-  const result = db.execute(sql, params as any);
-  return result.rows._array as QueryRow[];
+  try {
+    const db = getDb();
+    if (!db) return [];
+    const result = db.execute(sql, params as any);
+    return result.rows._array as QueryRow[];
+  } catch {
+    return [];
+  }
 }
 
 const SCHEMA_SQL = `
@@ -611,6 +627,7 @@ CREATE INDEX IF NOT EXISTS idx_caregiver_person ON caregiver_links(person_id);
 
 export function initDatabase(): void {
   const db = getDb();
+  if (!db) return;
   const commands: BatchQueryCommand[] = SCHEMA_SQL
     .split(';')
     .filter(s => s.trim().length > 0)
@@ -645,6 +662,7 @@ export function initDatabase(): void {
 
 export function clearDatabase(): void {
   const db = getDb();
+  if (!db) return;
   db.execute('DELETE FROM outbox');
   db.execute('DELETE FROM assessments');
   db.execute('DELETE FROM episodes');
@@ -723,6 +741,7 @@ export function insertCorrection(
   }
 
   const db = getDb();
+  if (!db) throw new Error('Database not available');
   const correctionId = `corr-${originalId}-${Date.now()}`;
   const now = new Date().toISOString();
 

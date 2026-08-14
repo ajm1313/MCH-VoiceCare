@@ -51,6 +51,7 @@ export function setCachedContent(
   ttlHours: number = DEFAULT_TTL_HOURS,
 ): void {
   const db = getDb();
+  if (!db) return;
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + ttlHours * 3600_000).toISOString();
   db.execute(
@@ -90,6 +91,7 @@ export function isCacheStale(key: string): boolean {
 
 export function clearCache(key?: string): void {
   const db = getDb();
+  if (!db) return;
   if (key) {
     db.execute('DELETE FROM content_cache WHERE cache_key = ?', [key]);
   } else {

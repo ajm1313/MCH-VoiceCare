@@ -8,14 +8,13 @@
  */
 import React, {useState} from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   View,
 } from 'react-native';
+import {KeyboardAvoidingViewWrapper} from '../components/ui/KeyboardAvoidingViewWrapper';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {enqueue} from '../core/sync/outbox';
@@ -192,9 +191,7 @@ export function PregnancyObserveScreen({route, navigation}: Props) {
         <AppText variant="h2">Record Observation</AppText>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.flex}>
+      <KeyboardAvoidingViewWrapper style={styles.flex}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
             <SectionHeader title="Vital Signs" overline="Section 1" />
             <View style={styles.row}>
@@ -282,7 +279,7 @@ export function PregnancyObserveScreen({route, navigation}: Props) {
               accessibilityLabel="Save observation and queue for sync"
             />
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingViewWrapper>
     </Screen>
   );
 }

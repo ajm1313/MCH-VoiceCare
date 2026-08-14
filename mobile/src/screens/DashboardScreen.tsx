@@ -28,7 +28,7 @@ import {subscribeToSyncDepth, syncFull} from '../core/sync/engine';
 import {brand, urgency} from '../theme/colors';
 import {useTheme} from '../theme/useTheme';
 import {border, radius, space, elevation, pressedStyle, MIN_TOUCH} from '../theme/tokens';
-import {checkRulePackageStatus} from '../core/rules/rulePackage';
+import {checkRulePackageStatus, type RulePackageStatus} from '../core/rules/rulePackage';
 import {query} from '../core/db/database';
 import {getCachedDashboard} from '../core/sync/dashboardSync';
 import {BottomTabBar} from '../components/BottomTabBar';
@@ -80,17 +80,27 @@ export function DashboardScreen({navigation}: Props) {
   const {user, logout} = useAuthStore();
   const isAdmin = useIsAdmin();
   const isSuperAdmin = useIsSuperAdmin();
-  const [queueDepth, setQueueDepth] = useState(getQueueDepth());
-  const ruleStatus = checkRulePackageStatus();
+  const [queueDepth, setQueueDepth] = useState(0);
+  const [ruleStatus, setRuleStatus] = useState<RulePackageStatus>({
+    isValid: false,
+    isExpired: true,
+    isSignatureVerified: false,
+    version: null,
+    warning: null,
+  });
   const [counts, setCounts] = useState({RED: 0, ORANGE: 0, AMBER: 0, GREY: 0});
   const [quickStats, setQuickStats] = useState({overdueAssessments: 0, dosesDue: 0, defaulters: 0, pendingSync: 0});
   const [recentActivity, setRecentActivity] = useState<{label: string; sub: string; time: string; icon: IconName}[]>([]);
   const [analytics, setAnalytics] = useState({coverageRate: 0, totalChildren: 0, childrenWithDoses: 0, defaulterRate: 0, openDefaulters: 0});
-  const [serverAggregate, setServerAggregate] = useState(getCachedDashboard());
+  const [serverAggregate, setServerAggregate] = useState<any>(null);
 
   useEffect(() => {
+    try {
+      setQueueDepth(getQueueDepth());
+      setRuleStatus(checkRulePackageStatus());
+      setServerAggregate(getCachedDashboard());
+    } catch {}
     const unsub = subscribeToSyncDepth(setQueueDepth);
-    setServerAggregate(getCachedDashboard());
     return unsub;
   }, []);
 
@@ -227,11 +237,11 @@ export function DashboardScreen({navigation}: Props) {
         `You have ${count} record${count > 1 ? 's' : ''} pending synchronisation. Signing out may lose this data.\n\nSign out anyway?`,
         [
           {text: 'Cancel', style: 'cancel'},
-          {text: 'Sign out anyway', style: 'destructive', onPress: () => logout(true)},
+          {text: 'Sign out anyway', style: 'destructive', onPress: () => logout(true).catch(() => {})},
         ],
       );
     } else {
-      logout();
+      logout().catch(() => {});
     }
   };
 

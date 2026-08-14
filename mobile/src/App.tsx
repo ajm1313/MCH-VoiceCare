@@ -19,6 +19,7 @@ import {setConfigGetFunction} from './core/sync/configStore';
 import {setDashboardGetFunction} from './core/sync/dashboardSync';
 import {setWorklistGetFunction} from './core/sync/worklistSync';
 import {setRulePackageGetFunction} from './core/sync/rulePackageSync';
+import {apiFetch} from './core/security/secureFetch';
 import {useAuthStore} from './core/auth/authStore';
 import {useAutoLock} from './core/auth/useAutoLock';
 import {provisionDevice} from './core/auth/deviceProvision';
@@ -87,9 +88,9 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     (async () => {
-      // Wire HTTP functions for sync subsystems
+      // Wire HTTP functions for sync subsystems — use apiFetch for transport security (spec §22.3)
       const httpGet = async (url: string, headers: Record<string, string>) => {
-        const resp = await fetch(url, {headers});
+        const resp = await apiFetch(url, {headers});
         return {
           ok: resp.ok,
           status: resp.status,
@@ -97,7 +98,7 @@ export default function App(): React.JSX.Element {
         };
       };
       const httpPost = async (url: string, body: unknown, headers: Record<string, string>) => {
-        const resp = await fetch(url, {
+        const resp = await apiFetch(url, {
           method: 'POST',
           headers: {'Content-Type': 'application/json', ...headers},
           body: JSON.stringify(body),
@@ -115,8 +116,16 @@ export default function App(): React.JSX.Element {
       setWorklistGetFunction(httpGet);
       setRulePackageGetFunction(httpGet);
 
-      await initDatabaseEncrypted();
-      await restoreSession();
+      try {
+        await initDatabaseEncrypted();
+      } catch (err) {
+        console.error('Database init failed:', err);
+      }
+      try {
+        await restoreSession();
+      } catch (err) {
+        console.error('Session restore failed:', err);
+      }
       // Provision device after session restore (best-effort, non-blocking)
       provisionDevice().catch(() => {});
       startBackgroundSync();

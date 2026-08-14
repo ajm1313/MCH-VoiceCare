@@ -8,8 +8,6 @@
  */
 import React, {useState} from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +15,7 @@ import {
   View,
   Alert,
 } from 'react-native';
+import {KeyboardAvoidingViewWrapper} from '../components/ui/KeyboardAvoidingViewWrapper';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
@@ -202,9 +201,7 @@ export function PregnancyRegisterScreen() {
 
   return (
     <Screen padded={false}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingViewWrapper style={styles.flex}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
           <AppText variant="h1" style={styles.title}>Register Pregnancy</AppText>
 
@@ -395,7 +392,7 @@ export function PregnancyRegisterScreen() {
             )}
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingViewWrapper>
     </Screen>
   );
 }

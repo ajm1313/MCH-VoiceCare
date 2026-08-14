@@ -6,6 +6,7 @@
  * active rule bundle version — all needed for offline-first operation.
  */
 import { Platform } from 'react-native';
+import * as Keychain from 'react-native-keychain';
 import { AppConfig } from '../../config/appConfig';
 import { useAuthStore } from './authStore';
 import { setCachedJSON, getCachedJSON, CACHE_KEYS } from '../sync/contentCache';
@@ -38,10 +39,26 @@ export interface DeviceProvisionResponse {
   };
 }
 
-function getDeviceId(): string {
-  // Generate a stable device ID from keychain or use a temporary one
-  // In production, this would use a device ID library
-  return `device-${Platform.OS}-${Date.now()}`;
+const DEVICE_ID_SERVICE = 'mch_voicecare_device_id';
+const DEVICE_ID_ACCOUNT = 'device_id';
+
+async function getDeviceId(): Promise<string> {
+  try {
+    const creds = await Keychain.getGenericPassword({ service: DEVICE_ID_SERVICE });
+    if (creds && creds.password) {
+      return creds.password;
+    }
+  } catch {
+    // Not stored yet
+  }
+  // Generate a stable device ID and persist it
+  const deviceId = `device-${Platform.OS}-${Date.now()}`;
+  try {
+    await Keychain.setGenericPassword(DEVICE_ID_ACCOUNT, deviceId, { service: DEVICE_ID_SERVICE });
+  } catch {
+    // Keychain unavailable — return temporary ID
+  }
+  return deviceId;
 }
 
 export async function provisionDevice(): Promise<DeviceProvisionResponse | null> {
@@ -50,7 +67,7 @@ export async function provisionDevice(): Promise<DeviceProvisionResponse | null>
     return null;
   }
 
-  const deviceId = getDeviceId();
+  const deviceId = await getDeviceId();
   const body = {
     device_id: deviceId,
     device_model: Platform.OS === 'ios' ? 'iOS' : 'Android',

@@ -7,8 +7,7 @@
  * - Dev URLs (localhost, 10.0.2.2) are allowed in development
  * - Pinned domains are identified correctly
  * - Pin management (add/remove) works
- * - Security headers are added to requests
- * - Transport security violations are audit-logged
+ * - Requests are passed through to fetch without non-standard headers
  */
 import { apiFetch, checkUrlSafety, getPinnedHashes, isDomainPinned, addPinnedHash, removePinnedHash } from './secureFetch';
 
@@ -72,9 +71,9 @@ describe('secureFetch — certificate pinning (spec §22.3)', () => {
   });
 
   describe('getPinnedHashes', () => {
-    it('returns hashes for pinned domains', () => {
+    it('returns empty array for production domain (pinning disabled)', () => {
       const hashes = getPinnedHashes('https://web-production-a4e4b.up.railway.app/api/v1');
-      expect(hashes.length).toBeGreaterThan(0);
+      expect(hashes).toEqual([]);
     });
 
     it('returns empty array for unpinned domains', () => {
@@ -84,8 +83,8 @@ describe('secureFetch — certificate pinning (spec §22.3)', () => {
   });
 
   describe('isDomainPinned', () => {
-    it('returns true for pinned domains', () => {
-      expect(isDomainPinned('web-production-a4e4b.up.railway.app')).toBe(true);
+    it('returns false for production domain (pinning disabled)', () => {
+      expect(isDomainPinned('web-production-a4e4b.up.railway.app')).toBe(false);
     });
 
     it('returns false for unpinned domains', () => {
@@ -137,17 +136,13 @@ describe('secureFetch — certificate pinning (spec §22.3)', () => {
   });
 
   describe('apiFetch', () => {
-    it('calls fetch with security headers', async () => {
+    it('calls fetch with provided options', async () => {
       (global as any).__DEV__ = true;
       await apiFetch('http://10.0.2.2:8000/api/v1/health');
       expect(fetch).toHaveBeenCalled();
-      const callArgs = (fetch as jest.Mock).mock.calls[0];
-      const options = callArgs[1];
-      expect(options.headers['X-Content-Type-Options']).toBe('nosniff');
-      expect(options.headers['Strict-Transport-Security']).toContain('max-age');
     });
 
-    it('preserves existing headers while adding security headers', async () => {
+    it('preserves existing headers', async () => {
       (global as any).__DEV__ = true;
       await apiFetch('http://10.0.2.2:8000/api/v1/health', {
         headers: { Authorization: 'Bearer token123' },
@@ -155,7 +150,6 @@ describe('secureFetch — certificate pinning (spec §22.3)', () => {
       const callArgs = (fetch as jest.Mock).mock.calls[0];
       const options = callArgs[1];
       expect(options.headers['Authorization']).toBe('Bearer token123');
-      expect(options.headers['X-Content-Type-Options']).toBe('nosniff');
     });
 
     it('throws on non-HTTPS URL in production', async () => {

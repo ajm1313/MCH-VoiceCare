@@ -7,18 +7,15 @@
         </trust-anchors>
     </base-config>
 
-    <!-- Certificate pinning for production API (spec §22.3) -->
-    <!-- Pin the Railway production domain. The pin is the base64-encoded
-         SHA-256 of the DER-encoded SubjectPublicKeyInfo (SPKI).
-         To rotate: add the new pin first, deploy, then remove the old pin. -->
+    <!-- Production API domain — TLS enforced, no certificate pinning.
+         Railway uses cloud infrastructure that rotates certificates, and
+         with only a single pin (no backup), any rotation breaks all API
+         access on physical devices. Standard certificate chain validation
+         via the system trust store is sufficient for transport security.
+         To re-enable pinning: obtain the current SPKI hash, add it as a
+         backup pin first, deploy, then add the primary pin. -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="false">web-production-a4e4b.up.railway.app</domain>
-        <pin-set expiration="2026-12-31">
-            <!-- Primary pin — Railway's public key (SHA-256 of SPKI) -->
-            <pin digest="SHA-256">ErIMn03cxhS+PK7UKUcSOY5pqegEhCn8Xvw4k3LqAnw=</pin>
-            <!-- Backup pin (for rotation) — add before removing primary -->
-            <!-- <pin digest="SHA-256">BACKUP_PIN_BASE64_HERE</pin> -->
-        </pin-set>
     </domain-config>
 
     <!-- Dev only: allow cleartext to Android emulator host (10.0.2.2) -->

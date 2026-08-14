@@ -27,6 +27,7 @@ export function purgeExpiredLocalData(retentionDays?: number): Record<string, nu
   const retention = retentionDays ?? getConfigNumber('CFG_DEVICE_RETENTION_POLICY', DEFAULT_RETENTION_DAYS);
   const cutoff = daysAgoISO(retention);
   const db = getDb();
+  if (!db) return {};
 
   const tables = [
     'episodes',

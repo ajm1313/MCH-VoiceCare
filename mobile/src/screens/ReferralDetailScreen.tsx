@@ -56,6 +56,7 @@ export function ReferralDetailScreen({route, navigation}: Props) {
         text: 'Update',
         onPress: () => {
           const db = getDb();
+          if (!db) return;
           const now = new Date().toISOString();
           const extraFields: Record<string, string> = {};
           if (status === 'ACCEPTED') extraFields.acknowledged_at = now;

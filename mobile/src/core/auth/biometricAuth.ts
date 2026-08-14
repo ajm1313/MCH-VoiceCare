@@ -179,8 +179,8 @@ export async function biometricLogin(): Promise<{
   if (!availability.available) {
     logLocalAudit({
       action: 'BIOMETRIC_LOGIN_UNAVAILABLE',
-      entity_type: 'auth',
-      details: {status: availability.status},
+      entityType: 'auth',
+      metadata: {status: availability.status},
     });
     return null;
   }
@@ -201,8 +201,8 @@ export async function biometricLogin(): Promise<{
   if (!authResult.success) {
     logLocalAudit({
       action: 'BIOMETRIC_LOGIN_FAILED',
-      entity_type: 'auth',
-      details: {error: authResult.error},
+      entityType: 'auth',
+      metadata: {error: authResult.error},
     });
     return null;
   }
@@ -212,8 +212,8 @@ export async function biometricLogin(): Promise<{
   if (creds) {
     logLocalAudit({
       action: 'BIOMETRIC_LOGIN_SUCCESS',
-      entity_type: 'auth',
-      details: {username: creds.username},
+      entityType: 'auth',
+      metadata: {username: creds.username},
     });
   }
   return creds;
